@@ -6,6 +6,8 @@ devices run through native Qt driver plugins. The KDE settings entry is **Lighti
 
 Currently supported: [ASUS ROG Strix G16 G615LW](src/drivers/asus-g615lw/README.md).
 
+![Lighting preset editor with keyboard and lightbar preview](docs/screenshots/presets.png)
+
 ## Build
 
 Linux with KDE Plasma. Current CMake minimums: **CMake 3.25, C++20, Qt 6.10,

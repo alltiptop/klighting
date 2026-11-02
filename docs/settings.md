@@ -75,6 +75,8 @@ only while the settings window is active; it is not a separate hardware test mod
 **Effects** contains individual saved effect presets, not a list of available types.
 Ambient and Notifications each have independent battery/low-charge pause settings.
 
+![Ambient effect settings with brightness, smoothing and power-saving controls](screenshots/effects.png)
+
 - **Ambient:** screen sampling 1–20 FPS (default 3), LED transitions 1–60 FPS
   (default 60), smoothing 0–3000 ms (default 400), minimum/maximum brightness
   (default 25/70%), and adjustable color temperature. A dominant-color histogram
@@ -98,6 +100,8 @@ preset. **Select Active Window** uses KWin's window picker. Matching is case-ins
 for Wayland applications the class normally comes from the application ID. The first
 matching enabled rule for the device's model wins; otherwise its default applies.
 Search fields filter applications, presets and effects without changing selection IDs.
+
+![Application binding assigning the Code Editor preset to Kate](screenshots/applications.png)
 
 Files live under `$XDG_CONFIG_HOME/kwin-effect-ambient-led/` (normally
 `~/.config/kwin-effect-ambient-led/`): `settings-v2.json`, `presets/`, and `effects/`.
