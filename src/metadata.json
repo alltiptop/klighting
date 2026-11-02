@@ -1,0 +1,27 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Evgenii Iulin",
+                "Email": "mail@alltiptop.me"
+            }
+        ],
+        "Name": "Ambient LED",
+        "Description": "Screen-based ambient lighting for supported devices",
+        "Category": "Appearance",
+        "Icon": "preferences-desktop-color",
+        "License": "GPL-3.0-or-later",
+        "Version": "0.27.0",
+        "EnabledByDefault": false,
+        "Description[ru]": "Фоновая подсветка по содержимому экрана для поддерживаемых устройств",
+        "Description[fr]": "Éclairage ambiant selon l’écran pour les périphériques compatibles",
+        "Description[it]": "Illuminazione ambientale basata sullo schermo per dispositivi supportati",
+        "Description[es]": "Iluminación ambiental basada en la pantalla para dispositivos compatibles",
+        "Description[uk]": "Фонове підсвічування за вмістом екрана для підтримуваних пристроїв",
+        "Description[pl]": "Oświetlenie otoczenia na podstawie ekranu dla obsługiwanych urządzeń",
+        "Description[de]": "Bildschirmabhängige Umgebungsbeleuchtung für unterstützte Geräte",
+        "Description[zh_CN]": "为受支持设备提供随屏幕变化的环境光",
+        "Description[ar]": "إضاءة محيطية حسب الشاشة للأجهزة المدعومة",
+        "Description[he]": "תאורת סביבה לפי המסך להתקנים נתמכים"
+    }
+}

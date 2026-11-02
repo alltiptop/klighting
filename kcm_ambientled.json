@@ -1,0 +1,49 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Evgenii Iulin",
+                "Email": "mail@alltiptop.me"
+            }
+        ],
+        "Name": "Lighting",
+        "Description": "Keyboard and lightbar colors, presets and ambient lighting",
+        "Icon": "preferences-desktop-color",
+        "Version": "0.27.0",
+        "License": "GPL-3.0-or-later",
+        "Hidden": true,
+        "Name[ru]": "Подсветка",
+        "Name[fr]": "Éclairage",
+        "Name[it]": "Illuminazione",
+        "Name[es]": "Iluminación",
+        "Name[uk]": "Підсвічування",
+        "Name[pl]": "Podświetlenie",
+        "Name[de]": "Beleuchtung",
+        "Name[zh_CN]": "灯光",
+        "Name[ar]": "الإضاءة",
+        "Name[he]": "תאורה",
+        "Description[ru]": "Цвета клавиатуры и ленты, пресеты и фоновая подсветка",
+        "Description[fr]": "Couleurs du clavier et de la bande, préréglages et éclairage ambiant",
+        "Description[it]": "Colori di tastiera e barra, preimpostazioni e illuminazione ambientale",
+        "Description[es]": "Colores del teclado y la barra, preajustes e iluminación ambiental",
+        "Description[uk]": "Кольори клавіатури та смуги, профілі й фонове підсвічування",
+        "Description[pl]": "Kolory klawiatury i paska, ustawienia wstępne i oświetlenie otoczenia",
+        "Description[de]": "Farben für Tastatur und Lichtleiste, Voreinstellungen und Umgebungsbeleuchtung",
+        "Description[zh_CN]": "键盘和灯带颜色、预设及环境光",
+        "Description[ar]": "ألوان لوحة المفاتيح والشريط والإعدادات المسبقة والإضاءة المحيطية",
+        "Description[he]": "צבעי מקלדת ופס תאורה, ערכות ותאורת סביבה"
+    },
+    "X-KDE-System-Settings-Parent-Category": "appearance",
+    "X-KDE-Keywords": "lighting,keyboard,RGB,ambient,lightbar,preset",
+    "X-KDE-Weight": 90,
+    "X-KDE-Keywords[ru]": "подсветка,клавиатура,RGB,ambient,лента,пресет",
+    "X-KDE-Keywords[fr]": "éclairage,clavier,RVB,ambiant,bande lumineuse,préréglage",
+    "X-KDE-Keywords[it]": "illuminazione,tastiera,RGB,ambientale,barra luminosa,preimpostazione",
+    "X-KDE-Keywords[es]": "iluminación,teclado,RGB,ambiental,barra de luz,preajuste",
+    "X-KDE-Keywords[uk]": "підсвічування,клавіатура,RGB,ambient,світлова смуга,профіль",
+    "X-KDE-Keywords[pl]": "podświetlenie,klawiatura,RGB,otoczenie,pasek świetlny,ustawienie wstępne",
+    "X-KDE-Keywords[de]": "Beleuchtung,Tastatur,RGB,Ambient,Lichtleiste,Voreinstellung",
+    "X-KDE-Keywords[zh_CN]": "灯光,键盘,RGB,环境光,灯带,预设",
+    "X-KDE-Keywords[ar]": "إضاءة,لوحة مفاتيح,RGB,محيطية,شريط إضاءة,إعداد مسبق",
+    "X-KDE-Keywords[he]": "תאורה,מקלדת,RGB,סביבה,פס תאורה,ערכה"
+}

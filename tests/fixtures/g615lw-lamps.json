@@ -1,0 +1,1612 @@
+{
+  "board": "G615LW",
+  "usb": "0b05:19b6",
+  "count": 100,
+  "width": 354000,
+  "height": 258000,
+  "depth": 30000,
+  "kind": 1,
+  "interval": 10000,
+  "lamps": [
+    {
+      "id": 0,
+      "x": 75000,
+      "y": 43000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 0
+    },
+    {
+      "id": 1,
+      "x": 94000,
+      "y": 43000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 0
+    },
+    {
+      "id": 2,
+      "x": 113000,
+      "y": 43000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 0
+    },
+    {
+      "id": 3,
+      "x": 132000,
+      "y": 43000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 0
+    },
+    {
+      "id": 4,
+      "x": 151000,
+      "y": 43000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 0
+    },
+    {
+      "id": 5,
+      "x": 36000,
+      "y": 60000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 41
+    },
+    {
+      "id": 6,
+      "x": 75000,
+      "y": 60000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 58
+    },
+    {
+      "id": 7,
+      "x": 94000,
+      "y": 60000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 59
+    },
+    {
+      "id": 8,
+      "x": 113000,
+      "y": 60000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 60
+    },
+    {
+      "id": 9,
+      "x": 132000,
+      "y": 60000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 61
+    },
+    {
+      "id": 10,
+      "x": 157000,
+      "y": 60000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 62
+    },
+    {
+      "id": 11,
+      "x": 176000,
+      "y": 60000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 63
+    },
+    {
+      "id": 12,
+      "x": 195000,
+      "y": 60000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 64
+    },
+    {
+      "id": 13,
+      "x": 214000,
+      "y": 60000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 65
+    },
+    {
+      "id": 14,
+      "x": 241000,
+      "y": 60000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 66
+    },
+    {
+      "id": 15,
+      "x": 260000,
+      "y": 60000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 67
+    },
+    {
+      "id": 16,
+      "x": 279000,
+      "y": 60000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 68
+    },
+    {
+      "id": 17,
+      "x": 298000,
+      "y": 60000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 69
+    },
+    {
+      "id": 18,
+      "x": 318000,
+      "y": 60000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 76
+    },
+    {
+      "id": 19,
+      "x": 36000,
+      "y": 76000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 53
+    },
+    {
+      "id": 20,
+      "x": 56000,
+      "y": 76000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 30
+    },
+    {
+      "id": 21,
+      "x": 75000,
+      "y": 76000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 31
+    },
+    {
+      "id": 22,
+      "x": 94000,
+      "y": 76000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 32
+    },
+    {
+      "id": 23,
+      "x": 113000,
+      "y": 76000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 33
+    },
+    {
+      "id": 24,
+      "x": 132000,
+      "y": 76000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 34
+    },
+    {
+      "id": 25,
+      "x": 151000,
+      "y": 76000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 35
+    },
+    {
+      "id": 26,
+      "x": 170000,
+      "y": 76000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 36
+    },
+    {
+      "id": 27,
+      "x": 189000,
+      "y": 76000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 37
+    },
+    {
+      "id": 28,
+      "x": 208000,
+      "y": 76000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 38
+    },
+    {
+      "id": 29,
+      "x": 227000,
+      "y": 76000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 39
+    },
+    {
+      "id": 30,
+      "x": 246000,
+      "y": 76000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 45
+    },
+    {
+      "id": 31,
+      "x": 265000,
+      "y": 76000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 46
+    },
+    {
+      "id": 32,
+      "x": 291000,
+      "y": 76000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 42
+    },
+    {
+      "id": 33,
+      "x": 318000,
+      "y": 76000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 0
+    },
+    {
+      "id": 34,
+      "x": 41000,
+      "y": 95000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 43
+    },
+    {
+      "id": 35,
+      "x": 65000,
+      "y": 95000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 20
+    },
+    {
+      "id": 36,
+      "x": 84000,
+      "y": 95000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 26
+    },
+    {
+      "id": 37,
+      "x": 103000,
+      "y": 95000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 8
+    },
+    {
+      "id": 38,
+      "x": 122000,
+      "y": 95000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 21
+    },
+    {
+      "id": 39,
+      "x": 141000,
+      "y": 95000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 23
+    },
+    {
+      "id": 40,
+      "x": 160000,
+      "y": 95000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 28
+    },
+    {
+      "id": 41,
+      "x": 179000,
+      "y": 95000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 24
+    },
+    {
+      "id": 42,
+      "x": 198000,
+      "y": 95000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 12
+    },
+    {
+      "id": 43,
+      "x": 217000,
+      "y": 95000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 18
+    },
+    {
+      "id": 44,
+      "x": 236000,
+      "y": 95000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 19
+    },
+    {
+      "id": 45,
+      "x": 255000,
+      "y": 95000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 47
+    },
+    {
+      "id": 46,
+      "x": 274000,
+      "y": 95000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 48
+    },
+    {
+      "id": 47,
+      "x": 296000,
+      "y": 95000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 49
+    },
+    {
+      "id": 48,
+      "x": 318000,
+      "y": 95000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 0
+    },
+    {
+      "id": 49,
+      "x": 43000,
+      "y": 114000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 57
+    },
+    {
+      "id": 50,
+      "x": 70000,
+      "y": 114000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 4
+    },
+    {
+      "id": 51,
+      "x": 89000,
+      "y": 114000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 22
+    },
+    {
+      "id": 52,
+      "x": 108000,
+      "y": 114000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 7
+    },
+    {
+      "id": 53,
+      "x": 127000,
+      "y": 114000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 9
+    },
+    {
+      "id": 54,
+      "x": 146000,
+      "y": 114000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 10
+    },
+    {
+      "id": 55,
+      "x": 165000,
+      "y": 114000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 11
+    },
+    {
+      "id": 56,
+      "x": 184000,
+      "y": 114000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 13
+    },
+    {
+      "id": 57,
+      "x": 203000,
+      "y": 114000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 14
+    },
+    {
+      "id": 58,
+      "x": 222000,
+      "y": 114000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 15
+    },
+    {
+      "id": 59,
+      "x": 241000,
+      "y": 114000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 51
+    },
+    {
+      "id": 60,
+      "x": 260000,
+      "y": 114000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 52
+    },
+    {
+      "id": 61,
+      "x": 289000,
+      "y": 114000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 40
+    },
+    {
+      "id": 62,
+      "x": 318000,
+      "y": 114000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 0
+    },
+    {
+      "id": 63,
+      "x": 48000,
+      "y": 133000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 225
+    },
+    {
+      "id": 64,
+      "x": 79000,
+      "y": 133000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 29
+    },
+    {
+      "id": 65,
+      "x": 98000,
+      "y": 133000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 27
+    },
+    {
+      "id": 66,
+      "x": 117000,
+      "y": 133000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 6
+    },
+    {
+      "id": 67,
+      "x": 136000,
+      "y": 133000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 25
+    },
+    {
+      "id": 68,
+      "x": 155000,
+      "y": 133000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 5
+    },
+    {
+      "id": 69,
+      "x": 174000,
+      "y": 133000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 17
+    },
+    {
+      "id": 70,
+      "x": 193000,
+      "y": 133000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 16
+    },
+    {
+      "id": 71,
+      "x": 212000,
+      "y": 133000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 54
+    },
+    {
+      "id": 72,
+      "x": 231000,
+      "y": 133000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 55
+    },
+    {
+      "id": 73,
+      "x": 250000,
+      "y": 133000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 56
+    },
+    {
+      "id": 74,
+      "x": 275000,
+      "y": 133000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 229
+    },
+    {
+      "id": 75,
+      "x": 298000,
+      "y": 133000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 82
+    },
+    {
+      "id": 76,
+      "x": 318000,
+      "y": 133000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 0
+    },
+    {
+      "id": 77,
+      "x": 38000,
+      "y": 152000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 224
+    },
+    {
+      "id": 78,
+      "x": 60000,
+      "y": 152000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 0
+    },
+    {
+      "id": 79,
+      "x": 79000,
+      "y": 152000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 227
+    },
+    {
+      "id": 80,
+      "x": 98000,
+      "y": 152000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 226
+    },
+    {
+      "id": 81,
+      "x": 155000,
+      "y": 152000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 44
+    },
+    {
+      "id": 82,
+      "x": 212000,
+      "y": 152000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 230
+    },
+    {
+      "id": 83,
+      "x": 231000,
+      "y": 152000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 70
+    },
+    {
+      "id": 84,
+      "x": 250000,
+      "y": 152000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 228
+    },
+    {
+      "id": 85,
+      "x": 279000,
+      "y": 152000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 80
+    },
+    {
+      "id": 86,
+      "x": 298000,
+      "y": 152000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 81
+    },
+    {
+      "id": 87,
+      "x": 318000,
+      "y": 152000,
+      "z": 9000,
+      "latency": 5000,
+      "purpose": 1,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 79
+    },
+    {
+      "id": 88,
+      "x": 354000,
+      "y": 0,
+      "z": 20000,
+      "latency": 5000,
+      "purpose": 2,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 0
+    },
+    {
+      "id": 89,
+      "x": 6000,
+      "y": 0,
+      "z": 20000,
+      "latency": 5000,
+      "purpose": 2,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 0
+    },
+    {
+      "id": 90,
+      "x": 360000,
+      "y": 0,
+      "z": 20000,
+      "latency": 5000,
+      "purpose": 2,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 0
+    },
+    {
+      "id": 91,
+      "x": 0,
+      "y": 0,
+      "z": 20000,
+      "latency": 5000,
+      "purpose": 2,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 0
+    },
+    {
+      "id": 92,
+      "x": 360000,
+      "y": 6000,
+      "z": 20000,
+      "latency": 5000,
+      "purpose": 2,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 0
+    },
+    {
+      "id": 93,
+      "x": 0,
+      "y": 6000,
+      "z": 20000,
+      "latency": 5000,
+      "purpose": 2,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 0
+    },
+    {
+      "id": 94,
+      "x": 360000,
+      "y": 259000,
+      "z": 20000,
+      "latency": 5000,
+      "purpose": 2,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 0
+    },
+    {
+      "id": 95,
+      "x": 0,
+      "y": 259000,
+      "z": 20000,
+      "latency": 5000,
+      "purpose": 2,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 0
+    },
+    {
+      "id": 96,
+      "x": 360000,
+      "y": 265000,
+      "z": 20000,
+      "latency": 5000,
+      "purpose": 2,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 0
+    },
+    {
+      "id": 97,
+      "x": 0,
+      "y": 265000,
+      "z": 20000,
+      "latency": 5000,
+      "purpose": 2,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 0
+    },
+    {
+      "id": 98,
+      "x": 354000,
+      "y": 265000,
+      "z": 20000,
+      "latency": 5000,
+      "purpose": 2,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 0
+    },
+    {
+      "id": 99,
+      "x": 6000,
+      "y": 265000,
+      "z": 20000,
+      "latency": 5000,
+      "purpose": 2,
+      "levels": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "programmable": 1,
+      "binding": 0
+    }
+  ]
+}

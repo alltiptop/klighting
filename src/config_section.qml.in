@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+import org.kde.kcmutils as KCMUtils
+import org.kde.kirigami as Kirigami
+
+@AMBIENT_PAGE@ {
+    controller: kcm.controller
+    navigator: kcm
+    recorder: kcm.recorder
+    navigationLevel: 0
+    KCMUtils.ConfigModule.columnWidth: Kirigami.Units.gridUnit * 12
+}

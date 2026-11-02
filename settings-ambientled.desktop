@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Service
+Name=Lighting
+Name[ru]=Подсветка
+Name[fr]=Éclairage
+Name[it]=Illuminazione
+Name[es]=Iluminación
+Name[uk]=Підсвічування
+Name[pl]=Podświetlenie
+Name[de]=Beleuchtung
+Name[zh_CN]=灯光
+Name[ar]=الإضاءة
+Name[he]=תאורה
+Icon=preferences-desktop-color
+X-KDE-System-Settings-Category=ambientled
+X-KDE-System-Settings-Parent-Category=appearance
+X-KDE-Weight=90
