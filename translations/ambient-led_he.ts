@@ -22,7 +22,7 @@
         <translation>KWin אינו זמין: %1</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+13"/>
         <source>Multiple or outdated Ambient LED effects were found. Reload the installed effect first.</source>
         <translation>נמצאו אפקטי Ambient LED כפולים או ישנים. יש לטעון מחדש את האפקט המותקן תחילה.</translation>
     </message>
@@ -33,18 +33,18 @@
     </message>
     <message>
         <location line="+17"/>
-        <location line="+87"/>
+        <location line="+89"/>
         <source>Ambient screen capture is running.</source>
         <translation>לכידת המסך של Ambient פועלת.</translation>
     </message>
     <message>
-        <location line="-87"/>
-        <location line="+87"/>
+        <location line="-88"/>
+        <location line="+88"/>
         <source>Ambient screen capture is stopped.</source>
         <translation>לכידת המסך של Ambient נעצרה.</translation>
     </message>
     <message>
-        <location line="-85"/>
+        <location line="-86"/>
         <source> The saved setting differs from the running state. Toggle the checkbox and apply to synchronize it.</source>
         <translation> ההגדרה השמורה שונה מהמצב הפעיל. יש לשנות את תיבת הסימון ולהחיל לסנכרון.</translation>
     </message>
@@ -213,6 +213,39 @@
     </message>
 </context>
 <context>
+    <name>Ambient::ProfileTransfer</name>
+    <message>
+        <location filename="../src/preset_transfer.cpp" line="+111"/>
+        <source>Only Base effects will be copied. Key assignments and modifier layers are not supported by this device.</source>
+        <translation>רק אפקטי Base יועתקו. המכשיר אינו תומך בהקצאות למקשים ובשכבות מקשי שינוי.</translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>Assignments for %1 unavailable keys or strip elements will be skipped. Unmatched destination elements will use Base.</source>
+        <translation>הקצאות עבור %1 מקשים או רכיבי פס שאינם זמינים יידלגו. רכיבי יעד ללא התאמה ישתמשו ב־Base.</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Colors will be displayed as brightness using the destination device&apos;s brightness source. Notification patterns are retained.</source>
+        <translation>הצבעים יוצגו כבהירות לפי מקור הבהירות שנבחר במכשיר היעד. דפוסי ההתראות יישמרו.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Only on/off lighting and notification flashes are available. Colors and brightness levels cannot be reproduced.</source>
+        <translation>זמינים רק הפעלה, כיבוי והבהובי התראות. לא ניתן לשחזר צבעים ורמות בהירות.</translation>
+    </message>
+    <message>
+        <location line="+59"/>
+        <source>Ambient will be omitted: this device needs color or at least four brightness levels plus Off.</source>
+        <translation>Ambient יושמט: המכשיר דורש תמיכה בצבע או לפחות ארבע רמות בהירות בנוסף לכיבוי.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Brightness filters will be omitted.</source>
+        <translation>מסנני הבהירות יושמטו.</translation>
+    </message>
+</context>
+<context>
     <name>Ambient::ServiceControl</name>
     <message>
         <location filename="../src/service_control.cpp" line="+34"/>
@@ -230,7 +263,7 @@
         <translation>שירות התאורה פועל.</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+23"/>
         <source>Settings saved, but the lighting service could not apply them: %1</source>
         <translation>ההגדרות נשמרו, אך שירות התאורה לא הצליח להחיל אותן: %1</translation>
     </message>
@@ -238,25 +271,25 @@
 <context>
     <name>Ambient::SettingsController</name>
     <message>
-        <location filename="../src/settings_effects.cpp" line="+231"/>
-        <location line="+303"/>
+        <location filename="../src/settings_effects.cpp" line="+230"/>
+        <location line="+304"/>
         <source>Solid Color</source>
         <translation>צבע אחיד</translation>
     </message>
     <message>
-        <location line="-302"/>
+        <location line="-303"/>
         <source>Ambient</source>
         <translation>תאורת סביבה</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+527"/>
+        <location line="+528"/>
         <source>Notifications</source>
         <translation>התראות</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+358"/>
-        <location filename="../src/settings_effects.cpp" line="-481"/>
+        <location filename="../src/settings_controller.cpp" line="+388"/>
+        <location filename="../src/settings_effects.cpp" line="-482"/>
         <source>%1 copy</source>
         <translation>עותק של %1</translation>
     </message>
@@ -281,24 +314,24 @@
         <translation>ערכת המקלדת „%1” משתמשת באפקט זה. יש לשנות תחילה את השיוכים שלה.</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="-85"/>
+        <location filename="../src/settings_controller.cpp" line="-91"/>
         <source>Cannot save unreadable preset files. Repair them and reset.</source>
         <translation>לא ניתן לשמור קובצי ערכות בלתי קריאים. יש לתקן אותם ולאפס.</translation>
     </message>
     <message>
-        <location filename="../src/presets.cpp" line="+619"/>
+        <location filename="../src/presets.cpp" line="+672"/>
         <source>Presets changed on disk. Reset before saving to preserve those changes.</source>
         <translation>הערכות השתנו בדיסק. יש לאפס לפני השמירה כדי לשמור על שינויים אלה.</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+85"/>
+        <location filename="../src/settings_controller.cpp" line="+91"/>
         <source>New preset</source>
         <translation>ערכה חדשה</translation>
     </message>
     <message>
         <location line="+9"/>
-        <source>Keep at least one preset.</source>
-        <translation>יש להשאיר לפחות ערכה אחת.</translation>
+        <source>The default preset cannot be removed.</source>
+        <translation>לא ניתן להסיר את ערכת ברירת המחדל.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -311,30 +344,30 @@
         <translation>הייבוא יחרוג ממגבלת 64 ערכות האפקטים.</translation>
     </message>
     <message>
-        <location filename="../src/settings_effects.cpp" line="+238"/>
+        <location filename="../src/settings_effects.cpp" line="+239"/>
         <source>Default Ambient</source>
         <translation>תאורת סביבה כברירת מחדל</translation>
     </message>
     <message>
-        <location line="-476"/>
+        <location line="-477"/>
         <location line="+165"/>
-        <location line="+358"/>
+        <location line="+359"/>
         <source>Use at most 32 effects per element and layer.</source>
         <translation>אפשר להשתמש בעד 32 אפקטים לכל רכיב ושכבה.</translation>
     </message>
     <message>
-        <location line="-402"/>
+        <location line="-403"/>
         <location line="+38"/>
         <source>Use at most 128 local effects per preset.</source>
         <translation>ניתן להשתמש ב־128 אפקטים מקומיים לכל היותר בכל ערכה מוגדרת מראש.</translation>
     </message>
     <message>
-        <location line="+535"/>
+        <location line="+536"/>
         <source>This keyboard does not expose F9-F12 lighting zones.</source>
         <translation>מקלדת זו אינה חושפת אזורי תאורה ל־F9–F12.</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+62"/>
+        <location filename="../src/settings_controller.cpp" line="+67"/>
         <source>%1 (Left)</source>
         <translation>%1 (שמאלי)</translation>
     </message>
@@ -379,7 +412,7 @@
         <translation>לחלון זה אין מחלקת יישום.</translation>
     </message>
     <message>
-        <location filename="../src/settings_devices.cpp" line="+245"/>
+        <location filename="../src/settings_devices.cpp" line="+246"/>
         <source>Reading lightbar settings…</source>
         <translation>הגדרות פס התאורה נקראות…</translation>
     </message>
@@ -399,7 +432,7 @@
         <translation>לא ניתן לשמור את הגדרת פס התאורה: %1</translation>
     </message>
     <message>
-        <location filename="../src/settings_effects.cpp" line="-520"/>
+        <location filename="../src/settings_effects.cpp" line="-521"/>
         <source>Brightness</source>
         <translation>בהירות</translation>
     </message>
@@ -632,7 +665,7 @@
         <translation>ערכות שמורות</translation>
     </message>
     <message>
-        <location line="+51"/>
+        <location line="+52"/>
         <source>New Solid Color</source>
         <translation>צבע אחיד חדש</translation>
     </message>
@@ -647,7 +680,7 @@
         <translation>התראות חדשות</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+29"/>
         <source>Turn Off</source>
         <translation>כיבוי</translation>
     </message>
@@ -662,7 +695,7 @@
         <translation>התראות אלה עוקפות כל שכבה, כולל מקשים כבויים.</translation>
     </message>
     <message>
-        <location line="-57"/>
+        <location line="-58"/>
         <source>New Brightness</source>
         <translation>בהירות חדשה</translation>
     </message>
@@ -881,17 +914,7 @@
 <context>
     <name>AmbientLed.KeyboardPage</name>
     <message>
-        <location filename="../ui/KeyboardPage.qml" line="+18"/>
-        <source>Keyboard</source>
-        <translation>מקלדת</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Layer Keys</source>
-        <translation>מקשי שכבה</translation>
-    </message>
-    <message>
-        <location line="+55"/>
+        <location filename="../ui/KeyboardPage.qml" line="+72"/>
         <source>Only one layer is active: the most complex matching combination. Ties use the last row. Unassigned keys inherit Base.</source>
         <translation>רק שכבה אחת פעילה: זו עם צירוף המקשים התואם המורכב ביותר. במקרה של שוויון נבחרת השורה האחרונה. מקשים שלא הוקצו יורשים משכבת הבסיס.</translation>
     </message>
@@ -911,7 +934,7 @@
         <translation>אפשר לבחור מקשים בלחיצה או בגרירה; גם Tab ורווח פועלים.</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+12"/>
         <source>Group:</source>
         <translation>קבוצה:</translation>
     </message>
@@ -1032,6 +1055,10 @@
         <location line="+14"/>
         <source>Add Layer</source>
         <translation>הוספת שכבה</translation>
+    </message>
+    <message>
+        <source>Change combination…</source>
+        <translation>שינוי צירוף המקשים…</translation>
     </message>
 </context>
 <context>
@@ -1319,9 +1346,73 @@
     </message>
 </context>
 <context>
+    <name>AmbientLed.PresetDeviceCard</name>
+    <message>
+        <source>Select all</source>
+        <translation>בחירת הכול</translation>
+    </message>
+    <message>
+        <source>Remove %1 from this preset? This removes its settings from Base and all layers.</source>
+        <translation>להסיר את %1 מההגדרה הקבועה הזו? פעולה זו תסיר את הגדרותיו מהבסיס ומכל השכבות.</translation>
+    </message>
+    <message>
+        <location filename="../ui/PresetDeviceCard.qml" line="+40"/>
+        <source>Collapse device</source>
+        <translation>כיווץ מכשיר</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Expand device</source>
+        <translation>הרחבת מכשיר</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Copy device profile</source>
+        <translation>העתקת פרופיל המכשיר</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Paste device profile</source>
+        <translation>הדבקת פרופיל המכשיר</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Remove device from preset</source>
+        <translation>הסרת מכשיר מהערכה</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>This device is disabled. You can still edit its profile.</source>
+        <translation>המכשיר מושבת. עדיין ניתן לערוך את הפרופיל שלו.</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Connect this device to edit its layout. Its saved settings are preserved.</source>
+        <translation>יש לחבר את המכשיר כדי לערוך את הפריסה שלו. ההגדרות השמורות נשמרות.</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Paste compatible settings</source>
+        <translation>הדבקת הגדרות תואמות</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Cancel</source>
+        <translation>ביטול</translation>
+    </message>
+</context>
+<context>
     <name>AmbientLed.PresetPage</name>
     <message>
-        <location filename="../ui/PresetPage.qml" line="+37"/>
+        <source>Recording key combination</source>
+        <translation>הקלטת צירוף מקשים</translation>
+    </message>
+    <message>
+        <source>Remove this layer? Its settings will be removed for all devices in this preset.</source>
+        <translation>להסיר את השכבה הזו? הגדרותיה יוסרו עבור כל המכשירים בהגדרה הקבועה הזו.</translation>
+    </message>
+    <message>
+        <location filename="../ui/PresetPage.qml" line="+36"/>
         <source>Duplicate</source>
         <translation>שכפול</translation>
     </message>
@@ -1337,17 +1428,22 @@
         <translation>הסרה</translation>
     </message>
     <message>
-        <location line="+49"/>
+        <location line="+58"/>
         <source>Export Lighting Preset</source>
         <translation>ייצוא ערכת תאורה</translation>
     </message>
     <message>
-        <location line="-1"/>
+        <location line="+27"/>
+        <source>Add device…</source>
+        <translation>הוספת מכשיר…</translation>
+    </message>
+    <message>
+        <location line="-28"/>
         <source>Lighting presets (*.json)</source>
         <translation>ערכות תאורה (*.json)</translation>
     </message>
     <message>
-        <location line="-57"/>
+        <location line="-66"/>
         <source>Remove this preset? You can undo pending changes with Reset.</source>
         <translation>להסיר ערכה זו? ניתן לבטל שינויים ממתינים באמצעות איפוס.</translation>
     </message>
@@ -1357,12 +1453,12 @@
         <translation>ביטול</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+24"/>
         <source>Name:</source>
         <translation>שם:</translation>
     </message>
     <message>
-        <location line="-36"/>
+        <location line="-45"/>
         <source>Remove this preset? Devices using it will have no default preset. You can undo pending changes with Reset.</source>
         <translation>להסיר את ההגדרה הזאת? למכשירים שמשתמשים בה לא תהיה הגדרת ברירת מחדל. ניתן לבטל שינויים שטרם נשמרו באמצעות איפוס.</translation>
     </message>
@@ -1403,6 +1499,14 @@
         <location line="+11"/>
         <source>Import Preset…</source>
         <translation>ייבוא ערכה…</translation>
+    </message>
+    <message>
+        <source>Expand preset</source>
+        <translation>הרחבת ההגדרה המוכנה</translation>
+    </message>
+    <message>
+        <source>Collapse preset</source>
+        <translation>כיווץ ההגדרה המוכנה</translation>
     </message>
 </context>
 <context>

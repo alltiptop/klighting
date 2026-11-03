@@ -95,6 +95,8 @@ public:
     QStringList installed { "ambientled" }, loaded { "ambientled" };
     QStringList loads, unloads;
     bool refuseLoad = false, refuseUnload = false, overlappingLoad = false;
+    bool deferLoadReply = false;
+    QList<bool> savedAtLoad, savedAtUnload;
     int unexpected = 0;
     int windowQueries = 0;
     QVariantMap windowInfo { { "resourceClass", "org.kde.kate" }, { "resourceName", "kate" } };
@@ -134,12 +136,18 @@ public:
             connection.send(message.createReply(QVariant::fromValue(properties)));
         } else if (message.member() == "loadEffect") {
             loads << message.arguments().first().toString();
+            savedAtLoad << KConfigGroup(KSharedConfig::openConfig("kwinrc"), "Plugins")
+                               .readEntry("ambientledEnabled", false);
+            if (deferLoadReply)
+                return true;
             overlappingLoad = overlappingLoad || !loaded.isEmpty();
             if (!refuseLoad)
                 loaded = loads.mid(loads.size() - 1);
             connection.send(message.createReply(!refuseLoad));
         } else if (message.member() == "unloadEffect") {
             unloads << message.arguments().first().toString();
+            savedAtUnload << KConfigGroup(KSharedConfig::openConfig("kwinrc"), "Plugins")
+                                 .readEntry("ambientledEnabled", false);
             if (!refuseUnload)
                 loaded.removeAll(unloads.last());
             connection.send(message.createReply());
@@ -210,6 +218,246 @@ private Q_SLOTS:
         QCOMPARE(asusd->unexpected, 0);
         asusd.reset();
         lighting.reset();
+    }
+    void addingSameModelDeviceCreatesItsOwnDefaultCard()
+    {
+        const auto path = qgetenv("AMBIENT_LED_DRIVER_PATH");
+        const auto restore = qScopeGuard([&] { qputenv("AMBIENT_LED_DRIVER_PATH", path); });
+        qputenv("AMBIENT_LED_DRIVER_PATH", MULTI_DRIVER_DIR);
+        SettingsController c;
+        QCOMPARE(c.devices().size(), 1);
+        c.assignKeys(-1, { 7 }, 1, "#ff0000");
+        QVERIFY(c.addDevice("test-strips:two"));
+        QCOMPARE(c.collection().presets.size(), 1);
+        QCOMPARE(c.presetDevices().size(), 2);
+        const auto& scene = c.collection().presets.first();
+        QVERIFY(scene.multiDevice);
+        QCOMPARE(scene.devices[0].targetDevice, QString("test-strips:one"));
+        QCOMPARE(scene.devices[0].base[7].color, QColor(Qt::red));
+        QCOMPARE(scene.devices[1].targetDevice, QString("test-strips:two"));
+        QCOMPARE(scene.devices[1].effects, (EffectAssignments { { DefaultAssignment, { } } }));
+        for (const auto& device : *c.collection().devices)
+            QCOMPARE(devicePreset(c.collection(), device, { }), 0);
+    }
+    void deviceCardsShareTheDocumentButKeepAssignmentsIndependent()
+    {
+        const auto path = qgetenv("AMBIENT_LED_DRIVER_PATH");
+        const auto restore = qScopeGuard([&] { qputenv("AMBIENT_LED_DRIVER_PATH", path); });
+        qputenv("AMBIENT_LED_DRIVER_PATH", path + ":" + MULTI_DRIVER_DIR);
+        SettingsController c;
+        QVERIFY(c.addDevice("test-strips:one"));
+        QVERIFY(c.addDevice("test-strips:two"));
+        // New devices join Default as independent cards, including same-model instances.
+        QCOMPARE(c.collection().presets.size(), 1);
+        QCOMPARE(c.preset()["id"].toString(), c.defaultId());
+        QCOMPARE(c.presetDevices().size(), 3);
+        QVERIFY(c.collection().presets[c.selected()].multiDevice);
+        c.setDevice("enabled", false);
+        QVERIFY(c.addPreset(false));
+        QCOMPARE(c.presetDevices().size(), 2); // Enabled keyboard and first strip, not disabled second strip.
+        QVERIFY(c.addPresetDevice("test-strips:two"));
+        QCOMPARE(c.presetDevices().size(), 3);
+        auto* first = c.presetDevices()[1].value<SettingsController*>();
+        auto* second = c.presetDevices()[2].value<SettingsController*>();
+        QVERIFY(first && second);
+        QVERIFY(first->profileInfo()["enabled"].toBool());
+        QVERIFY(!second->profileInfo()["enabled"].toBool());
+        QSignalSpy structure(&c, &SettingsController::presetDevicesChanged);
+        const auto red = first->addLocalEffect(-1, { 7 }, "solid");
+        QVERIFY(!red.isEmpty());
+        first->setSolidColor("#ff0000", red);
+        QCOMPARE(second->selectionEffects(-1, { 7 })["items"].toList().size(), 0);
+        first->copyProfile();
+        QVERIFY(second->canPasteProfile());
+        QVERIFY(second->pasteWarnings().isEmpty());
+        QVERIFY(second->pasteProfile());
+        QCOMPARE(second->assignedEffectOptions(red)["solidColor"].toString(), QString("#ff0000"));
+        second->setSolidColor("#00ff00", red);
+        QCOMPARE(first->assignedEffectOptions(red)["solidColor"].toString(), QString("#ff0000"));
+        QCOMPARE(structure.count(), 0); // Color changes must not recreate keyboard delegates/selections.
+        QVERIFY(c.dirty());
+        QString error;
+        QVERIFY2(savePresets(c.collection(), &error), qPrintable(error));
+        QCOMPARE(*loadPresets(defaultCollection(), &error), c.collection());
+        const auto removed = second->profileInfo()["id"].toString();
+        c.removePresetDevice(removed);
+        QCOMPARE(c.presetDevices().size(), 2);
+        QVERIFY(c.addPresetDevice("test-strips:two"));
+        QCOMPARE(c.presetDevices().size(), 3);
+        QCOMPARE(asusd->writes.size(), 0);
+    }
+    void removingLastLegacyDeviceRetainsPresetLayers()
+    {
+        SettingsController c;
+        const auto layers = c.preset()["layers"];
+        const auto devices = c.devices();
+        c.removePresetDevice(c.preset()["id"].toString());
+        QVERIFY(c.presetDevices().isEmpty());
+        QCOMPARE(c.devices(), devices);
+        QCOMPARE(c.addablePresetDevices().size(), 1);
+        QCOMPARE(devicePreset(c.collection(), c.collection().devices->first(), { }), -1);
+        QCOMPARE(c.preset()["layers"], layers);
+        QVERIFY(!c.representsDefaults());
+        QString error;
+        QVERIFY2(savePresets(c.collection(), &error), qPrintable(error));
+        QCOMPARE(*loadPresets(defaultCollection(), &error), c.collection());
+    }
+    void layersBelongToThePresetIncludingBrightnessOnlyDevices()
+    {
+        const auto path = qgetenv("AMBIENT_LED_DRIVER_PATH");
+        const auto restore = qScopeGuard([&] {
+            qputenv("AMBIENT_LED_DRIVER_PATH", path);
+            qApp->setProperty("test.devices", QVariant());
+            qApp->setProperty("test.mono.brightnessSteps", QVariant());
+        });
+        qputenv("AMBIENT_LED_DRIVER_PATH", path + ":" + MULTI_DRIVER_DIR);
+        qApp->setProperty("test.devices", QStringList { "one", "mono" });
+        qApp->setProperty("test.mono.brightnessSteps", 3);
+        SettingsController c;
+        QVERIFY(c.addDevice("test-strips:one"));
+        QVERIFY(c.addDevice("test-strips:mono"));
+        QVERIFY(c.addPreset(false));
+        auto* keyboard = c.presetDevices()[0].value<SettingsController*>();
+        auto* strip = c.presetDevices()[1].value<SettingsController*>();
+        auto* mono = c.presetDevices()[2].value<SettingsController*>();
+        QVERIFY(!mono->editableKeys());
+        QCOMPARE(mono->addLayer({ "shift" }), 0);
+        QCOMPARE(c.addLayer({ "ctrl", "shift" }), 1);
+        QCOMPARE(strip->addLayer({ "shift", "ctrl" }), -1);
+        const auto selected = [](SettingsController* editor, const QVariantList& keys) {
+            return QVariantMap { { "profile", editor->profileInfo()["id"] }, { "layer", 1 },
+                { "keys", keys } };
+        };
+        const QVariantList targets { selected(keyboard, { 17 }), selected(mono, { }) };
+        const auto dim = c.editDeviceSelection(targets, "new", { { "type", "brightness" } });
+        QVERIFY(!dim.isEmpty());
+        c.editDeviceSelection(targets, "brightness", { { "id", dim }, { "value", 33 } });
+        for (auto* editor : { keyboard, strip, mono })
+            QCOMPARE(editor->preset()["layers"], c.preset()["layers"]);
+        QVERIFY(mono->setLayer(1, { "ctrl", "alt" }));
+        QCOMPARE(keyboard->preset()["layers"].toList()[1].toMap()["conditions"].toStringList(),
+            (QStringList { "ctrl", "alt" }));
+        QCOMPARE(mono->selectionEffects(1, { })["items"].toList().size(), 1);
+        QVERIFY(mono->selectionEffects(-1, { })["items"].toList().isEmpty());
+        QCOMPARE(c.moveLayer(1, -1), 0);
+        QCOMPARE(mono->selectionEffects(0, { })["items"].toList().size(), 1);
+        c.removeLayer(1);
+        QCOMPARE(c.preset()["layers"].toList().size(), 1);
+        for (auto* editor : { keyboard, strip, mono })
+            QCOMPARE(editor->preset()["layers"], c.preset()["layers"]);
+        // Adding a card after defining layers creates empty assignments that inherit Base.
+        c.removePresetDevice(strip->profileInfo()["id"].toString());
+        QVERIFY(c.addPresetDevice("test-strips:one"));
+        auto* added = c.presetDevices().last().value<SettingsController*>();
+        QCOMPARE(added->preset()["layers"], c.preset()["layers"]);
+        QVERIFY(added->selectionEffects(0, { })["items"].toList().isEmpty());
+        // A profile copied from another scene brings its conditions, without replacing existing ones.
+        mono->copyProfile();
+        QVERIFY(c.addPreset(false));
+        QCOMPARE(c.addLayer({ "super" }), 0);
+        auto* destination = c.presetDevices().last().value<SettingsController*>();
+        QVERIFY(destination->pasteProfile());
+        QCOMPARE(c.preset()["layers"].toList().size(), 2);
+        QCOMPARE(destination->selectionEffects(1, { })["items"].toList().size(), 1);
+        QString error;
+        QVERIFY2(savePresets(c.collection(), &error), qPrintable(error));
+        QCOMPARE(*loadPresets(defaultCollection(), &error), c.collection());
+        for (const auto& value : c.presetDevices())
+            c.removePresetDevice(value.value<SettingsController*>()->profileInfo()["id"].toString());
+        QVERIFY(c.presetDevices().isEmpty());
+        QVERIFY(!c.representsDefaults()); // Common layers survive removal of the last device card.
+        c.defaults();
+        QVERIFY(c.preset()["layers"].toList().isEmpty());
+        QVERIFY(c.representsDefaults());
+        QCOMPARE(asusd->writes.size(), 0);
+    }
+    void multipleDeviceSelectionsKeepEffectsAndExposeOutputLimits()
+    {
+        const auto path = qgetenv("AMBIENT_LED_DRIVER_PATH");
+        const auto restore = qScopeGuard([&] {
+            qputenv("AMBIENT_LED_DRIVER_PATH", path);
+            qApp->setProperty("test.devices", QVariant());
+            qApp->setProperty("test.mono.brightnessSteps", QVariant());
+        });
+        qputenv("AMBIENT_LED_DRIVER_PATH", path + ":" + MULTI_DRIVER_DIR);
+        qApp->setProperty("test.devices", QStringList { "one", "two", "mono" });
+        qApp->setProperty("test.mono.brightnessSteps", 3);
+        SettingsController c;
+        QVERIFY(c.addDevice("test-strips:one"));
+        QVERIFY(c.addDevice("test-strips:two"));
+        QVERIFY(c.addDevice("test-strips:mono"));
+        QVERIFY(c.addPreset(false));
+        QCOMPARE(c.presetDevices().size(), 4);
+        auto* first = c.presetDevices()[1].value<SettingsController*>();
+        auto* second = c.presetDevices()[2].value<SettingsController*>();
+        auto* mono = c.presetDevices()[3].value<SettingsController*>();
+        const auto target = [](SettingsController* editor, const QVariantList& keys) {
+            return QVariantMap { { "profile", editor->profileInfo()["id"] }, { "layer", -1 },
+                { "keys", keys } };
+        };
+        const QVariantList selected { target(first, { 7 }), target(second, { 42 }) };
+        QVERIFY(c.deviceSelectionCapabilities(selected)["color"].toBool());
+        QVERIFY(c.deviceSelectionCapabilities(selected)["brightness"].toBool());
+        const auto solid = c.editDeviceSelection(selected, "new", { { "type", "solid" } });
+        QVERIFY(!solid.isEmpty());
+        c.editDeviceSelection(selected, "solid", { { "id", solid }, { "value", "#c05020" } });
+        QCOMPARE(first->assignedEffectOptions(solid)["solidColor"].toString(), QString("#c05020"));
+        QCOMPARE(second->assignedEffectOptions(solid)["solidColor"].toString(), QString("#c05020"));
+        auto state = c.deviceSelectionEffects(selected);
+        QCOMPARE(state["items"].toList().size(), 1);
+        QCOMPARE(state["count"].toInt(), 2);
+        QVERIFY(!state["mixed"].toBool());
+        QVERIFY(first->selectionEffects(-1, { 42 })["items"].toList().isEmpty());
+        QVERIFY(second->selectionEffects(-1, { 7 })["items"].toList().isEmpty());
+
+        first->addAssignedEffect(-1, { 1 }, solid);
+        const auto localized
+            = c.editDeviceSelection(selected, "localize", { { "id", solid }, { "above", false } });
+        QVERIFY(!localized.isEmpty() && localized != solid);
+        c.editDeviceSelection(selected, "solid", { { "id", localized }, { "value", "#2040c0" } });
+        QCOMPARE(first->assignedEffectOptions(solid)["solidColor"].toString(), QString("#c05020"));
+        QCOMPARE(first->assignedEffectOptions(localized)["solidColor"].toString(), QString("#2040c0"));
+        QCOMPARE(second->assignedEffectOptions(localized)["solidColor"].toString(), QString("#2040c0"));
+        QCOMPARE(c.deviceSelectionEffects(selected)["items"].toList().size(), 1);
+
+        // A copied local ID on an unselected element in another device is isolated.
+        const QVariantList partial { target(first, { 42 }), target(second, { 42 }) };
+        QCOMPARE(c.editDeviceSelection(partial, "localize", { { "id", localized }, { "above", false } }),
+            localized);
+        c.editDeviceSelection(partial, "solid", { { "id", localized }, { "value", "#20c040" } });
+        QCOMPARE(first->assignedEffectOptions(localized)["solidColor"].toString(), QString("#2040c0"));
+        QCOMPARE(second->assignedEffectOptions(localized)["solidColor"].toString(), QString("#20c040"));
+
+        const QVariantList mixed { target(first, { 7 }), target(mono, { }) };
+        const auto caps = c.deviceSelectionCapabilities(mixed);
+        QVERIFY(!caps["color"].toBool());
+        QVERIFY(!caps["ambient"].toBool());
+        QVERIFY(caps["brightness"].toBool());
+        QCOMPARE(caps["brightnessSteps"].toInt(), 0);
+        QCOMPARE(c.deviceSelectionCapabilities({ target(mono, { }) })["brightnessSteps"].toInt(), 3);
+        QVERIFY(!c.editDeviceSelection(mixed, "new", { { "type", "solid" } }).isEmpty());
+        QVERIFY(!c.editDeviceSelection(mixed, "new", { { "type", "ambient" } }).isEmpty());
+        const auto brightness = c.editDeviceSelection(mixed, "new", { { "type", "brightness" } });
+        QVERIFY(!brightness.isEmpty());
+        c.editDeviceSelection(mixed, "brightness", { { "id", brightness }, { "value", 35 } });
+        QCOMPARE(first->assignedEffectOptions(brightness)["brightness"].toInt(), 35);
+        QCOMPARE(mono->assignedEffectOptions(brightness)["brightness"].toInt(), 35);
+        // An invalid destination invalidates the entire operation.
+        auto before = c.collection();
+        auto invalid = mixed;
+        invalid.append(QVariantMap { { "profile", "missing" }, { "layer", -1 } });
+        c.editDeviceSelection(invalid, "clear", { { "inherit", false } });
+        QCOMPARE(c.collection(), before);
+        // Capacity is checked across all destinations before modifying any of them.
+        while (first->selectionEffects(-1, { 7 })["items"].toList().size() < 32)
+            QVERIFY(!first->addLocalEffect(-1, { 7 }, "brightness").isEmpty());
+        before = c.collection();
+        QVERIFY(c.editDeviceSelection(selected, "new", { { "type", "solid" } }).isEmpty());
+        QCOMPARE(c.collection(), before);
+        QString error;
+        QVERIFY2(savePresets(c.collection(), &error), qPrintable(error));
+        QCOMPARE(*loadPresets(defaultCollection(), &error), c.collection());
+        QCOMPARE(asusd->writes.size(), 0);
     }
     void defaultsMetadataAndPendingEdits()
     {
@@ -374,12 +622,13 @@ private Q_SLOTS:
         QVERIFY(!localColor.isEmpty());
         c.setSolidColor("#00ff00", localColor);
         c.setGradient(-1, -1, FirstStripId, 7, 1, "#ff0000", "#0000ff", 50, true, { });
-        const auto afterGradient = c.collection().presets.last().effects[7];
+        const auto& profile = c.collection().presets.first().devices.last();
+        const auto afterGradient = profile.effects[7];
         QVERIFY(std::none_of(
             afterGradient.begin(), afterGradient.end(), [&](const auto& e) { return e.id == localColor; }));
 
         QCOMPARE(c.gradients(-1).size(), 1);
-        QCOMPARE(c.collection().presets.last().gradients.first().start, QColor(255, 0, 0, 128));
+        QCOMPARE(profile.gradients.first().start, QColor(255, 0, 0, 128));
         QVERIFY(!QFile::exists(presetDirectory() + "/settings-v2.json"));
         c.selectDevice(0);
         c.setLightbarEnabled(false);
@@ -408,7 +657,7 @@ private Q_SLOTS:
         loaded.removeDevice();
         QCOMPARE(loaded.devices().size(), 2);
         QVERIFY(loaded.dirty());
-        QCOMPARE(loaded.collection().presets.size(), 2);
+        QCOMPARE(loaded.collection().presets.size(), 1);
     }
     void keyboardGroupsLayersAndPresetsPersist()
     {
@@ -584,22 +833,36 @@ private Q_SLOTS:
         c.load();
         QCOMPARE(c.collection(), saved);
     }
-    void deletingDeviceDefaultLeavesItUnassigned()
+    void defaultPresetIsProtectedButItsLayersAndDevicesCanBeRemoved()
     {
         SettingsController c;
+        const auto base = c.defaultId();
+        const auto original = c.collection();
+        QVERIFY(!c.removePreset());
+        QCOMPARE(c.collection(), original);
+        QVERIFY(!c.error().isEmpty());
         QVERIFY(c.addPreset(true));
-        const auto removed = c.preset()["id"].toString();
-        c.setDevice("presetId", removed);
-        QVERIFY(!c.preset()["defaultDevices"].toStringList().isEmpty());
+        c.selectPreset(0);
+        QVERIFY(!c.removePreset()); // Protection also applies when other presets exist.
+        c.removeLayer(0);
+        QVERIFY(c.preset()["layers"].toList().isEmpty());
+        const auto configured = c.devices().first().toMap()["id"].toString();
+        c.removePresetDevice(c.preset()["id"].toString());
+        QVERIFY(c.presetDevices().isEmpty());
+        c.refreshDevices();
+        QVERIFY(c.presetDevices().isEmpty()); // Discovery must not undo explicit removal.
+        QVERIFY(c.addPresetDevice(configured));
+        QCOMPARE(c.presetDevices().size(), 1);
+        c.selectPreset(1);
         QVERIFY(c.removePreset());
-        QVERIFY(c.deviceSettings()["presetId"].toString().isEmpty());
         QCOMPARE(c.collection().presets.size(), 1);
+        QCOMPARE(c.defaultId(), base);
         c.save();
         QVERIFY2(c.error().isEmpty(), qPrintable(c.error()));
         const auto saved = c.collection();
         c.load();
         QCOMPARE(c.collection(), saved);
-        QCOMPARE(devicePreset(c.collection(), c.collection().devices->first(), { }), -1);
+        QCOMPARE(c.presetDevices().size(), 1);
     }
     void monochromeAmbientRequiresFourNonzeroSteps()
     {
@@ -903,6 +1166,7 @@ private Q_SLOTS:
         c->save();
         c.reset();
         QTRY_COMPARE(fake.loads, (QStringList { "ambientled" }));
+        QCOMPARE(fake.savedAtLoad, (QList<bool> { false }));
         QTRY_VERIFY(KConfigGroup(config, "Plugins").readEntry("ambientledEnabled", false));
         SettingsController reopened;
         QTRY_VERIFY(reopened.effect()->loaded());
@@ -913,6 +1177,7 @@ private Q_SLOTS:
         QVERIFY(!reopened.effect()->loaded());
         QVERIFY(!reopened.dirty());
         QCOMPARE(fake.unloads, (QStringList { "ambientled" }));
+        QCOMPARE(fake.savedAtUnload, (QList<bool> { false }));
         QVERIFY(!KConfigGroup(config, "Plugins").readEntry("ambientledEnabled", true));
     }
     void effectFailureAndExternalChanges()
@@ -928,6 +1193,7 @@ private Q_SLOTS:
         QVERIFY(c.dirty());
         QVERIFY(!c.effect()->loaded());
         QVERIFY(c.effect()->status().contains("could not change"));
+        QVERIFY(!KConfigGroup(config, "Plugins").readEntry("ambientledEnabled", false));
         fake.refuseLoad = false;
         c.save();
         QTRY_VERIFY(!c.busy());
@@ -944,6 +1210,50 @@ private Q_SLOTS:
         c.load();
         QTRY_VERIFY(c.effect()->enabled()); // Reset shows the still-running effect, not just its saved flag.
         QVERIFY(!c.dirty());
+    }
+    void disappearingCompositorDoesNotEnableStartup_data()
+    {
+        QTest::addColumn<bool>("previouslyEnabled");
+        QTest::newRow("initially-disabled") << false;
+        QTest::newRow("previously-enabled") << true;
+    }
+    void disappearingCompositorDoesNotEnableStartup()
+    {
+        QFETCH(bool, previouslyEnabled);
+        KConfigGroup group(config, "Plugins");
+        group.writeEntry("ambientledEnabled", previouslyEnabled);
+        QVERIFY(group.sync());
+        FakeKWin fake;
+        fake.loaded.clear();
+        fake.deferLoadReply = true;
+        SettingsController c;
+        QTRY_VERIFY(c.effect()->available());
+        c.effect()->setEnabled(true);
+        c.save();
+        QTRY_COMPARE(fake.loads.size(), 1);
+        QVERIFY(c.effect()->busy());
+        QVERIFY(!KConfigGroup(config, "Plugins").readEntry("ambientledEnabled", false));
+        fake.bus.unregisterService("org.kde.KWin");
+        QTRY_VERIFY_WITH_TIMEOUT(!c.busy(), 5000);
+        QVERIFY(c.effect()->dirty());
+        QVERIFY(!KConfigGroup(config, "Plugins").readEntry("ambientledEnabled", false));
+    }
+    void failedUnloadStillDisablesStartup()
+    {
+        FakeKWin fake;
+        fake.refuseUnload = true;
+        KConfigGroup group(config, "Plugins");
+        group.writeEntry("ambientledEnabled", true);
+        QVERIFY(group.sync());
+        SettingsController c;
+        QTRY_VERIFY(c.effect()->loaded());
+        c.effect()->setEnabled(false);
+        c.save();
+        QTRY_VERIFY(!c.busy());
+        QVERIFY(c.effect()->loaded());
+        QVERIFY(c.effect()->dirty());
+        QCOMPARE(fake.savedAtUnload, (QList<bool> { false }));
+        QVERIFY(!group.readEntry("ambientledEnabled", true));
     }
     void olderRunningEffectRemainsControllable()
     {

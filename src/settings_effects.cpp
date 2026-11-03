@@ -22,11 +22,10 @@ bool SettingsController::setGradient(int layer, int index, int strip, int from, 
 {
     if (!editableLightbar() || layer < -1 || layer >= current().layers.size())
         return false;
-    const auto& strips = m_driver.description().strips;
+    const auto& strips = editingDescription().strips;
     const auto found
         = std::find_if(strips.begin(), strips.end(), [&](const auto& s) { return s.id == strip; });
-    if (found == strips.end()
-        || !m_driver.description().capabilities.testFlag(DeviceCapability::PerStripColor))
+    if (found == strips.end() || !editingDescription().capabilities.testFlag(DeviceCapability::PerStripColor))
         return false;
     int a = -1, b = -1;
     for (int i = 0; i < found->elements.size(); ++i) {
@@ -57,7 +56,7 @@ bool SettingsController::setGradient(int layer, int index, int strip, int from, 
         });
         if (ambient && list.size() >= 32) {
             m_error = tr("Use at most 32 effects per element and layer.");
-            Q_EMIT changed();
+            Q_EMIT documentController()->changed();
             return false;
         }
         if (ambient)
@@ -178,7 +177,7 @@ QString SettingsController::localizeEffect(
         return id;
     if (current().localEffects.size() >= 128) {
         m_error = tr("Use at most 128 local effects per preset.");
-        Q_EMIT changed();
+        Q_EMIT documentController()->changed();
         return { };
     }
     auto copy = *original;
@@ -216,13 +215,13 @@ QString SettingsController::addLocalEffect(int layer, const QVariantList& ids, c
     pruneLocalEffects();
     if (current().localEffects.size() >= 128) {
         m_error = tr("Use at most 128 local effects per preset.");
-        Q_EMIT changed();
+        Q_EMIT documentController()->changed();
         return { };
     }
     for (int id : effectIds(ids))
         if (localEffects(layer, id).size() >= 32) {
             m_error = tr("Use at most 32 effects per element and layer.");
-            Q_EMIT changed();
+            Q_EMIT documentController()->changed();
             return { };
         }
     EffectPreset effect;
@@ -248,7 +247,7 @@ void SettingsController::setSection(const QString& section)
     if (m_section != section
         && QStringList { "base", "keyboard", "effects", "applications" }.contains(section)) {
         m_section = section;
-        Q_EMIT changed();
+        Q_EMIT documentController()->changed();
     }
 }
 void SettingsController::setDefaultEffect(const QString& id)
@@ -296,13 +295,14 @@ bool SettingsController::removeEffect()
         if (referencedEffects(p).contains(id)) {
             m_error = tr("This effect is used by keyboard preset \"%1\". Change its assignments first.")
                           .arg(p.name);
-            Q_EMIT changed();
+            Q_EMIT documentController()->changed();
             return false;
         }
     }
     for (auto& preset : m_collection.presets)
-        if (preset.defaultEffectId == id)
-            preset.defaultEffectId.clear();
+        for (auto* profile : deviceProfiles(preset))
+            if (profile->defaultEffectId == id)
+                profile->defaultEffectId.clear();
     m_collection.effects.removeAt(m_selectedEffect);
     m_selectedEffect = m_collection.effects.isEmpty() ? -1 : 0;
     touch();
@@ -319,14 +319,14 @@ void SettingsController::importEffectFile(const QUrl& path)
         m_selectedEffect = m_collection.effects.size() - 1;
         touch();
     } else
-        Q_EMIT changed();
+        Q_EMIT documentController()->changed();
 }
 void SettingsController::exportEffectFile(const QUrl& path)
 {
     if (!path.isLocalFile() || m_selectedEffect < 0)
         return;
     exportEffectPreset(m_collection.effects[m_selectedEffect], path.toLocalFile(), &m_error);
-    Q_EMIT changed();
+    Q_EMIT documentController()->changed();
 }
 void SettingsController::setNotification(const QString& key, const QVariant& value, const QString& localId)
 {
@@ -371,7 +371,7 @@ int SettingsController::effectSource(const EffectAssignments& assignments, int i
 {
     if (assignments.contains(id))
         return id;
-    for (const auto& strip : m_driver.description().strips)
+    for (const auto& strip : editingDescription().strips)
         if (assignments.contains(strip.id)
             && std::any_of(
                 strip.elements.begin(), strip.elements.end(), [&](const auto& e) { return e.id == id; }))
@@ -380,16 +380,16 @@ int SettingsController::effectSource(const EffectAssignments& assignments, int i
 }
 QList<int> SettingsController::effectIds(const QVariantList& ids) const
 {
-    if (ids.isEmpty() && m_driver.description().capabilities.testFlag(DeviceCapability::Color))
+    if (ids.isEmpty() && !editingDescription().id.isEmpty())
         return { DefaultAssignment };
     auto result = validIds(ids);
-    const auto& keys = m_driver.description().keys;
+    const auto& keys = editingDescription().keys;
     if (!keys.isEmpty()
         && std::all_of(keys.begin(), keys.end(), [&](const auto& key) { return result.contains(key.id); }))
         return { DefaultAssignment };
-    for (const auto& strip : m_driver.description().strips)
+    for (const auto& strip : editingDescription().strips)
         if (result.contains(strip.id)
-            && m_driver.description().capabilities.testFlag(DeviceCapability::PerStripColor))
+            && editingDescription().capabilities.testFlag(DeviceCapability::PerStripColor))
             for (const auto& element : strip.elements)
                 if (!result.contains(element.id))
                     result.append(element.id);
@@ -408,9 +408,9 @@ EffectList SettingsController::localEffects(int layer, int id) const
         return { { current().defaultEffectId } };
     }
     int source = effectSource(assignments, id);
-    const auto styles = layer < 0 ? expandStyles(current().base, current().gradients, m_driver.description())
+    const auto styles = layer < 0 ? expandStyles(current().base, current().gradients, editingDescription())
                                   : expandStyles(current().layers[layer].styles,
-                                        current().layers[layer].gradients, m_driver.description());
+                                        current().layers[layer].gradients, editingDescription());
     auto style = keyStyle(styles, id, layer >= 0);
     if (source == DefaultAssignment && styles.contains(id) && style.mode != KeyMode::Inherit)
         source = id;
@@ -419,7 +419,7 @@ EffectList SettingsController::localEffects(int layer, int id) const
     if (style.mode == KeyMode::Inherit && !assignments.contains(source))
         return localEffects(-1, id);
     if (style.mode == KeyMode::Inherit)
-        style = keyStyle(expandStyles(current().base, current().gradients, m_driver.description()), id);
+        style = keyStyle(expandStyles(current().base, current().gradients, editingDescription()), id);
     auto list = assignments.value(source, implicitEffects(style));
     for (auto& effect : list)
         if (effect.id.isEmpty())
@@ -580,7 +580,7 @@ void SettingsController::addAssignedEffect(
             continue;
         if (list.size() >= 32) {
             m_error = tr("Use at most 32 effects per element and layer.");
-            Q_EMIT changed();
+            Q_EMIT documentController()->changed();
             return;
         }
         list.append(
@@ -746,12 +746,12 @@ void SettingsController::addNotificationLayout(const QString& effectId)
     if (!editableKeys())
         return;
     QVariantList ids;
-    for (const auto& key : m_driver.description().keys)
+    for (const auto& key : editingDescription().keys)
         if (QStringList { "F9", "F10", "F11", "F12" }.contains(key.label, Qt::CaseInsensitive))
             ids.append(key.id);
     if (ids.isEmpty()) {
         m_error = tr("This keyboard does not expose F9-F12 lighting zones.");
-        Q_EMIT changed();
+        Q_EMIT documentController()->changed();
         return;
     }
     QString id = effectId;

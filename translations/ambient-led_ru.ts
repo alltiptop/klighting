@@ -22,7 +22,7 @@
         <translation>KWin недоступен: %1</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+13"/>
         <source>Multiple or outdated Ambient LED effects were found. Reload the installed effect first.</source>
         <translation>Найдено несколько или устаревшие эффекты Ambient LED. Сначала перезагрузите установленный эффект.</translation>
     </message>
@@ -33,18 +33,18 @@
     </message>
     <message>
         <location line="+17"/>
-        <location line="+87"/>
+        <location line="+89"/>
         <source>Ambient screen capture is running.</source>
         <translation>Захват экрана Ambient работает.</translation>
     </message>
     <message>
-        <location line="-87"/>
-        <location line="+87"/>
+        <location line="-88"/>
+        <location line="+88"/>
         <source>Ambient screen capture is stopped.</source>
         <translation>Захват экрана Ambient остановлен.</translation>
     </message>
     <message>
-        <location line="-85"/>
+        <location line="-86"/>
         <source> The saved setting differs from the running state. Toggle the checkbox and apply to synchronize it.</source>
         <translation> Сохранённая настройка отличается от текущего состояния. Переключите флажок и примените изменения для синхронизации.</translation>
     </message>
@@ -213,6 +213,39 @@
     </message>
 </context>
 <context>
+    <name>Ambient::ProfileTransfer</name>
+    <message>
+        <location filename="../src/preset_transfer.cpp" line="+111"/>
+        <source>Only Base effects will be copied. Key assignments and modifier layers are not supported by this device.</source>
+        <translation>Будут скопированы только эффекты Base. Устройство не поддерживает назначения клавиш и слои модификаторов.</translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>Assignments for %1 unavailable keys or strip elements will be skipped. Unmatched destination elements will use Base.</source>
+        <translation>Назначения для %1 отсутствующих клавиш или элементов ленты будут пропущены. Несопоставленные элементы получат настройки Base.</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Colors will be displayed as brightness using the destination device&apos;s brightness source. Notification patterns are retained.</source>
+        <translation>Цвета будут передаваться яркостью по выбранному на целевом устройстве каналу. Паттерны уведомлений сохранятся.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Only on/off lighting and notification flashes are available. Colors and brightness levels cannot be reproduced.</source>
+        <translation>Доступны только включение/выключение и вспышки уведомлений. Цвета и уровни яркости воспроизвести нельзя.</translation>
+    </message>
+    <message>
+        <location line="+59"/>
+        <source>Ambient will be omitted: this device needs color or at least four brightness levels plus Off.</source>
+        <translation>Ambient будет пропущен: необходима поддержка цвета или хотя бы четырёх уровней яркости плюс выключение.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Brightness filters will be omitted.</source>
+        <translation>Фильтры яркости будут пропущены.</translation>
+    </message>
+</context>
+<context>
     <name>Ambient::ServiceControl</name>
     <message>
         <location filename="../src/service_control.cpp" line="+34"/>
@@ -230,7 +263,7 @@
         <translation>Сервис подсветки работает.</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+23"/>
         <source>Settings saved, but the lighting service could not apply them: %1</source>
         <translation>Настройки сохранены, но сервис подсветки не смог их применить: %1</translation>
     </message>
@@ -238,25 +271,25 @@
 <context>
     <name>Ambient::SettingsController</name>
     <message>
-        <location filename="../src/settings_effects.cpp" line="+231"/>
-        <location line="+303"/>
+        <location filename="../src/settings_effects.cpp" line="+230"/>
+        <location line="+304"/>
         <source>Solid Color</source>
         <translation>Сплошной цвет</translation>
     </message>
     <message>
-        <location line="-302"/>
+        <location line="-303"/>
         <source>Ambient</source>
         <translation>Ambient</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+527"/>
+        <location line="+528"/>
         <source>Notifications</source>
         <translation>Уведомления</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+358"/>
-        <location filename="../src/settings_effects.cpp" line="-481"/>
+        <location filename="../src/settings_controller.cpp" line="+388"/>
+        <location filename="../src/settings_effects.cpp" line="-482"/>
         <source>%1 copy</source>
         <translation>%1 — копия</translation>
     </message>
@@ -281,24 +314,24 @@
         <translation>Эффект используется пресетом клавиатуры «%1». Сначала измените его назначения.</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="-85"/>
+        <location filename="../src/settings_controller.cpp" line="-91"/>
         <source>Cannot save unreadable preset files. Repair them and reset.</source>
         <translation>Нельзя сохранить нечитаемые файлы пресетов. Исправьте их и сбросьте изменения.</translation>
     </message>
     <message>
-        <location filename="../src/presets.cpp" line="+619"/>
+        <location filename="../src/presets.cpp" line="+672"/>
         <source>Presets changed on disk. Reset before saving to preserve those changes.</source>
         <translation>Пресеты изменены на диске. Сбросьте правки перед сохранением, чтобы сохранить внешние изменения.</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+85"/>
+        <location filename="../src/settings_controller.cpp" line="+91"/>
         <source>New preset</source>
         <translation>Новый пресет</translation>
     </message>
     <message>
         <location line="+9"/>
-        <source>Keep at least one preset.</source>
-        <translation>Оставьте хотя бы один пресет.</translation>
+        <source>The default preset cannot be removed.</source>
+        <translation>Пресет по умолчанию нельзя удалить.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -311,30 +344,30 @@
         <translation>Импорт превысит ограничение в 64 пресета эффектов.</translation>
     </message>
     <message>
-        <location filename="../src/settings_effects.cpp" line="+238"/>
+        <location filename="../src/settings_effects.cpp" line="+239"/>
         <source>Default Ambient</source>
         <translation>Ambient по умолчанию</translation>
     </message>
     <message>
-        <location line="-476"/>
+        <location line="-477"/>
         <location line="+165"/>
-        <location line="+358"/>
+        <location line="+359"/>
         <source>Use at most 32 effects per element and layer.</source>
         <translation>Не более 32 эффектов на элемент в каждом слое.</translation>
     </message>
     <message>
-        <location line="-402"/>
+        <location line="-403"/>
         <location line="+38"/>
         <source>Use at most 128 local effects per preset.</source>
         <translation>В пресете можно использовать не более 128 локальных эффектов.</translation>
     </message>
     <message>
-        <location line="+535"/>
+        <location line="+536"/>
         <source>This keyboard does not expose F9-F12 lighting zones.</source>
         <translation>У клавиатуры нет доступных зон подсветки F9–F12.</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+62"/>
+        <location filename="../src/settings_controller.cpp" line="+67"/>
         <source>%1 (Left)</source>
         <translation>%1 (левый)</translation>
     </message>
@@ -379,7 +412,7 @@
         <translation>У этого окна нет класса приложения.</translation>
     </message>
     <message>
-        <location filename="../src/settings_devices.cpp" line="+245"/>
+        <location filename="../src/settings_devices.cpp" line="+246"/>
         <source>Reading lightbar settings…</source>
         <translation>Чтение настроек ленты…</translation>
     </message>
@@ -399,7 +432,7 @@
         <translation>Не удалось сохранить настройку ленты: %1</translation>
     </message>
     <message>
-        <location filename="../src/settings_effects.cpp" line="-520"/>
+        <location filename="../src/settings_effects.cpp" line="-521"/>
         <source>Brightness</source>
         <translation>Яркость</translation>
     </message>
@@ -632,7 +665,7 @@
         <translation>Сохранённые пресеты</translation>
     </message>
     <message>
-        <location line="+51"/>
+        <location line="+52"/>
         <source>New Solid Color</source>
         <translation>Новый сплошной цвет</translation>
     </message>
@@ -647,7 +680,7 @@
         <translation>Новые уведомления</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+29"/>
         <source>Turn Off</source>
         <translation>Выключить</translation>
     </message>
@@ -662,7 +695,7 @@
         <translation>Эти уведомления перекрывают все слои, включая выключенные клавиши.</translation>
     </message>
     <message>
-        <location line="-57"/>
+        <location line="-58"/>
         <source>New Brightness</source>
         <translation>Новая яркость</translation>
     </message>
@@ -881,17 +914,7 @@
 <context>
     <name>AmbientLed.KeyboardPage</name>
     <message>
-        <location filename="../ui/KeyboardPage.qml" line="+18"/>
-        <source>Keyboard</source>
-        <translation>Клавиатура</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Layer Keys</source>
-        <translation>Клавиши слоя</translation>
-    </message>
-    <message>
-        <location line="+55"/>
+        <location filename="../ui/KeyboardPage.qml" line="+72"/>
         <source>Only one layer is active: the most complex matching combination. Ties use the last row. Unassigned keys inherit Base.</source>
         <translation>Активен только один слой с наиболее сложным подходящим сочетанием. При равенстве выбирается последняя строка. Неназначенные клавиши наследуют базовый слой.</translation>
     </message>
@@ -911,7 +934,7 @@
         <translation>Выбирайте клавиши щелчком или перетаскиванием; также работают Tab и Пробел.</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+12"/>
         <source>Group:</source>
         <translation>Группа:</translation>
     </message>
@@ -1032,6 +1055,10 @@
         <location line="+14"/>
         <source>Add Layer</source>
         <translation>Добавить слой</translation>
+    </message>
+    <message>
+        <source>Change combination…</source>
+        <translation>Изменить сочетание…</translation>
     </message>
 </context>
 <context>
@@ -1319,9 +1346,73 @@
     </message>
 </context>
 <context>
+    <name>AmbientLed.PresetDeviceCard</name>
+    <message>
+        <source>Select all</source>
+        <translation>Выделить всё</translation>
+    </message>
+    <message>
+        <source>Remove %1 from this preset? This removes its settings from Base and all layers.</source>
+        <translation>Удалить %1 из этого пресета? Настройки устройства будут удалены из базового профиля и всех слоёв.</translation>
+    </message>
+    <message>
+        <location filename="../ui/PresetDeviceCard.qml" line="+40"/>
+        <source>Collapse device</source>
+        <translation>Свернуть устройство</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Expand device</source>
+        <translation>Развернуть устройство</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Copy device profile</source>
+        <translation>Копировать профиль устройства</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Paste device profile</source>
+        <translation>Вставить профиль устройства</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Remove device from preset</source>
+        <translation>Удалить устройство из пресета</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>This device is disabled. You can still edit its profile.</source>
+        <translation>Это устройство выключено. Его профиль можно редактировать.</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Connect this device to edit its layout. Its saved settings are preserved.</source>
+        <translation>Подключите устройство для редактирования его раскладки. Сохранённые настройки не потеряны.</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Paste compatible settings</source>
+        <translation>Вставить совместимые настройки</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Cancel</source>
+        <translation>Отмена</translation>
+    </message>
+</context>
+<context>
     <name>AmbientLed.PresetPage</name>
     <message>
-        <location filename="../ui/PresetPage.qml" line="+37"/>
+        <source>Recording key combination</source>
+        <translation>Запись сочетания клавиш</translation>
+    </message>
+    <message>
+        <source>Remove this layer? Its settings will be removed for all devices in this preset.</source>
+        <translation>Удалить этот слой? Его настройки будут удалены для всех устройств в этом пресете.</translation>
+    </message>
+    <message>
+        <location filename="../ui/PresetPage.qml" line="+36"/>
         <source>Duplicate</source>
         <translation>Дублировать</translation>
     </message>
@@ -1337,17 +1428,22 @@
         <translation>Удалить</translation>
     </message>
     <message>
-        <location line="+49"/>
+        <location line="+58"/>
         <source>Export Lighting Preset</source>
         <translation>Экспорт пресета подсветки</translation>
     </message>
     <message>
-        <location line="-1"/>
+        <location line="+27"/>
+        <source>Add device…</source>
+        <translation>Добавить устройство…</translation>
+    </message>
+    <message>
+        <location line="-28"/>
         <source>Lighting presets (*.json)</source>
         <translation>Пресеты подсветки (*.json)</translation>
     </message>
     <message>
-        <location line="-57"/>
+        <location line="-66"/>
         <source>Remove this preset? You can undo pending changes with Reset.</source>
         <translation>Удалить пресет? Несохранённые изменения можно отменить кнопкой сброса.</translation>
     </message>
@@ -1357,12 +1453,12 @@
         <translation>Отмена</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+24"/>
         <source>Name:</source>
         <translation>Название:</translation>
     </message>
     <message>
-        <location line="-36"/>
+        <location line="-45"/>
         <source>Remove this preset? Devices using it will have no default preset. You can undo pending changes with Reset.</source>
         <translation>Удалить этот пресет? Устройства, использующие его, останутся без пресета по умолчанию. Несохранённые изменения можно отменить кнопкой «Сбросить».</translation>
     </message>
@@ -1403,6 +1499,14 @@
         <location line="+11"/>
         <source>Import Preset…</source>
         <translation>Импорт пресета…</translation>
+    </message>
+    <message>
+        <source>Expand preset</source>
+        <translation>Развернуть пресет</translation>
+    </message>
+    <message>
+        <source>Collapse preset</source>
+        <translation>Свернуть пресет</translation>
     </message>
 </context>
 <context>

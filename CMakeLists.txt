@@ -22,7 +22,7 @@ target_include_directories(ambient_driver_api INTERFACE src)
 target_link_libraries(ambient_driver_api INTERFACE Qt6::Core Qt6::Gui)
 
 add_library(ambient_core STATIC
-    src/device_manager.cpp src/color.cpp src/notification_effect.cpp src/effect_palette.cpp src/keyboard_profile.cpp src/presets.cpp src/preset_runtime.cpp src/driver_loader.cpp)
+    src/device_manager.cpp src/color.cpp src/notification_effect.cpp src/effect_palette.cpp src/keyboard_profile.cpp src/presets.cpp src/preset_runtime.cpp src/preset_transfer.cpp src/driver_loader.cpp)
 target_include_directories(ambient_core PUBLIC src)
 target_link_libraries(ambient_core PUBLIC ambient_driver_api KF6::ConfigCore)
 target_compile_options(ambient_core PRIVATE -Wall -Wextra -Wpedantic)
@@ -39,6 +39,9 @@ add_executable(ambient_probe tools/probe.cpp)
 target_link_libraries(ambient_probe PRIVATE ambient_core Qt6::DBus)
 add_dependencies(ambient_probe asus_g615lw)
 add_dependencies(ambient_probe linux_leds hid_lamparray)
+
+qt_add_executable(klighting-plugin-check tools/check_plugins.cpp)
+target_link_libraries(klighting-plugin-check PRIVATE Qt6::Core)
 
 add_library(lighting_runtime STATIC src/lighting_runtime.cpp)
 target_link_libraries(lighting_runtime PUBLIC ambient_core)
@@ -76,6 +79,7 @@ if(BUILD_KWIN_EFFECT)
     kcoreaddons_add_plugin(klighting_integration SOURCES src/kwin_integration.cpp
         INSTALL_NAMESPACE "kwin/plugins")
     target_link_libraries(klighting_integration PRIVATE daemon_peer KWin::kwin)
+    target_link_options(klighting_integration PRIVATE "LINKER:-z,defs" "LINKER:-z,now")
     set_target_properties(klighting_integration PROPERTIES PREFIX ""
         CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN YES)
     kcoreaddons_add_plugin(ambientled
@@ -83,9 +87,11 @@ if(BUILD_KWIN_EFFECT)
         INSTALL_NAMESPACE "kwin/effects/plugins")
     set_target_properties(ambientled PROPERTIES PREFIX "" CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN YES)
     set_property(TARGET ambientled APPEND PROPERTY AUTOMOC_MACRO_NAMES KWIN_EFFECT_FACTORY_SUPPORTED)
-    target_link_libraries(ambientled PRIVATE daemon_peer KWin::kwin)
+    target_link_libraries(ambientled PRIVATE ambient_core daemon_peer KWin::kwin)
+    # Missing symbols in native plugins otherwise fail inside the compositor.
+    target_link_options(ambientled PRIVATE "LINKER:-z,defs" "LINKER:-z,now")
     target_compile_options(ambientled PRIVATE -Wall -Wextra -Wpedantic)
-    add_library(ambient_settings STATIC src/translations.cpp src/settings_controller.cpp src/settings_effects.cpp src/settings_devices.cpp src/effect_control.cpp src/service_control.cpp src/condition_recorder.cpp src/layer_key_tracker.cpp)
+    add_library(ambient_settings STATIC src/translations.cpp src/settings_controller.cpp src/settings_effects.cpp src/settings_devices.cpp src/settings_profiles.cpp src/effect_control.cpp src/service_control.cpp src/condition_recorder.cpp src/layer_key_tracker.cpp)
     target_link_libraries(ambient_settings PUBLIC ambient_core KF6::I18n KF6::GuiAddons KF6::Service Qt6::Quick Qt6::DBus)
     set_target_properties(ambient_settings PROPERTIES CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN YES)
     target_compile_options(ambient_settings PRIVATE -Wall -Wextra -Wpedantic)
@@ -202,6 +208,29 @@ if(BUILD_TESTING)
     add_test(NAME power_tests COMMAND ${DBUS_RUN_SESSION} --config-file=${CMAKE_CURRENT_SOURCE_DIR}/tests/session-bus.conf -- $<TARGET_FILE:power_tests>)
     set_tests_properties(power_tests PROPERTIES TIMEOUT 30)
     if(BUILD_KWIN_EFFECT)
+        foreach(mode IN ITEMS unresolved crash hang)
+            qt_add_plugin(probe_${mode}_fixture SHARED CLASS_NAME ProbeFixture tests/fixtures/plugin_probe.cpp)
+            target_link_libraries(probe_${mode}_fixture PRIVATE Qt6::Core)
+            target_compile_definitions(probe_${mode}_fixture PRIVATE PROBE_${mode})
+            # Deliberately missing a dependency, as after an incompatible system update.
+            target_link_options(probe_${mode}_fixture PRIVATE "LINKER:-z,now")
+            set_target_properties(probe_${mode}_fixture PROPERTIES PREFIX ""
+                LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/test-plugins")
+        endforeach()
+        qt_add_executable(plugin_loading_tests tests/test_plugin_loading.cpp)
+        target_link_libraries(plugin_loading_tests PRIVATE Qt6::Test)
+        target_compile_definitions(plugin_loading_tests PRIVATE
+            EFFECT_PLUGIN_PATH="$<TARGET_FILE:ambientled>"
+            INTEGRATION_PLUGIN_PATH="$<TARGET_FILE:klighting_integration>"
+            PLUGIN_CHECK_PATH="$<TARGET_FILE:klighting-plugin-check>"
+            UNRESOLVED_PLUGIN_PATH="$<TARGET_FILE:probe_unresolved_fixture>"
+            CRASH_PLUGIN_PATH="$<TARGET_FILE:probe_crash_fixture>"
+            HANG_PLUGIN_PATH="$<TARGET_FILE:probe_hang_fixture>"
+            CONSTRUCTOR_PLUGIN_PATH="$<TARGET_FILE:incompatible_driver_fixture>")
+        add_dependencies(plugin_loading_tests ambientled klighting_integration klighting-plugin-check
+            probe_unresolved_fixture probe_crash_fixture probe_hang_fixture incompatible_driver_fixture)
+        add_test(NAME plugin_loading_tests COMMAND plugin_loading_tests)
+        set_tests_properties(plugin_loading_tests PROPERTIES TIMEOUT 20)
         find_package(Qt6 REQUIRED COMPONENTS QuickWidgets)
         qt_add_executable(capture_ipc_tests tests/test_capture_ipc.cpp src/capture_channel.cpp)
         target_include_directories(capture_ipc_tests PRIVATE src)
@@ -221,9 +250,10 @@ if(BUILD_TESTING)
         add_test(NAME capture_geometry_tests COMMAND capture_geometry_tests)
         add_executable(quick_tests tests/test_quick.cpp)
         target_link_libraries(quick_tests PRIVATE ambient_settings KF6::KCMUtils KF6::KCMUtilsQuick Qt6::QuickWidgets Qt6::Widgets Qt6::Test)
-        target_compile_definitions(quick_tests PRIVATE CONFIG_PLUGIN_PATH="$<TARGET_FILE:kcm_ambientled>"
+        target_compile_definitions(quick_tests PRIVATE MULTI_DRIVER_DIR="$<TARGET_FILE_DIR:multi_driver_fixture>"
+            CONFIG_PLUGIN_PATH="$<TARGET_FILE:kcm_ambientled>"
             CONFIG_SECTION_DIR="$<TARGET_FILE_DIR:kcm_ambientled_devices>")
-        add_dependencies(quick_tests kcm_ambientled config_driver_fixture
+        add_dependencies(quick_tests kcm_ambientled config_driver_fixture multi_driver_fixture
             kcm_ambientled_devices kcm_ambientled_presets kcm_ambientled_effects kcm_ambientled_applications)
         add_test(NAME quick_tests COMMAND ${DBUS_RUN_SESSION} --config-file=${CMAKE_CURRENT_SOURCE_DIR}/tests/session-bus.conf -- $<TARGET_FILE:quick_tests>)
         set_tests_properties(quick_tests PROPERTIES TIMEOUT 60

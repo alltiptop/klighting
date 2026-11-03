@@ -22,7 +22,7 @@
         <translation>KWin 不可用：%1</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+13"/>
         <source>Multiple or outdated Ambient LED effects were found. Reload the installed effect first.</source>
         <translation>发现多个或过时的 Ambient LED 效果。请先重新加载已安装的效果。</translation>
     </message>
@@ -33,18 +33,18 @@
     </message>
     <message>
         <location line="+17"/>
-        <location line="+87"/>
+        <location line="+89"/>
         <source>Ambient screen capture is running.</source>
         <translation>Ambient 屏幕捕获正在运行。</translation>
     </message>
     <message>
-        <location line="-87"/>
-        <location line="+87"/>
+        <location line="-88"/>
+        <location line="+88"/>
         <source>Ambient screen capture is stopped.</source>
         <translation>Ambient 屏幕捕获已停止。</translation>
     </message>
     <message>
-        <location line="-85"/>
+        <location line="-86"/>
         <source> The saved setting differs from the running state. Toggle the checkbox and apply to synchronize it.</source>
         <translation> 保存的设置与运行状态不同。请切换复选框并应用以同步。</translation>
     </message>
@@ -213,6 +213,39 @@
     </message>
 </context>
 <context>
+    <name>Ambient::ProfileTransfer</name>
+    <message>
+        <location filename="../src/preset_transfer.cpp" line="+111"/>
+        <source>Only Base effects will be copied. Key assignments and modifier layers are not supported by this device.</source>
+        <translation>仅复制 Base 效果。此设备不支持按键分配和修饰键图层。</translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>Assignments for %1 unavailable keys or strip elements will be skipped. Unmatched destination elements will use Base.</source>
+        <translation>将跳过 %1 个不可用按键或灯带元素的分配。未匹配的目标元素将使用 Base。</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Colors will be displayed as brightness using the destination device&apos;s brightness source. Notification patterns are retained.</source>
+        <translation>颜色将按目标设备所选的亮度来源转换为亮度。通知闪烁模式将保留。</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Only on/off lighting and notification flashes are available. Colors and brightness levels cannot be reproduced.</source>
+        <translation>仅支持开关和通知闪烁，无法还原颜色和亮度级别。</translation>
+    </message>
+    <message>
+        <location line="+59"/>
+        <source>Ambient will be omitted: this device needs color or at least four brightness levels plus Off.</source>
+        <translation>将忽略 Ambient：此设备需要支持颜色，或至少四级亮度加关闭。</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Brightness filters will be omitted.</source>
+        <translation>将忽略亮度滤镜。</translation>
+    </message>
+</context>
+<context>
     <name>Ambient::ServiceControl</name>
     <message>
         <location filename="../src/service_control.cpp" line="+34"/>
@@ -230,7 +263,7 @@
         <translation>灯光服务正在运行。</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+23"/>
         <source>Settings saved, but the lighting service could not apply them: %1</source>
         <translation>设置已保存，但灯光服务无法应用这些设置：%1</translation>
     </message>
@@ -238,25 +271,25 @@
 <context>
     <name>Ambient::SettingsController</name>
     <message>
-        <location filename="../src/settings_effects.cpp" line="+231"/>
-        <location line="+303"/>
+        <location filename="../src/settings_effects.cpp" line="+230"/>
+        <location line="+304"/>
         <source>Solid Color</source>
         <translation>纯色</translation>
     </message>
     <message>
-        <location line="-302"/>
+        <location line="-303"/>
         <source>Ambient</source>
         <translation>环境光</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+527"/>
+        <location line="+528"/>
         <source>Notifications</source>
         <translation>通知</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+358"/>
-        <location filename="../src/settings_effects.cpp" line="-481"/>
+        <location filename="../src/settings_controller.cpp" line="+388"/>
+        <location filename="../src/settings_effects.cpp" line="-482"/>
         <source>%1 copy</source>
         <translation>%1 副本</translation>
     </message>
@@ -281,24 +314,24 @@
         <translation>键盘预设“%1”正在使用此效果。请先更改其分配。</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="-85"/>
+        <location filename="../src/settings_controller.cpp" line="-91"/>
         <source>Cannot save unreadable preset files. Repair them and reset.</source>
         <translation>无法保存不可读的预设文件。请修复文件后重置。</translation>
     </message>
     <message>
-        <location filename="../src/presets.cpp" line="+619"/>
+        <location filename="../src/presets.cpp" line="+672"/>
         <source>Presets changed on disk. Reset before saving to preserve those changes.</source>
         <translation>磁盘上的预设已更改。请先重置再保存，以保留这些更改。</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+85"/>
+        <location filename="../src/settings_controller.cpp" line="+91"/>
         <source>New preset</source>
         <translation>新建预设</translation>
     </message>
     <message>
         <location line="+9"/>
-        <source>Keep at least one preset.</source>
-        <translation>请至少保留一个预设。</translation>
+        <source>The default preset cannot be removed.</source>
+        <translation>无法删除默认预设。</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -311,30 +344,30 @@
         <translation>导入将超过 64 个效果预设的上限。</translation>
     </message>
     <message>
-        <location filename="../src/settings_effects.cpp" line="+238"/>
+        <location filename="../src/settings_effects.cpp" line="+239"/>
         <source>Default Ambient</source>
         <translation>默认环境光</translation>
     </message>
     <message>
-        <location line="-476"/>
+        <location line="-477"/>
         <location line="+165"/>
-        <location line="+358"/>
+        <location line="+359"/>
         <source>Use at most 32 effects per element and layer.</source>
         <translation>每个元素的每一层最多使用 32 个效果。</translation>
     </message>
     <message>
-        <location line="-402"/>
+        <location line="-403"/>
         <location line="+38"/>
         <source>Use at most 128 local effects per preset.</source>
         <translation>每个预设最多使用 128 个局部效果。</translation>
     </message>
     <message>
-        <location line="+535"/>
+        <location line="+536"/>
         <source>This keyboard does not expose F9-F12 lighting zones.</source>
         <translation>此键盘未提供 F9–F12 灯光区域。</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+62"/>
+        <location filename="../src/settings_controller.cpp" line="+67"/>
         <source>%1 (Left)</source>
         <translation>%1（左）</translation>
     </message>
@@ -379,7 +412,7 @@
         <translation>此窗口没有应用程序类。</translation>
     </message>
     <message>
-        <location filename="../src/settings_devices.cpp" line="+245"/>
+        <location filename="../src/settings_devices.cpp" line="+246"/>
         <source>Reading lightbar settings…</source>
         <translation>正在读取灯带设置…</translation>
     </message>
@@ -399,7 +432,7 @@
         <translation>无法保存灯带设置：%1</translation>
     </message>
     <message>
-        <location filename="../src/settings_effects.cpp" line="-520"/>
+        <location filename="../src/settings_effects.cpp" line="-521"/>
         <source>Brightness</source>
         <translation>亮度</translation>
     </message>
@@ -632,7 +665,7 @@
         <translation>已保存的预设</translation>
     </message>
     <message>
-        <location line="+51"/>
+        <location line="+52"/>
         <source>New Solid Color</source>
         <translation>新建纯色</translation>
     </message>
@@ -647,7 +680,7 @@
         <translation>新建通知</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+29"/>
         <source>Turn Off</source>
         <translation>关闭</translation>
     </message>
@@ -662,7 +695,7 @@
         <translation>这些通知会覆盖所有层，包括未亮起的按键。</translation>
     </message>
     <message>
-        <location line="-57"/>
+        <location line="-58"/>
         <source>New Brightness</source>
         <translation>新建亮度</translation>
     </message>
@@ -881,17 +914,7 @@
 <context>
     <name>AmbientLed.KeyboardPage</name>
     <message>
-        <location filename="../ui/KeyboardPage.qml" line="+18"/>
-        <source>Keyboard</source>
-        <translation>键盘</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Layer Keys</source>
-        <translation>层按键</translation>
-    </message>
-    <message>
-        <location line="+55"/>
+        <location filename="../ui/KeyboardPage.qml" line="+72"/>
         <source>Only one layer is active: the most complex matching combination. Ties use the last row. Unassigned keys inherit Base.</source>
         <translation>同一时间仅激活一个图层：使用最复杂的匹配组合键的图层。复杂程度相同时采用最后一行。未分配的按键继承基础图层。</translation>
     </message>
@@ -911,7 +934,7 @@
         <translation>单击或拖动以选择按键；也可使用 Tab 和空格键。</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+12"/>
         <source>Group:</source>
         <translation>组：</translation>
     </message>
@@ -1032,6 +1055,10 @@
         <location line="+14"/>
         <source>Add Layer</source>
         <translation>添加层</translation>
+    </message>
+    <message>
+        <source>Change combination…</source>
+        <translation>更改组合键…</translation>
     </message>
 </context>
 <context>
@@ -1319,9 +1346,73 @@
     </message>
 </context>
 <context>
+    <name>AmbientLed.PresetDeviceCard</name>
+    <message>
+        <source>Select all</source>
+        <translation>全选</translation>
+    </message>
+    <message>
+        <source>Remove %1 from this preset? This removes its settings from Base and all layers.</source>
+        <translation>要从此预设中移除 %1 吗？这将移除其在基础层和所有图层中的设置。</translation>
+    </message>
+    <message>
+        <location filename="../ui/PresetDeviceCard.qml" line="+40"/>
+        <source>Collapse device</source>
+        <translation>折叠设备</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Expand device</source>
+        <translation>展开设备</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Copy device profile</source>
+        <translation>复制设备配置</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Paste device profile</source>
+        <translation>粘贴设备配置</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Remove device from preset</source>
+        <translation>从预设中移除设备</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>This device is disabled. You can still edit its profile.</source>
+        <translation>此设备已禁用，仍可编辑其配置。</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Connect this device to edit its layout. Its saved settings are preserved.</source>
+        <translation>请连接此设备以编辑其布局。已保存的设置将保留。</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Paste compatible settings</source>
+        <translation>粘贴兼容设置</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+</context>
+<context>
     <name>AmbientLed.PresetPage</name>
     <message>
-        <location filename="../ui/PresetPage.qml" line="+37"/>
+        <source>Recording key combination</source>
+        <translation>正在录制组合键</translation>
+    </message>
+    <message>
+        <source>Remove this layer? Its settings will be removed for all devices in this preset.</source>
+        <translation>要移除此图层吗？这将移除此预设中所有设备的该图层设置。</translation>
+    </message>
+    <message>
+        <location filename="../ui/PresetPage.qml" line="+36"/>
         <source>Duplicate</source>
         <translation>复制</translation>
     </message>
@@ -1337,17 +1428,22 @@
         <translation>移除</translation>
     </message>
     <message>
-        <location line="+49"/>
+        <location line="+58"/>
         <source>Export Lighting Preset</source>
         <translation>导出灯光预设</translation>
     </message>
     <message>
-        <location line="-1"/>
+        <location line="+27"/>
+        <source>Add device…</source>
+        <translation>添加设备…</translation>
+    </message>
+    <message>
+        <location line="-28"/>
         <source>Lighting presets (*.json)</source>
         <translation>灯光预设 (*.json)</translation>
     </message>
     <message>
-        <location line="-57"/>
+        <location line="-66"/>
         <source>Remove this preset? You can undo pending changes with Reset.</source>
         <translation>移除此预设？可通过“重置”撤销未保存的更改。</translation>
     </message>
@@ -1357,12 +1453,12 @@
         <translation>取消</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+24"/>
         <source>Name:</source>
         <translation>名称：</translation>
     </message>
     <message>
-        <location line="-36"/>
+        <location line="-45"/>
         <source>Remove this preset? Devices using it will have no default preset. You can undo pending changes with Reset.</source>
         <translation>删除此预设？使用它的设备将不再有默认预设。您可以通过“重置”撤销尚未保存的更改。</translation>
     </message>
@@ -1403,6 +1499,14 @@
         <location line="+11"/>
         <source>Import Preset…</source>
         <translation>导入预设…</translation>
+    </message>
+    <message>
+        <source>Expand preset</source>
+        <translation>展开预设</translation>
+    </message>
+    <message>
+        <source>Collapse preset</source>
+        <translation>折叠预设</translation>
     </message>
 </context>
 <context>

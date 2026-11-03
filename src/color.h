@@ -8,6 +8,9 @@
 
 namespace Ambient
 {
+struct DeviceInstance;
+int deviceBrightnessSteps(const DeviceInstance& device);
+QColor deviceColor(const QColor& color, const DeviceInstance& device, const QString& channel = { });
 QColor averageColor(QByteArrayView rgba, double brightness = 1.0, double saturation = 1.0);
 QColor mapBrightness(const QColor& color, int minimumPercent, int maximumPercent);
 QColor constrainBrightness(const QColor& color, int minimumPercent, int maximumPercent);

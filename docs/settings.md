@@ -8,8 +8,9 @@ Changes remain pending until **Apply**; **Reset** reloads saved settings, and
 
 ## Devices
 
-Add discovered devices individually. Each has an enable switch and a default preset.
-Matching application bindings for its model always take priority. Offline/disabled devices
+Add discovered devices individually. Each has an enable switch and automatically joins
+Default. Matching application bindings take priority; devices absent from an application
+preset keep using Default. Offline/disabled devices
 retain their settings; removing a device does not remove its presets. The G615LW
 keyboard and lightbar are parts of one physical device/backend.
 
@@ -29,9 +30,9 @@ The Ambient enable switch is hidden for monochrome devices with fewer than four
 nonzero brightness levels (Off is separate). Monochrome devices convert output
 using the selected RGB average or red/green/blue channel.
 
-Deleting a device's default preset asks for confirmation and clears that reference.
-**None** leaves it without a default; matching application bindings can still select
-a preset. It does not silently choose another preset for that device.
+Default cannot be deleted; its layers and device cards can. Removing a device card
+requires confirmation and removes its settings from every layer of that preset.
+A device absent from Default can still participate in matching application presets.
 
 Device-wide effect pauses and lightbar-off policies are independent, for battery
 power and low charge. Pausing Ambient holds its last color; paused notifications

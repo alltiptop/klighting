@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "settings_controller.h"
+#include "color.h"
 #include <KApplicationTrader>
 #include <KConfigGroup>
 #include <KService>
@@ -16,16 +17,24 @@ namespace Ambient
 {
 SettingsController::SettingsController(QObject* parent)
     : QObject(parent)
+    , m_document(std::make_shared<Document>())
     , m_config(KSharedConfig::openConfig("kwinrc"))
+    , m_driver(m_document->driver)
     , m_effect(new EffectControl(this))
     , m_service(new ServiceControl(this))
+    , m_collection(m_document->collection)
+    , m_saved(m_document->saved)
+    , m_fallback(m_document->fallback)
+    , m_revision(m_document->revision)
+    , m_error(m_document->error)
 {
+    connect(this, &SettingsController::contentChanged, this, &SettingsController::syncProfileEditors);
     connect(m_effect, &EffectControl::changed, this, &SettingsController::changed);
     connect(m_service, &ServiceControl::changed, this, &SettingsController::changed);
     connect(m_service, &ServiceControl::finished, this, [this] {
         if (!m_service->error().isEmpty()) {
             m_error = m_service->error();
-            Q_EMIT changed();
+            Q_EMIT documentController()->changed();
         }
     });
     connect(&m_layerKeys, &LayerKeyTracker::stateChanged, this, [this] {
@@ -34,7 +43,7 @@ SettingsController::SettingsController(QObject* parent)
     });
     connect(this, &SettingsController::contentChanged, this, &SettingsController::pressedKeysChanged);
     connect(this, &SettingsController::contentChanged, this, [this] { updatePreview(true); });
-    m_fallback = defaultCollection(m_driver.description().id);
+    m_fallback = defaultCollection(editingDescription().id);
     load();
     m_discoveryTimer.setSingleShot(true);
     connect(&m_discoveryTimer, &QTimer::timeout, this, &SettingsController::refreshDevices);
@@ -44,7 +53,7 @@ SettingsController::SettingsController(QObject* parent)
 SettingsController::~SettingsController()
 {
     // Apply may outlive the settings window, as it does in standard KCMs.
-    if (m_effect->busy()) {
+    if (!m_owner && m_effect->busy()) {
         m_effect->setParent(QCoreApplication::instance());
         connect(m_effect, &EffectControl::finished, m_effect, &QObject::deleteLater);
     }
@@ -52,8 +61,17 @@ SettingsController::~SettingsController()
 QVariantList SettingsController::presets() const
 {
     QVariantList result;
-    for (const auto& p : m_collection.presets)
-        result << QVariantMap { { "id", p.id }, { "name", p.name }, { "deviceId", p.keyboardDeviceId } };
+    for (const auto& p : m_collection.presets) {
+        QStringList targets;
+        for (const auto& d : configured())
+            if (profileFor(p, d))
+                targets.append(d.identity());
+        QVariantList layers;
+        for (const auto& conditions : presetLayerConditions(p))
+            layers.append(layerLabel(conditions));
+        result << QVariantMap { { "id", p.id }, { "name", p.name }, { "deviceId", p.keyboardDeviceId },
+            { "devices", targets }, { "layers", layers } };
+    }
     return result;
 }
 QString SettingsController::applicationIcon(const QString& windowClass) const
@@ -94,28 +112,25 @@ QVariantList SettingsController::rules() const
 QVariantMap SettingsController::preset() const
 {
     const auto& p = current();
-    QStringList defaultDevices;
-    for (const auto& device : configured())
-        if (device.presetId == p.id)
-            defaultDevices.append(device.name);
+    const auto& scene = currentPreset();
     QVariantList layers;
-    for (const auto& l : p.layers)
-        layers << QVariantMap { { "name", l.name }, { "conditions", l.conditions },
-            { "summary", layerLabel(l.conditions) } };
-    return { { "id", p.id }, { "name", p.name }, { "deviceId", p.keyboardDeviceId }, { "layers", layers },
-        { "defaultEffectId", p.defaultEffectId }, { "defaultDevices", defaultDevices } };
+    for (const auto& conditions : presetLayerConditions(scene))
+        layers << QVariantMap { { "name", conditions.join('+') }, { "conditions", conditions },
+            { "summary", layerLabel(conditions) } };
+    return { { "id", m_owner ? p.id : scene.id }, { "name", scene.name }, { "deviceId", p.keyboardDeviceId },
+        { "layers", layers }, { "defaultEffectId", p.defaultEffectId } };
 }
 QVariantList SettingsController::keys() const
 {
     QVariantList result;
-    for (const auto& k : m_driver.description().keys)
+    for (const auto& k : editingDescription().keys)
         result << QVariantMap { { "id", k.id }, { "label", k.label }, { "x", k.rect.x() },
             { "y", k.rect.y() }, { "width", k.rect.width() }, { "height", k.rect.height() } };
     return result;
 }
 QVariantMap SettingsController::device() const
 {
-    const auto& d = m_driver.description();
+    const auto& d = editingDescription();
     QRectF bounds;
     for (const auto& k : d.keys)
         bounds |= k.rect;
@@ -129,10 +144,11 @@ QVariantMap SettingsController::device() const
         { "keyColor", d.keyColor.isValid() ? d.keyColor.name() : QString() },
         { "color", d.capabilities.testFlag(DeviceCapability::Color) },
         { "brightness", d.capabilities.testFlag(DeviceCapability::Brightness) },
+        { "brightnessSteps", deviceBrightnessSteps(editingInstance()) },
         { "ambient",
             d.capabilities.testFlag(DeviceCapability::Color)
                 || (d.capabilities.testFlag(DeviceCapability::Brightness)
-                    && m_driver.instance().options.value("BrightnessSteps").toInt() >= 4) },
+                    && editingInstance().options.value("BrightnessSteps").toInt() >= 4) },
         { "perKey", d.capabilities.testFlag(DeviceCapability::PerKeyColor) },
         { "lightbar", d.capabilities.testFlag(DeviceCapability::Lightbar) || !d.strips.isEmpty() },
         { "perStrip", d.capabilities.testFlag(DeviceCapability::PerStripColor) },
@@ -149,16 +165,16 @@ QVariantList SettingsController::conditions() const
 }
 bool SettingsController::editableKeys() const
 {
-    return m_driver.description().capabilities.testFlag(DeviceCapability::PerKeyColor)
-        && current().keyboardDeviceId == m_driver.description().id;
+    return editingDescription().capabilities.testFlag(DeviceCapability::PerKeyColor)
+        && current().keyboardDeviceId == editingDescription().id;
 }
 bool SettingsController::editableLightbar() const
 {
-    return current().keyboardDeviceId == m_driver.description().id
-        && (m_driver.description().capabilities.testFlag(DeviceCapability::Lightbar)
-            || !m_driver.description().strips.isEmpty())
-        && (m_driver.description().capabilities.testFlag(DeviceCapability::PerKeyColor)
-            || m_driver.description().capabilities.testFlag(DeviceCapability::PerStripColor));
+    return current().keyboardDeviceId == editingDescription().id
+        && (editingDescription().capabilities.testFlag(DeviceCapability::Lightbar)
+            || !editingDescription().strips.isEmpty())
+        && (editingDescription().capabilities.testFlag(DeviceCapability::PerKeyColor)
+            || editingDescription().capabilities.testFlag(DeviceCapability::PerStripColor));
 }
 bool SettingsController::dirty() const
 {
@@ -168,7 +184,6 @@ bool SettingsController::dirty() const
 }
 bool SettingsController::representsDefaults() const
 {
-    const auto& p = current();
     if (m_section == "base")
         return (!lightbarAvailable() || lightbarEnabled())
             && !deviceSettings().value("pauseOnBattery").toBool()
@@ -185,16 +200,27 @@ bool SettingsController::representsDefaults() const
                         ? m_collection.effects[m_selectedEffect].solidColor == QColor(Qt::white)
                         : m_collection.effects[m_selectedEffect].ambient == AmbientOptions()));
     if (m_section == "applications")
-        return m_collection.rules.isEmpty() && m_collection.defaultId == m_collection.presets.first().id;
+        return m_collection.rules.isEmpty();
     const auto defaultEffect = [&]() {
         for (const auto& e : m_collection.effects)
             if (e.type == "ambient")
                 return e.id;
         return QString();
     }();
-    return p.defaultEffectId == defaultEffect && p.base.isEmpty() && p.groups.isEmpty()
-        && p.layers == KeyboardLayers { KeyboardLayer() } && p.effects.isEmpty()
-        && p.effectOverrides.isEmpty() && p.gradients.isEmpty();
+    if (currentPreset().multiDevice && !currentPreset().layerConditions.isEmpty())
+        return false;
+    const auto profiles
+        = m_owner ? QList<const DeviceProfile*> { &current() } : deviceProfiles(currentPreset());
+    return std::all_of(profiles.begin(), profiles.end(), [&](const auto* profile) {
+        const auto& p = *profile;
+        if (currentPreset().multiDevice)
+            return p.defaultEffectId.isEmpty() && p.base.isEmpty() && p.groups.isEmpty() && p.layers.isEmpty()
+                && p.effects == EffectAssignments { { DefaultAssignment, { } } }
+            && p.effectOverrides.isEmpty() && p.gradients.isEmpty();
+        return p.defaultEffectId == defaultEffect && p.base.isEmpty() && p.groups.isEmpty()
+            && p.layers == KeyboardLayers { KeyboardLayer() } && p.effects.isEmpty()
+            && p.effectOverrides.isEmpty() && p.gradients.isEmpty();
+    });
 }
 void SettingsController::pruneLocalEffects()
 {
@@ -206,17 +232,30 @@ void SettingsController::pruneLocalEffects()
 void SettingsController::touch()
 {
     pruneLocalEffects();
+    if (selectedLayer() >= presetLayerConditions(currentPreset()).size())
+        selectLayer(-1);
     ++m_revision;
-    Q_EMIT contentChanged();
+    Q_EMIT documentController()->contentChanged();
     m_error.clear();
-    Q_EMIT changed();
+    Q_EMIT documentController()->changed();
+}
+int SettingsController::selectedLayer() const { return documentController()->m_selectedLayer; }
+void SettingsController::selectLayer(int index)
+{
+    auto* owner = documentController();
+    if (index < -1 || index >= presetLayerConditions(currentPreset()).size()
+        || index == owner->m_selectedLayer)
+        return;
+    owner->m_selectedLayer = index;
+    Q_EMIT owner->layerSelectionChanged();
 }
 void SettingsController::selectPreset(int index)
 {
     if (index < 0 || index >= m_collection.presets.size() || index == m_selected)
         return;
     m_selected = index;
-    if (current().keyboardDeviceId != m_driver.description().id) {
+    selectLayer(-1);
+    if (current().keyboardDeviceId != editingDescription().id) {
         for (const auto& d : configured())
             if (d.modelId == current().keyboardDeviceId) {
                 m_selectedDevice = d.identity();
@@ -226,15 +265,6 @@ void SettingsController::selectPreset(int index)
             }
     }
     touch();
-}
-void SettingsController::setDefaultId(const QString& id)
-{
-    for (const auto& p : m_collection.presets)
-        if (p.id == id) {
-            m_collection.defaultId = id;
-            touch();
-            return;
-        }
 }
 void SettingsController::load()
 {
@@ -246,6 +276,7 @@ void SettingsController::load()
     m_readable = collection.has_value();
     m_saved = m_collection = collection.value_or(fallback);
     m_selected = std::max(0, matchingPreset(m_collection, QString()));
+    selectLayer(-1);
     m_selectedEffect = m_collection.effects.isEmpty() ? -1 : 0;
     ++m_revision;
     m_effect->reset();
@@ -261,8 +292,8 @@ void SettingsController::load()
             m_selected = preset;
     }
     loadLightbar();
-    Q_EMIT contentChanged();
-    Q_EMIT changed();
+    Q_EMIT documentController()->contentChanged();
+    Q_EMIT documentController()->changed();
 }
 void SettingsController::save()
 {
@@ -271,13 +302,13 @@ void SettingsController::save()
     m_config->reparseConfiguration();
     if (!m_readable) {
         m_error = tr("Cannot save unreadable preset files. Repair them and reset.");
-        Q_EMIT changed();
+        Q_EMIT documentController()->changed();
         return;
     }
     QString error;
     if (!savePresets(m_collection, &error, &m_saved, &m_fallback)) {
         m_error = error;
-        Q_EMIT changed();
+        Q_EMIT documentController()->changed();
         return;
     }
     m_saved = m_collection;
@@ -285,7 +316,7 @@ void SettingsController::save()
     saveLightbar();
     m_effect->apply();
     m_service->reload();
-    Q_EMIT changed();
+    Q_EMIT documentController()->changed();
 }
 void SettingsController::defaults()
 {
@@ -312,23 +343,32 @@ void SettingsController::defaults()
         }
     } else if (m_section == "applications") {
         m_collection.rules.clear();
-        m_collection.defaultId = m_collection.presets.first().id;
     } else {
-        current().base.clear();
-        current().gradients.clear();
-        current().effects.clear();
-        current().effectOverrides.clear();
-        current().localEffects.clear();
-        current().groups.clear();
-        current().layers = { KeyboardLayer() };
-        current().defaultEffectId = [&]() {
-            for (const auto& e : m_collection.effects)
-                if (e.type == "ambient")
-                    return e.id;
-            return QString();
-        }();
-        if (m_driver.driver())
-            current().keyboardDeviceId = m_driver.description().id;
+        if (!m_owner)
+            currentPreset().layerConditions.clear();
+        const auto profiles
+            = m_owner ? QList<DeviceProfile*> { &current() } : deviceProfiles(currentPreset());
+        for (auto* profile : profiles) {
+            const auto id = profile->id, name = profile->name, target = profile->targetDevice;
+            const auto model = profile->keyboardDeviceId;
+            *profile = DeviceProfile();
+            profile->id = id;
+            profile->name = name;
+            profile->targetDevice = target;
+            profile->keyboardDeviceId = model;
+            profile->defaultEffectId.clear();
+            if (currentPreset().multiDevice) {
+                profile->layers.clear();
+                profile->effects.insert(DefaultAssignment, { });
+            } else {
+                for (const auto& effect : m_collection.effects)
+                    if (effect.type == "ambient") {
+                        profile->defaultEffectId = effect.id;
+                        break;
+                    }
+            }
+        }
+        mergePresetLayers(currentPreset());
     }
     touch();
 }
@@ -336,53 +376,47 @@ void SettingsController::setName(const QString& name)
 {
     if (name.trimmed().isEmpty() || name.size() > 128)
         return;
-    current().name = name;
+    currentPreset().name = name;
     touch();
 }
 bool SettingsController::addPreset(bool duplicate)
 {
     if (m_collection.presets.size() >= 64)
         return false;
-    auto p = duplicate ? current() : LightingPreset();
+    auto p = duplicate ? currentPreset() : LightingPreset();
     if (!duplicate) {
-        p.defaultEffectId = [&]() {
-            for (const auto& e : m_collection.effects)
-                if (e.type == "ambient")
-                    return e.id;
-            return QString();
-        }();
-        if (m_driver.driver())
-            p.keyboardDeviceId = m_driver.description().id;
+        p.multiDevice = true;
+        for (const auto& device : configured())
+            if (device.enabled)
+                p.devices.append(newProfile(device));
+    } else if (p.multiDevice) {
+        for (auto& profile : p.devices)
+            profile.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
     }
     p.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
     p.name = duplicate ? tr("%1 copy").arg(p.name) : tr("New preset");
     m_collection.presets << p;
     m_selected = m_collection.presets.size() - 1;
+    selectLayer(-1);
     touch();
     return true;
 }
 bool SettingsController::removePreset()
 {
-    if (m_collection.presets.size() <= 1) {
-        m_error = tr("Keep at least one preset.");
-        Q_EMIT changed();
+    if (currentPreset().id == m_collection.defaultId) {
+        m_error = tr("The default preset cannot be removed.");
+        Q_EMIT documentController()->changed();
         return false;
     }
     for (const auto& r : m_collection.rules)
-        if (r.presetId == current().id) {
+        if (r.presetId == currentPreset().id) {
             m_error = tr("Remove this preset's application bindings first.");
-            Q_EMIT changed();
+            Q_EMIT documentController()->changed();
             return false;
         }
-    const auto removedId = current().id;
-    for (auto& device : editDevices())
-        if (device.presetId == removedId)
-            device.presetId.clear();
-    const bool wasDefault = current().id == m_collection.defaultId;
+    selectLayer(-1);
     m_collection.presets.removeAt(m_selected);
-    m_selected = 0;
-    if (wasDefault)
-        m_collection.defaultId = current().id;
+    m_selected = matchingPreset(m_collection, { });
     touch();
     return true;
 }
@@ -407,49 +441,55 @@ void SettingsController::importFile(const QUrl& path)
         }
         if (effects.size() > 64) {
             m_error = tr("Import would exceed the limit of 64 effect presets.");
-            Q_EMIT changed();
+            Q_EMIT documentController()->changed();
             return;
         }
         auto& keyboard = bundle->keyboard;
         keyboard.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
-        keyboard.defaultEffectId = remap.value(keyboard.defaultEffectId, keyboard.defaultEffectId);
-        auto update = [&](KeyboardStyles& styles) {
-            for (auto& style : styles)
-                style.effectId = remap.value(style.effectId, style.effectId);
-        };
-        update(keyboard.base);
-        const auto updateGradients = [&](StripGradients& gradients) {
-            for (auto& gradient : gradients)
-                gradient.effectId = remap.value(gradient.effectId, gradient.effectId);
-        };
-        updateGradients(keyboard.gradients);
-        auto remapAssignments = [&](EffectAssignments& assignments) {
-            for (auto& list : assignments)
-                for (auto& effect : list)
-                    effect.id = remap.value(effect.id, effect.id);
-        };
-        remapAssignments(keyboard.effects);
-        remapAssignments(keyboard.effectOverrides);
-        for (auto& layer : keyboard.layers) {
-            update(layer.styles);
-            updateGradients(layer.gradients);
-            remapAssignments(layer.effects);
+        for (auto* profile : deviceProfiles(keyboard)) {
+            profile->id
+                = keyboard.multiDevice ? QUuid::createUuid().toString(QUuid::WithoutBraces) : keyboard.id;
+            auto& keyboard = *profile;
+            keyboard.defaultEffectId = remap.value(keyboard.defaultEffectId, keyboard.defaultEffectId);
+            auto update = [&](KeyboardStyles& styles) {
+                for (auto& style : styles)
+                    style.effectId = remap.value(style.effectId, style.effectId);
+            };
+            update(keyboard.base);
+            const auto updateGradients = [&](StripGradients& gradients) {
+                for (auto& gradient : gradients)
+                    gradient.effectId = remap.value(gradient.effectId, gradient.effectId);
+            };
+            updateGradients(keyboard.gradients);
+            auto remapAssignments = [&](EffectAssignments& assignments) {
+                for (auto& list : assignments)
+                    for (auto& effect : list)
+                        effect.id = remap.value(effect.id, effect.id);
+            };
+            remapAssignments(keyboard.effects);
+            remapAssignments(keyboard.effectOverrides);
+            for (auto& layer : keyboard.layers) {
+                update(layer.styles);
+                updateGradients(layer.gradients);
+                remapAssignments(layer.effects);
+            }
         }
         m_collection.effects = effects;
         m_collection.presets << keyboard;
         m_selected = m_collection.presets.size() - 1;
+        selectLayer(-1);
         if (m_selectedEffect < 0 && !effects.isEmpty())
             m_selectedEffect = 0;
         touch();
     }
-    Q_EMIT changed();
+    Q_EMIT documentController()->changed();
 }
 void SettingsController::exportFile(const QUrl& path)
 {
     if (!path.isLocalFile())
         return;
-    exportPreset(current(), m_collection.effects, path.toLocalFile(), &m_error);
-    Q_EMIT changed();
+    exportPreset(currentPreset(), m_collection.effects, path.toLocalFile(), &m_error);
+    Q_EMIT documentController()->changed();
 }
 QString SettingsController::layerLabel(const QStringList& conditions) const
 {
@@ -487,11 +527,12 @@ bool SettingsController::validateLayerConditions(const QStringList& conditions, 
             return false;
         unique.insert(id);
     }
-    for (int i = 0; i < current().layers.size(); ++i) {
-        const auto& existing = current().layers[i].conditions;
+    const auto layers = presetLayerConditions(currentPreset());
+    for (int i = 0; i < layers.size(); ++i) {
+        const auto& existing = layers[i];
         if (i != except && unique == QSet<QString>(existing.cbegin(), existing.cend())) {
             m_error = tr("A layer with this combination already exists.");
-            Q_EMIT changed();
+            Q_EMIT documentController()->changed();
             return false;
         }
     }
@@ -499,58 +540,78 @@ bool SettingsController::validateLayerConditions(const QStringList& conditions, 
 }
 int SettingsController::addLayer(const QStringList& conditions)
 {
-    if ((!editableKeys() && !editableLightbar()) || current().layers.size() >= 32
-        || !validateLayerConditions(conditions))
+    auto& scene = currentPreset();
+    if (presetLayerConditions(scene).size() >= 32 || !validateLayerConditions(conditions))
         return -1;
-    // Keep the serialized name for the file format; the UI derives its localized label.
-    current().layers << KeyboardLayer { conditions.join('+'), conditions, { } };
+    if (scene.multiDevice)
+        scene.layerConditions.append(conditions);
+    for (auto* profile : deviceProfiles(scene))
+        profile->layers.append({ conditions.join('+'), conditions, { } });
     touch();
-    return current().layers.size() - 1;
+    return presetLayerConditions(scene).size() - 1;
 }
 bool SettingsController::setLayer(int index, const QStringList& conditions)
 {
-    if ((!editableKeys() && !editableLightbar()) || index < 0 || index >= current().layers.size()
+    auto& scene = currentPreset();
+    if (index < 0 || index >= presetLayerConditions(scene).size()
         || !validateLayerConditions(conditions, index))
         return false;
-    auto& l = current().layers[index];
-    l.name = conditions.join('+');
-    l.conditions = conditions;
+    if (scene.multiDevice)
+        scene.layerConditions[index] = conditions;
+    for (auto* profile : deviceProfiles(scene)) {
+        auto& layer = profile->layers[index];
+        layer.name = conditions.join('+');
+        layer.conditions = conditions;
+    }
     touch();
     return true;
 }
 void SettingsController::removeLayer(int index)
 {
-    if ((!editableKeys() && !editableLightbar()) || index < 0 || index >= current().layers.size())
+    auto& scene = currentPreset();
+    if (index < 0 || index >= presetLayerConditions(scene).size())
         return;
-    current().layers.removeAt(index);
+    const int selected = selectedLayer() >= index ? selectedLayer() - 1 : selectedLayer();
+    if (scene.multiDevice)
+        scene.layerConditions.removeAt(index);
+    for (auto* profile : deviceProfiles(scene))
+        profile->layers.removeAt(index);
+    selectLayer(selected);
     touch();
 }
 int SettingsController::moveLayer(int index, int direction)
 {
-    const int target = index + direction;
-    if ((!editableKeys() && !editableLightbar()) || std::abs(direction) != 1 || index < 0
-        || index >= current().layers.size() || target < 0 || target >= current().layers.size())
+    auto& scene = currentPreset();
+    const int target = index + direction, count = presetLayerConditions(scene).size();
+    if (std::abs(direction) != 1 || index < 0 || index >= count || target < 0 || target >= count)
         return index;
-    current().layers.swapItemsAt(index, target);
+    if (scene.multiDevice)
+        scene.layerConditions.swapItemsAt(index, target);
+    for (auto* profile : deviceProfiles(scene))
+        profile->layers.swapItemsAt(index, target);
+    if (selectedLayer() == index)
+        selectLayer(target);
+    else if (selectedLayer() == target)
+        selectLayer(index);
     touch();
     return target;
 }
 QVariantList SettingsController::pressedKeys() const
 {
     QVariantList result;
-    const auto codes = m_driver.instance().options.value("InputKeyCodes").toMap();
-    const auto& pressed = m_layerKeys.state().pressed;
-    for (const auto& key : m_driver.description().keys) {
+    const auto codes = editingInstance().options.value("InputKeyCodes").toMap();
+    const auto& pressed = documentController()->m_layerKeys.state().pressed;
+    for (const auto& key : editingDescription().keys) {
         const auto code = codes.value(QString::number(key.id)).toUInt();
         if (code && pressed.contains(code))
             result.append(key.id);
     }
     return result;
 }
-void SettingsController::watchLayerKeys(QWindow* window) { m_layerKeys.watch(window); }
+void SettingsController::watchLayerKeys(QWindow* window) { documentController()->m_layerKeys.watch(window); }
 void SettingsController::updatePreview(bool force)
 {
-    const int layer = activeLayer(current().layers, m_layerKeys.state());
+    const int layer = activePresetLayer(currentPreset(), documentController()->m_layerKeys.state());
     if (!force && layer == m_previewLayer)
         return;
     m_previewLayer = layer;
@@ -561,36 +622,45 @@ QVariantList SettingsController::keyPreview(int layer) const
 {
     QVariantList result;
     const bool overlay = layer >= 0 && layer < current().layers.size();
-    const auto& d = m_driver.description();
+    const auto& d = editingDescription();
     const auto base = expandStyles(current().base, current().gradients, d);
     const auto styles
         = overlay ? expandStyles(current().layers[layer].styles, current().layers[layer].gradients, d) : base;
     auto append = [&](int id, bool editable) {
-        auto style = editable ? keyStyle(styles, id, overlay) : KeyStyle();
+        auto style = keyStyle(styles, editable ? id : DefaultAssignment, overlay);
         const bool colorInherited = style.mode == KeyMode::Inherit;
         const bool inherited = colorInherited
             && (!overlay
                 || !current().layers[layer].effects.contains(
                     effectSource(current().layers[layer].effects, id)));
         if (colorInherited)
-            style = keyStyle(base, id);
-        const auto list = selectionEffects(layer, { id })["items"].toList();
+            style = keyStyle(base, editable ? id : DefaultAssignment);
+        const auto list
+            = selectionEffects(layer, editable ? QVariantList { id } : QVariantList())["items"].toList();
         QString notificationId;
         bool above = false, ambient = false;
         double brightness = 1.0;
+        bool hasColor = style.mode == KeyMode::Off || style.color.alpha() > 0;
         for (const auto& value : list) {
             const auto entry = value.toMap();
+            if (entry["opacity"].toInt() <= 0)
+                continue;
             if (entry["type"] == "notifications") {
                 notificationId = entry["id"].toString();
                 above |= entry["above"].toBool();
             } else if (entry["type"] == "brightness") {
+                if (!hasColor)
+                    style.color = Qt::white;
+                hasColor = true;
                 const auto options = assignedEffectOptions(entry["id"].toString());
                 brightness *= 1.0
                     - (100 - options.value("brightness", 100).toInt()) * entry["opacity"].toInt() / 10000.0;
             } else if (entry["type"] == "ambient") {
                 ambient = true;
+                hasColor = true;
                 brightness = 1.0;
             } else if (entry["type"] == "solid") {
+                hasColor = true;
                 brightness = 1.0;
                 auto color = entry["color"].toString();
                 for (const auto& effect : current().localEffects)
@@ -605,13 +675,22 @@ QVariantList SettingsController::keyPreview(int layer) const
         }
         if (style.mode != KeyMode::Off || !list.isEmpty())
             style.mode = ambient ? KeyMode::Ambient : KeyMode::Static;
+        if (style.mode == KeyMode::Static
+            && (!d.capabilities.testFlag(DeviceCapability::Color)
+                || !editingInstance().options.value("ColorLevels").toMap().isEmpty())) {
+            const auto color = blendColor(Qt::black, style.color);
+            style.color = deviceColor(QColor::fromRgbF(color.redF() * brightness, color.greenF() * brightness,
+                                          color.blueF() * brightness),
+                editingInstance(), deviceSettings().value("brightnessChannel").toString());
+            brightness = 1.0;
+        }
         result << QVariantMap { { "id", id }, { "notificationId", notificationId },
             { "notificationAbove", above }, { "mode", int(style.mode) },
             { "assignmentMode", inherited ? int(KeyMode::Inherit) : int(style.mode) },
             { "color", style.color.name() }, { "opacity", qRound(style.color.alphaF() * 100) },
             { "brightness", brightness }, { "effectId", style.effectId }, { "inherited", inherited } };
     };
-    for (const auto& k : m_driver.description().keys)
+    for (const auto& k : editingDescription().keys)
         append(k.id, editableKeys());
     for (const auto& strip : d.strips) {
         for (const auto& element : strip.elements)
@@ -626,14 +705,14 @@ QList<int> SettingsController::validIds(const QVariantList& ids) const
 {
     QSet<int> known;
     if (editableKeys())
-        for (const auto& k : m_driver.description().keys)
+        for (const auto& k : editingDescription().keys)
             known.insert(k.id);
     if (editableLightbar()) {
-        if (m_driver.description().capabilities.testFlag(DeviceCapability::Lightbar))
+        if (editingDescription().capabilities.testFlag(DeviceCapability::Lightbar))
             known.insert(LightbarId);
-        for (const auto& strip : m_driver.description().strips) {
+        for (const auto& strip : editingDescription().strips) {
             known.insert(strip.id);
-            if (m_driver.description().capabilities.testFlag(DeviceCapability::PerStripColor))
+            if (editingDescription().capabilities.testFlag(DeviceCapability::PerStripColor))
                 for (const auto& element : strip.elements)
                     known.insert(element.id);
         }
@@ -658,21 +737,21 @@ QVariantList SettingsController::groups() const
         result << QVariantMap { { "name", name }, { "ids", values }, { "custom", custom } };
     };
     QList<int> all;
-    for (const auto& k : m_driver.description().keys)
+    for (const auto& k : editingDescription().keys)
         all << k.id;
     add(tr("All keys"), all, false);
     if (editableLightbar()) {
-        for (const auto& strip : m_driver.description().strips) {
+        for (const auto& strip : editingDescription().strips) {
             add(strip.name, { strip.id }, false);
             QList<int> ids;
             for (const auto& element : strip.elements)
                 ids.append(element.id);
             add(tr("%1 elements").arg(strip.name), ids, false);
         }
-        if (m_driver.description().strips.isEmpty())
+        if (editingDescription().strips.isEmpty())
             add(tr("Lightbar"), { LightbarId }, false);
     }
-    for (auto i = m_driver.description().groups.cbegin(); i != m_driver.description().groups.cend(); ++i)
+    for (auto i = editingDescription().groups.cbegin(); i != editingDescription().groups.cend(); ++i)
         add(i.key(), i.value(), false);
     for (auto i = current().groups.cbegin(); i != current().groups.cend(); ++i)
         add(i.key(), i.value(), true);
@@ -695,15 +774,15 @@ void SettingsController::assignKeys(
     c.setAlpha((percent * 255 + 50) / 100);
     auto& styles = layer < 0 ? current().base : current().layers[layer].styles;
     for (int id : validIds(ids)) {
-        for (const auto& strip : m_driver.description().strips)
+        for (const auto& strip : editingDescription().strips)
             if (strip.id == id) {
                 for (const auto& element : strip.elements)
                     styles.remove(element.id);
                 auto& gradients = layer < 0 ? current().gradients : current().layers[layer].gradients;
                 gradients.removeIf([&](const auto& g) { return g.strip == id; });
             }
-        const bool stripElement = std::any_of(m_driver.description().strips.begin(),
-            m_driver.description().strips.end(), [&](const auto& strip) {
+        const bool stripElement = std::any_of(
+            editingDescription().strips.begin(), editingDescription().strips.end(), [&](const auto& strip) {
                 return std::any_of(
                     strip.elements.begin(), strip.elements.end(), [&](const auto& e) { return e.id == id; });
             });
@@ -788,7 +867,7 @@ void SettingsController::selectWindow(int index)
     const int revision = m_revision;
     m_pickingWindow = true;
     m_windowStatus = tr("Click an application window. Press Esc to cancel.");
-    Q_EMIT changed();
+    Q_EMIT documentController()->changed();
     auto call = QDBusMessage::createMethodCall("org.kde.KWin", "/KWin", "org.kde.KWin", "queryWindowInfo");
     auto* watcher = new QDBusPendingCallWatcher(QDBusConnection::sessionBus().asyncCall(call, 60000), this);
     connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, index, revision](auto* watcher) {
@@ -812,10 +891,10 @@ void SettingsController::selectWindow(int index)
                 if (r.name.isEmpty())
                     r.name = windowClass;
                 ++m_revision;
-                Q_EMIT contentChanged();
+                Q_EMIT documentController()->contentChanged();
             }
         }
-        Q_EMIT changed();
+        Q_EMIT documentController()->changed();
     });
 }
 }

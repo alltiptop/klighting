@@ -76,8 +76,9 @@ struct EffectPreset {
     bool pauseOnBattery = false, pauseOnLowBattery = false;
     bool operator==(const EffectPreset&) const = default;
 };
-struct LightingPreset {
+struct DeviceProfile {
     QString id = QStringLiteral("default"), name = QStringLiteral("Default");
+    QString targetDevice; // Empty for legacy model-wide profiles.
     // Key IDs are scoped to the driver description.
     QString keyboardDeviceId = QStringLiteral("asus-g615lw");
     QString defaultEffectId = QStringLiteral("ambient-default");
@@ -87,19 +88,42 @@ struct LightingPreset {
     EffectAssignments effects, effectOverrides;
     StripGradients gradients = { };
     QList<EffectPreset> localEffects;
-    bool operator==(const LightingPreset&) const = default;
+    bool operator==(const DeviceProfile&) const = default;
 };
+// The inherited profile preserves version 3–5 files; multi-device scenes own layer conditions.
+struct LightingPreset : DeviceProfile {
+    bool multiDevice = false;
+    QList<DeviceProfile> devices;
+    QList<QStringList> layerConditions; // Device layer payloads use the same indices.
+    bool operator==(const LightingPreset& other) const
+    {
+        if (multiDevice != other.multiDevice)
+            return false;
+        return multiDevice
+            ? id == other.id && name == other.name && devices == other.devices
+                && layerConditions == other.layerConditions
+            : static_cast<const DeviceProfile&>(*this) == static_cast<const DeviceProfile&>(other);
+    }
+};
+QList<QStringList> presetLayerConditions(const LightingPreset& preset);
+int activePresetLayer(const LightingPreset& preset, const ModifierState& modifiers);
+// Merge legacy/clipboard conditions and align every device payload. Failure leaves the scene unchanged.
+bool mergePresetLayers(LightingPreset& preset);
+KeyboardStyles deviceKeyStylesForLayer(
+    const DeviceProfile& preset, const DeviceDescription& device, int layer);
+EffectAssignments deviceEffectsForLayer(
+    const DeviceProfile& preset, const DeviceDescription& device, int layer);
 KeyboardStyles deviceKeyStyles(
-    const LightingPreset& preset, const DeviceDescription& device, const ModifierState& modifiers);
+    const DeviceProfile& preset, const DeviceDescription& device, const ModifierState& modifiers);
 EffectAssignments deviceEffects(
-    const LightingPreset& preset, const DeviceDescription& device, const ModifierState& modifiers);
+    const DeviceProfile& preset, const DeviceDescription& device, const ModifierState& modifiers);
 struct ApplicationRule {
     QString name, windowClass, presetId;
     bool enabled = true;
     bool operator==(const ApplicationRule&) const = default;
 };
 struct DeviceConfiguration {
-    QString driverId, instanceId, modelId, name, presetId;
+    QString driverId, instanceId, modelId, name;
     bool enabled = true;
     bool pauseOnBattery = false, pauseOnLowBattery = false;
     bool lightbarOffOnBattery = false, lightbarOffOnLowBattery = false;
@@ -107,6 +131,9 @@ struct DeviceConfiguration {
     QString identity() const { return driverId + QLatin1Char(':') + instanceId; }
     bool operator==(const DeviceConfiguration&) const = default;
 };
+QList<const DeviceProfile*> deviceProfiles(const LightingPreset& preset);
+QList<DeviceProfile*> deviceProfiles(LightingPreset& preset);
+const DeviceProfile* profileFor(const LightingPreset& preset, const DeviceConfiguration& device);
 struct PresetCollection {
     QList<LightingPreset> presets;
     QString defaultId;
@@ -116,8 +143,9 @@ struct PresetCollection {
     bool operator==(const PresetCollection&) const = default;
 };
 QList<EffectPreset> runtimeEffects(const PresetCollection& collection);
-QString scopedEffectId(const LightingPreset& preset, const QString& id);
+QString scopedEffectId(const DeviceProfile& preset, const QString& id);
 PresetCollection defaultCollection(const QString& deviceId = QStringLiteral("asus-g615lw"));
+QSet<QString> referencedEffects(const DeviceProfile& preset);
 QSet<QString> referencedEffects(const LightingPreset& preset);
 QJsonObject effectPresetJson(const EffectPreset& preset);
 std::optional<EffectPreset> parseEffectPreset(const QByteArray& data, QString* error);

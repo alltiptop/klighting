@@ -22,7 +22,7 @@
         <translation>KWin jest niedostępny: %1</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+13"/>
         <source>Multiple or outdated Ambient LED effects were found. Reload the installed effect first.</source>
         <translation>Znaleziono wiele lub przestarzałe efekty Ambient LED. Najpierw przeładuj zainstalowany efekt.</translation>
     </message>
@@ -33,18 +33,18 @@
     </message>
     <message>
         <location line="+17"/>
-        <location line="+87"/>
+        <location line="+89"/>
         <source>Ambient screen capture is running.</source>
         <translation>Przechwytywanie ekranu Ambient działa.</translation>
     </message>
     <message>
-        <location line="-87"/>
-        <location line="+87"/>
+        <location line="-88"/>
+        <location line="+88"/>
         <source>Ambient screen capture is stopped.</source>
         <translation>Przechwytywanie ekranu Ambient jest zatrzymane.</translation>
     </message>
     <message>
-        <location line="-85"/>
+        <location line="-86"/>
         <source> The saved setting differs from the running state. Toggle the checkbox and apply to synchronize it.</source>
         <translation> Zapisane ustawienie różni się od bieżącego stanu. Przełącz pole i zastosuj, aby zsynchronizować.</translation>
     </message>
@@ -213,6 +213,39 @@
     </message>
 </context>
 <context>
+    <name>Ambient::ProfileTransfer</name>
+    <message>
+        <location filename="../src/preset_transfer.cpp" line="+111"/>
+        <source>Only Base effects will be copied. Key assignments and modifier layers are not supported by this device.</source>
+        <translation>Zostaną skopiowane tylko efekty Base. Urządzenie nie obsługuje przypisań klawiszy ani warstw modyfikatorów.</translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>Assignments for %1 unavailable keys or strip elements will be skipped. Unmatched destination elements will use Base.</source>
+        <translation>Przypisania dla %1 niedostępnych klawiszy lub elementów taśmy zostaną pominięte. Elementy bez dopasowania użyją Base.</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Colors will be displayed as brightness using the destination device&apos;s brightness source. Notification patterns are retained.</source>
+        <translation>Kolory będą wyświetlane jako jasność zgodnie ze źródłem wybranym na urządzeniu docelowym. Wzory powiadomień zostaną zachowane.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Only on/off lighting and notification flashes are available. Colors and brightness levels cannot be reproduced.</source>
+        <translation>Dostępne są tylko włączanie, wyłączanie i błyski powiadomień. Nie można odtworzyć kolorów ani poziomów jasności.</translation>
+    </message>
+    <message>
+        <location line="+59"/>
+        <source>Ambient will be omitted: this device needs color or at least four brightness levels plus Off.</source>
+        <translation>Ambient zostanie pominięty: urządzenie wymaga kolorów lub co najmniej czterech poziomów jasności oraz wyłączenia.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Brightness filters will be omitted.</source>
+        <translation>Filtry jasności zostaną pominięte.</translation>
+    </message>
+</context>
+<context>
     <name>Ambient::ServiceControl</name>
     <message>
         <location filename="../src/service_control.cpp" line="+34"/>
@@ -230,7 +263,7 @@
         <translation>Usługa podświetlenia działa.</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+23"/>
         <source>Settings saved, but the lighting service could not apply them: %1</source>
         <translation>Ustawienia zapisano, ale usługa podświetlenia nie mogła ich zastosować: %1</translation>
     </message>
@@ -238,25 +271,25 @@
 <context>
     <name>Ambient::SettingsController</name>
     <message>
-        <location filename="../src/settings_effects.cpp" line="+231"/>
-        <location line="+303"/>
+        <location filename="../src/settings_effects.cpp" line="+230"/>
+        <location line="+304"/>
         <source>Solid Color</source>
         <translation>Jednolity kolor</translation>
     </message>
     <message>
-        <location line="-302"/>
+        <location line="-303"/>
         <source>Ambient</source>
         <translation>Ambient</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+527"/>
+        <location line="+528"/>
         <source>Notifications</source>
         <translation>Powiadomienia</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+358"/>
-        <location filename="../src/settings_effects.cpp" line="-481"/>
+        <location filename="../src/settings_controller.cpp" line="+388"/>
+        <location filename="../src/settings_effects.cpp" line="-482"/>
         <source>%1 copy</source>
         <translation>Kopia %1</translation>
     </message>
@@ -281,24 +314,24 @@
         <translation>Efekt jest używany przez ustawienie klawiatury „%1”. Najpierw zmień przypisania.</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="-85"/>
+        <location filename="../src/settings_controller.cpp" line="-91"/>
         <source>Cannot save unreadable preset files. Repair them and reset.</source>
         <translation>Nie można zapisać nieczytelnych plików ustawień. Napraw je i przywróć.</translation>
     </message>
     <message>
-        <location filename="../src/presets.cpp" line="+619"/>
+        <location filename="../src/presets.cpp" line="+672"/>
         <source>Presets changed on disk. Reset before saving to preserve those changes.</source>
         <translation>Ustawienia zmieniono na dysku. Przywróć przed zapisem, aby zachować te zmiany.</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+85"/>
+        <location filename="../src/settings_controller.cpp" line="+91"/>
         <source>New preset</source>
         <translation>Nowe ustawienie wstępne</translation>
     </message>
     <message>
         <location line="+9"/>
-        <source>Keep at least one preset.</source>
-        <translation>Zachowaj przynajmniej jedno ustawienie wstępne.</translation>
+        <source>The default preset cannot be removed.</source>
+        <translation>Nie można usunąć domyślnego ustawienia wstępnego.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -311,30 +344,30 @@
         <translation>Import przekroczyłby limit 64 ustawień wstępnych efektów.</translation>
     </message>
     <message>
-        <location filename="../src/settings_effects.cpp" line="+238"/>
+        <location filename="../src/settings_effects.cpp" line="+239"/>
         <source>Default Ambient</source>
         <translation>Domyślny Ambient</translation>
     </message>
     <message>
-        <location line="-476"/>
+        <location line="-477"/>
         <location line="+165"/>
-        <location line="+358"/>
+        <location line="+359"/>
         <source>Use at most 32 effects per element and layer.</source>
         <translation>Maksymalnie 32 efekty na element i warstwę.</translation>
     </message>
     <message>
-        <location line="-402"/>
+        <location line="-403"/>
         <location line="+38"/>
         <source>Use at most 128 local effects per preset.</source>
         <translation>Użyj maksymalnie 128 efektów lokalnych na ustawienie wstępne.</translation>
     </message>
     <message>
-        <location line="+535"/>
+        <location line="+536"/>
         <source>This keyboard does not expose F9-F12 lighting zones.</source>
         <translation>Ta klawiatura nie udostępnia stref podświetlenia F9–F12.</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+62"/>
+        <location filename="../src/settings_controller.cpp" line="+67"/>
         <source>%1 (Left)</source>
         <translation>%1 (lewy)</translation>
     </message>
@@ -379,7 +412,7 @@
         <translation>To okno nie ma klasy programu.</translation>
     </message>
     <message>
-        <location filename="../src/settings_devices.cpp" line="+245"/>
+        <location filename="../src/settings_devices.cpp" line="+246"/>
         <source>Reading lightbar settings…</source>
         <translation>Odczytywanie ustawień paska świetlnego…</translation>
     </message>
@@ -399,7 +432,7 @@
         <translation>Nie można zapisać ustawienia paska: %1</translation>
     </message>
     <message>
-        <location filename="../src/settings_effects.cpp" line="-520"/>
+        <location filename="../src/settings_effects.cpp" line="-521"/>
         <source>Brightness</source>
         <translation>Jasność</translation>
     </message>
@@ -632,7 +665,7 @@
         <translation>Zapisane ustawienia wstępne</translation>
     </message>
     <message>
-        <location line="+51"/>
+        <location line="+52"/>
         <source>New Solid Color</source>
         <translation>Nowy jednolity kolor</translation>
     </message>
@@ -647,7 +680,7 @@
         <translation>Nowe powiadomienia</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+29"/>
         <source>Turn Off</source>
         <translation>Wyłącz</translation>
     </message>
@@ -662,7 +695,7 @@
         <translation>Te powiadomienia zastępują każdą warstwę, także zgaszone klawisze.</translation>
     </message>
     <message>
-        <location line="-57"/>
+        <location line="-58"/>
         <source>New Brightness</source>
         <translation>Nowa jasność</translation>
     </message>
@@ -881,17 +914,7 @@
 <context>
     <name>AmbientLed.KeyboardPage</name>
     <message>
-        <location filename="../ui/KeyboardPage.qml" line="+18"/>
-        <source>Keyboard</source>
-        <translation>Klawiatura</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Layer Keys</source>
-        <translation>Klawisze warstwy</translation>
-    </message>
-    <message>
-        <location line="+55"/>
+        <location filename="../ui/KeyboardPage.qml" line="+72"/>
         <source>Only one layer is active: the most complex matching combination. Ties use the last row. Unassigned keys inherit Base.</source>
         <translation>Aktywna jest tylko jedna warstwa z najbardziej złożoną pasującą kombinacją. Przy tej samej złożoności wybierany jest ostatni wiersz. Nieprzypisane klawisze dziedziczą warstwę bazową.</translation>
     </message>
@@ -911,7 +934,7 @@
         <translation>Kliknij lub przeciągnij, aby zaznaczyć klawisze; działają również Tab i Spacja.</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+12"/>
         <source>Group:</source>
         <translation>Grupa:</translation>
     </message>
@@ -1032,6 +1055,10 @@
         <location line="+14"/>
         <source>Add Layer</source>
         <translation>Dodaj warstwę</translation>
+    </message>
+    <message>
+        <source>Change combination…</source>
+        <translation>Zmień kombinację…</translation>
     </message>
 </context>
 <context>
@@ -1319,9 +1346,73 @@
     </message>
 </context>
 <context>
+    <name>AmbientLed.PresetDeviceCard</name>
+    <message>
+        <source>Select all</source>
+        <translation>Zaznacz wszystko</translation>
+    </message>
+    <message>
+        <source>Remove %1 from this preset? This removes its settings from Base and all layers.</source>
+        <translation>Usunąć %1 z tego profilu? Ustawienia urządzenia zostaną usunięte z bazy i wszystkich warstw.</translation>
+    </message>
+    <message>
+        <location filename="../ui/PresetDeviceCard.qml" line="+40"/>
+        <source>Collapse device</source>
+        <translation>Zwiń urządzenie</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Expand device</source>
+        <translation>Rozwiń urządzenie</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Copy device profile</source>
+        <translation>Kopiuj profil urządzenia</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Paste device profile</source>
+        <translation>Wklej profil urządzenia</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Remove device from preset</source>
+        <translation>Usuń urządzenie z ustawienia wstępnego</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>This device is disabled. You can still edit its profile.</source>
+        <translation>To urządzenie jest wyłączone. Nadal możesz edytować jego profil.</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Connect this device to edit its layout. Its saved settings are preserved.</source>
+        <translation>Podłącz urządzenie, aby edytować jego układ. Zapisane ustawienia zostają zachowane.</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Paste compatible settings</source>
+        <translation>Wklej zgodne ustawienia</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Cancel</source>
+        <translation>Anuluj</translation>
+    </message>
+</context>
+<context>
     <name>AmbientLed.PresetPage</name>
     <message>
-        <location filename="../ui/PresetPage.qml" line="+37"/>
+        <source>Recording key combination</source>
+        <translation>Rejestrowanie kombinacji klawiszy</translation>
+    </message>
+    <message>
+        <source>Remove this layer? Its settings will be removed for all devices in this preset.</source>
+        <translation>Usunąć tę warstwę? Jej ustawienia zostaną usunięte dla wszystkich urządzeń w tym profilu.</translation>
+    </message>
+    <message>
+        <location filename="../ui/PresetPage.qml" line="+36"/>
         <source>Duplicate</source>
         <translation>Powiel</translation>
     </message>
@@ -1337,17 +1428,22 @@
         <translation>Usuń</translation>
     </message>
     <message>
-        <location line="+49"/>
+        <location line="+58"/>
         <source>Export Lighting Preset</source>
         <translation>Eksportuj ustawienie wstępne podświetlenia</translation>
     </message>
     <message>
-        <location line="-1"/>
+        <location line="+27"/>
+        <source>Add device…</source>
+        <translation>Dodaj urządzenie…</translation>
+    </message>
+    <message>
+        <location line="-28"/>
         <source>Lighting presets (*.json)</source>
         <translation>Ustawienia wstępne podświetlenia (*.json)</translation>
     </message>
     <message>
-        <location line="-57"/>
+        <location line="-66"/>
         <source>Remove this preset? You can undo pending changes with Reset.</source>
         <translation>Usunąć to ustawienie? Przywróć cofa niezapisane zmiany.</translation>
     </message>
@@ -1357,12 +1453,12 @@
         <translation>Anuluj</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+24"/>
         <source>Name:</source>
         <translation>Nazwa:</translation>
     </message>
     <message>
-        <location line="-36"/>
+        <location line="-45"/>
         <source>Remove this preset? Devices using it will have no default preset. You can undo pending changes with Reset.</source>
         <translation>Usunąć to ustawienie? Używające go urządzenia pozostaną bez ustawienia domyślnego. Oczekujące zmiany można cofnąć przyciskiem Resetuj.</translation>
     </message>
@@ -1403,6 +1499,14 @@
         <location line="+11"/>
         <source>Import Preset…</source>
         <translation>Importuj ustawienie wstępne…</translation>
+    </message>
+    <message>
+        <source>Expand preset</source>
+        <translation>Rozwiń ustawienie wstępne</translation>
+    </message>
+    <message>
+        <source>Collapse preset</source>
+        <translation>Zwiń ustawienie wstępne</translation>
     </message>
 </context>
 <context>

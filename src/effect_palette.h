@@ -34,10 +34,10 @@ private:
     QMap<QString, int> m_brightness;
     double m_time = 0;
 };
-QSet<QString> activeEffects(const LightingPreset& preset, const KeyboardStyles& styles,
+QSet<QString> activeEffects(const DeviceProfile& preset, const KeyboardStyles& styles,
     const DeviceDescription& device, const EffectAssignments& assignments = { });
 using LightingColors = DeviceFrame;
-LightingColors lightingColors(const LightingPreset& preset, const KeyboardStyles& styles,
+LightingColors lightingColors(const DeviceProfile& preset, const KeyboardStyles& styles,
     const DeviceDescription& device, const QMap<QString, QColor>& palette,
     const EffectAssignments& assignments = { }, const QMap<QString, QColor>& pulses = { },
     const QMap<QString, int>& brightness = { });

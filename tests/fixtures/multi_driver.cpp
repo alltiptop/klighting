@@ -64,11 +64,12 @@ public:
             const auto steps = qApp->property(("test." + id + ".brightnessSteps").toUtf8());
             if (steps.isValid()) {
                 d.capabilities = Ambient::DeviceCapability::Brightness;
-                d.keys = { { 7, "Keyboard", { 0, 0, 1, 1 } } };
+                d.keys = { { 7, "A", { 0, 0, 2, 1 } }, { 42, "B", { 2, 0, 2, 1 } } };
                 d.strips.clear();
             }
             devices.append({ id, d,
                 { { "DeviceClaims", qApp->property(("test." + id + ".claims").toUtf8()) },
+                    { "ColorLevels", qApp->property(("test." + id + ".colorLevels").toUtf8()) },
                     { "BrightnessSteps", steps } } });
         }
         return devices;

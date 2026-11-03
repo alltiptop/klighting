@@ -22,6 +22,9 @@ Item {
                                                                                            controller.device.width)
     property var selection: []
     readonly property real stripHeight: Kirigami.Units.gridUnit * 2
+    property bool wholeSelected: false
+
+    signal wholeSelectionRequested(bool selected)
 
     function lightingColor(style) {
         if (style && style.mode === 2)
@@ -102,7 +105,9 @@ Item {
             readonly property color lightingColor: keyboardLayout.lightingColor(style)
             required property var modelData
             readonly property bool previewPressed: keyboardLayout.pressedKeys.indexOf(modelData.id) >= 0
-            property bool selected: keyboardLayout.selection.indexOf(modelData.id) >= 0
+            property bool selected: keyboardLayout.editable && (keyboardLayout.wholeSelected
+                                                                || keyboardLayout.selection.indexOf(
+                                                                    modelData.id) >= 0)
             property var style: keyboardLayout.preview[index] || {
                                     "mode": 0,
                                     "color": "#ffffff",
@@ -160,7 +165,8 @@ Item {
                     color: "transparent"
                     objectName: "KeySelectionBorder"
                     radius: parent.radius + 2
-                    visible: key.selected || key.visualFocus || key.previewPressed
+                    visible: keyboardLayout.editable && (key.selected || key.visualFocus
+                                                         || key.previewPressed)
                 }
             }
             contentItem: QQC2.Label {
@@ -194,6 +200,32 @@ Item {
                 width: Math.min(12, parent.width / 4)
             }
         }
+    }
+
+    QQC2.AbstractButton {
+        id: wholeKeyboard
+
+        Accessible.name: qsTranslate("AmbientLed.KeyboardView", "Keyboard layout")
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        checkable: true
+        checked: keyboardLayout.wholeSelected
+        focusPolicy: Qt.StrongFocus
+        height: keyboardLayout.layoutHeight
+        objectName: "SelectWholeKeyboard"
+        visible: !keyboardLayout.controller.device.perKey && keyboardLayout.controller.keys.length > 0
+
+        background: Rectangle {
+            border.color: "white"
+            border.width: 1
+            color: "transparent"
+            objectName: "WholeKeyboardSelectionBorder"
+            radius: Kirigami.Units.cornerRadius
+            visible: keyboardLayout.wholeSelected || wholeKeyboard.visualFocus
+        }
+
+        onClicked: keyboardLayout.wholeSelectionRequested(!keyboardLayout.wholeSelected)
     }
 
     MouseArea {

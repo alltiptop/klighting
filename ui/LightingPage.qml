@@ -100,30 +100,6 @@ SettingsPage {
             }
 
             QQC2.ComboBox {
-                Kirigami.FormData.label: qsTranslate("AmbientLed.LightingPage", "Preset:")
-                Layout.fillWidth: true
-                Layout.maximumWidth: Kirigami.Units.gridUnit * 20
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 20
-                currentIndex: model.findIndex(p => {
-                    return p.id === page.controller.deviceSettings.presetId;
-                })
-                model: [
-                    {
-                        "id": "",
-                        "name": qsTranslate("AmbientLed.LightingPage", "None")
-                    }
-                ].concat(page.controller.presets.filter(p => {
-                    return p.deviceId === page.controller.deviceSettings.model;
-                }))
-                objectName: "DevicePreset"
-                textRole: "name"
-                valueRole: "id"
-                visible: page.controller.selectedDevice >= 0
-
-                onActivated: page.controller.setDevice("presetId", currentValue)
-            }
-
-            QQC2.ComboBox {
                 Kirigami.FormData.label: qsTranslate("AmbientLed.LightingPage", "Brightness source:")
                 Layout.fillWidth: true
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 20

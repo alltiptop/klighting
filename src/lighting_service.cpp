@@ -66,8 +66,8 @@ QString LightingService::Reload()
     QSet<quint32> tracked { KEY_LEFTSHIFT, KEY_RIGHTSHIFT, KEY_LEFTCTRL, KEY_RIGHTCTRL, KEY_LEFTALT,
         KEY_RIGHTALT, KEY_LEFTMETA, KEY_RIGHTMETA, KEY_COMPOSE, KEY_MENU, KEY_FN, KEY_CAPSLOCK };
     for (const auto& preset : collection->presets)
-        for (const auto& layer : preset.layers)
-            for (const auto& condition : layer.conditions)
+        for (const auto& conditions : presetLayerConditions(preset))
+            for (const auto& condition : conditions)
                 if (condition.startsWith("key:"))
                     tracked.insert(condition.mid(4).toUInt());
     m_desktop->setTrackedKeys(tracked);

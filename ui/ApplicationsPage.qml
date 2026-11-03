@@ -55,24 +55,6 @@ SidebarPage {
             objectName: "ApplicationSearch"
             placeholderText: qsTranslate("AmbientLed.ApplicationsPage", "Search…")
         }
-
-        QQC2.Label {
-            text: qsTranslate("AmbientLed.ApplicationsPage", "Default preset:")
-        }
-
-        QQC2.ComboBox {
-            Accessible.name: qsTranslate("AmbientLed.ApplicationsPage", "Default preset")
-            Layout.fillWidth: true
-            currentIndex: page.controller.presets.findIndex(p => {
-                return p.id === page.controller.defaultId;
-            })
-            model: page.controller.presets
-            objectName: "DefaultPreset"
-            textRole: "name"
-            valueRole: "id"
-
-            onActivated: page.controller.defaultId = currentValue
-        }
     }
     view: ListView {
         currentIndex: page.filteredEntries.findIndex(entry => {

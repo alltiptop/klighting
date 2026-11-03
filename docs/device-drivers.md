@@ -65,7 +65,17 @@ A device instance contains:
 `options.BrightnessSteps` is the number of nonzero hardware brightness levels,
 excluding Off. The Devices page offers the Ambient enable switch for RGB devices
 or monochrome devices with at least four steps. Unknown monochrome ranges do not
-advertise Ambient support. This optional field uses the existing API 4 container.
+advertise that switch. Effects remain assignable: monochrome output is converted
+using the selected brightness channel and rounded to the nearest supported level.
+The brightness editor snaps to those levels for a single device or a selection
+with matching ranges; mixed ranges keep the shared 0–100% scale.
+
+`options.ColorLevels` optionally maps `red`, `green`, and `blue` to the number of
+nonzero channel levels (1–65535). In a provided map, missing or zero channels are
+unavailable; e.g. `{ "red": 255, "blue": 255 }` describes a red/blue device.
+Without the map RGB is unrestricted. The host adapts the composed output, never
+the saved effect. RGB hardware brightness is independent of these channel limits.
+Both optional fields use the existing API 4 container; no ABI change is required.
 
 `options.DeviceClaims` optionally lists shared physical resources, such as
 `usb:<canonical USB device sysfs path>` or `internal-keyboard`. Alternative drivers
@@ -161,7 +171,8 @@ pending controls per instance. Driver-specific flags and daemon behavior belong 
 
 ## Presets and layers
 
-Devices choose a default preset; matching application bindings always take priority.
+Devices use the shared Default preset; matching application bindings take priority.
+A device absent from the application preset keeps using Default.
 Only presets with a matching model ID are applied. Settings for unavailable
 devices and unknown element IDs are preserved.
 

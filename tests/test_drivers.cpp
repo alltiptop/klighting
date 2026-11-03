@@ -20,28 +20,54 @@ private Q_SLOTS:
         qApp->setProperty("test.devices", QStringList { "mono" });
         qApp->setProperty("test.mono.brightnessSteps", 4);
         auto c = defaultCollection("test-strip");
-        c.devices
-            = QList<DeviceConfiguration> { { "test-strips", "mono", "test-strip", "Mono", "default", true } };
+        c.devices = QList<DeviceConfiguration> { { "test-strips", "mono", "test-strip", "Mono", true } };
         DeviceManager runtime({ }, { MULTI_DRIVER_DIR });
         runtime.setEnabled(true);
         for (const auto& channel : QStringList { "average", "red", "green", "blue" }) {
             c.devices->first().brightnessChannel = channel;
             runtime.configure(c);
             runtime.submit({ { DefaultEffectId, QColor(210, 90, 30) } }, { });
-            const QString expected = channel == "average" ? "#6e6e6e"
-                : channel == "red"                        ? "#d2d2d2"
-                : channel == "green"                      ? "#5a5a5a"
-                                                          : "#1e1e1e";
+            const QString expected = channel == "average" ? "#808080"
+                : channel == "red"                        ? "#bfbfbf"
+                : channel == "green"                      ? "#404040"
+                                                          : "#000000";
             QCOMPARE(qApp->property("test.mono.uniform").toString(), expected);
         }
-        c.devices->first().presetId.clear();
-        c.rules = { { "Editor", "editor", "default", true } };
+        auto application = c.presets.first();
+        application.id = "application";
+        c.presets.append(application);
+        c.presets[0].multiDevice = true; // No card: this device only participates in the application preset.
+        c.rules = { { "Editor", "editor", "application", true } };
         runtime.configure(c);
         QCOMPARE(runtime.count(), 0);
+        QVERIFY(runtime.status().contains("no active preset"));
+        QVERIFY(!runtime.status().contains("No enabled devices"));
         runtime.selectPresets("editor", { });
         QCOMPARE(runtime.count(), 1);
+        QVERIFY(!runtime.status().contains("no active preset"));
         runtime.selectPresets("other", { });
         QCOMPARE(runtime.count(), 0);
+    }
+    void outputLimitsAreAppliedPerDeviceWithoutChangingEffects()
+    {
+        const auto restore = qScopeGuard([] {
+            qApp->setProperty("test.devices", QVariant());
+            qApp->setProperty("test.limited.colorLevels", QVariant());
+        });
+        qApp->setProperty("test.devices", QStringList { "rgb", "limited" });
+        qApp->setProperty("test.limited.colorLevels", QVariantMap { { "red", 3 }, { "blue", 1 } });
+        auto c = defaultCollection("test-strip");
+        c.devices = QList<DeviceConfiguration> { { "test-strips", "rgb", "test-strip", "RGB", true },
+            { "test-strips", "limited", "test-strip", "Limited", true } };
+        DeviceManager runtime({ }, { MULTI_DRIVER_DIR });
+        runtime.setEnabled(true);
+        runtime.configure(c);
+        const QColor input(140, 255, 190);
+        const QMap<QString, QColor> palette { { DefaultEffectId, input } };
+        runtime.submit(palette, { });
+        QCOMPARE(qApp->property("test.rgb.uniform").toString(), input.name());
+        QCOMPARE(qApp->property("test.limited.uniform").toString(), QString("#aa00ff"));
+        QCOMPARE(palette[DefaultEffectId], input);
     }
     void alternativeDriversRemainVisibleButCannotRunTogether()
     {
@@ -51,8 +77,8 @@ private Q_SLOTS:
         qApp->setProperty("test.alternative.started", 0);
         auto collection = defaultCollection("test-strip");
         collection.devices = QList<DeviceConfiguration> { { "test-alternative", "alternative", "test-strip",
-                                                              "Alternative", "default", false },
-            { "test-strips", "conflict", "test-strip", "Primary", "default", true } };
+                                                              "Alternative", false },
+            { "test-strips", "conflict", "test-strip", "Primary", true } };
         DeviceManager runtime({ }, { MULTI_DRIVER_DIR, ALTERNATIVE_DRIVER_DIR });
         QCOMPARE(runtime.drivers().devices().size(), 2);
         runtime.setEnabled(true);
@@ -178,20 +204,64 @@ private Q_SLOTS:
         strip.pathWidth = 4;
         QVERIFY(validateDescription(d).isEmpty());
     }
+    void onePresetDrivesTwoInstancesWithIndependentProfiles()
+    {
+        const auto old = qApp->property("test.devices");
+        const auto restore = qScopeGuard([&] { qApp->setProperty("test.devices", old); });
+        qApp->setProperty("test.devices", QStringList { "scene-one", "scene-two" });
+        auto c = defaultCollection("test-strip");
+        auto& scene = c.presets.first();
+        scene.multiDevice = true;
+        DeviceProfile a, b;
+        a.id = "scene-one";
+        a.targetDevice = "test-strips:scene-one";
+        a.keyboardDeviceId = "test-strip";
+        a.base[7] = { KeyMode::Static, Qt::red };
+        b = a;
+        b.id = "scene-two";
+        b.targetDevice = "test-strips:scene-two";
+        b.base[7] = { KeyMode::Static, Qt::green };
+        scene.devices = { a, b };
+        c.devices = QList<DeviceConfiguration> { { "test-strips", "scene-one", "test-strip", "One" },
+            { "test-strips", "scene-two", "test-strip", "Two" } };
+        c.rules.append({ "Editor", "editor", "default" });
+        DeviceManager runtime({ }, { MULTI_DRIVER_DIR });
+        runtime.setEnabled(true);
+        runtime.configure(c);
+        runtime.selectPresets("editor", { });
+        runtime.submit({ { DefaultEffectId, Qt::blue } }, { });
+        QCOMPARE(qApp->property("test.scene-one.colors").toList(),
+            (QVariantList { "#ff0000", "#0000ff", "#0000ff" }));
+        QCOMPARE(qApp->property("test.scene-two.colors").toList(),
+            (QVariantList { "#00ff00", "#0000ff", "#0000ff" }));
+        scene.devices.removeFirst();
+        runtime.configure(c);
+        QCOMPARE(runtime.count(), 1);
+        runtime.submit({ { DefaultEffectId, Qt::blue } }, { });
+        QCOMPARE(qApp->property("test.scene-two.colors").toList().first().toString(), QString("#00ff00"));
+    }
     void multipleDevicesRunIndependentlyAndReconnect()
     {
         qApp->setProperty("test.devices", QStringList { "one", "two" });
         auto c = defaultCollection("test-strip");
-        auto other = c.presets.first();
-        other.id = "second";
-        other.name = "Second";
-        other.base[7] = { KeyMode::Static, Qt::green };
-        c.presets[0].base[7] = { KeyMode::Static, Qt::red };
-        c.presets.append(other);
-        c.devices
-            = QList<DeviceConfiguration> { { "test-strips", "one", "test-strip", "First", "default", true },
-                  { "test-strips", "two", "test-strip", "Second", "second", true } };
-        c.rules.append({ "App", "editor", "default", true });
+        DeviceProfile first = c.presets.first();
+        first.id = "first-profile";
+        first.targetDevice = "test-strips:one";
+        first.base[7] = { KeyMode::Static, Qt::red };
+        auto second = first;
+        second.id = "second-profile";
+        second.targetDevice = "test-strips:two";
+        second.base[7] = { KeyMode::Static, Qt::green };
+        c.presets[0].multiDevice = true;
+        c.presets[0].devices = { first, second };
+        auto application = c.presets.first();
+        application.id = "editor";
+        application.devices = { second };
+        application.devices[0].base[7] = { KeyMode::Static, Qt::red };
+        c.presets.append(application);
+        c.devices = QList<DeviceConfiguration> { { "test-strips", "one", "test-strip", "First", true },
+            { "test-strips", "two", "test-strip", "Second", true } };
+        c.rules.append({ "App", "editor", "editor", true });
         DeviceManager runtime({ }, { MULTI_DRIVER_DIR });
         QCOMPARE(runtime.drivers().devices().size(), 2);
         runtime.setEnabled(true);
@@ -206,6 +276,11 @@ private Q_SLOTS:
         runtime.selectPresets("editor", { });
         runtime.submit({ { "ambient-default", Qt::blue } }, { });
         QCOMPARE(qApp->property("test.two.colors").toList().first().toString(), QString("#ff0000"));
+        // Devices missing from the application preset retain their default profile.
+        QCOMPARE(qApp->property("test.one.colors").toList().first().toString(), QString("#ff0000"));
+        runtime.selectPresets("other", { });
+        runtime.submit({ { "ambient-default", Qt::blue } }, { });
+        QCOMPARE(qApp->property("test.two.colors").toList().first().toString(), QString("#00ff00"));
         QCOMPARE(qApp->property("test.one.created").toInt(), 1);
         const int secondFrames = qApp->property("test.two.frames").toInt();
         (*c.devices)[0].enabled = false;
@@ -237,9 +312,9 @@ private Q_SLOTS:
     {
         qApp->setProperty("test.devices", QStringList { "one", "two" });
         auto c = defaultCollection("test-strip");
-        c.devices = QList<DeviceConfiguration> { { "test-strips", "one", "test-strip", "First", "default",
-                                                     true, true, false, false, true },
-            { "test-strips", "two", "test-strip", "Second", "default", true } };
+        c.devices = QList<DeviceConfiguration> { { "test-strips", "one", "test-strip", "First", true, true,
+                                                     false, false, true },
+            { "test-strips", "two", "test-strip", "Second", true } };
         DeviceManager runtime({ }, { MULTI_DRIVER_DIR });
         runtime.configure(c);
         runtime.setEnabled(true);
@@ -283,8 +358,8 @@ private Q_SLOTS:
     {
         qApp->setProperty("test.devices", QStringList { "one" });
         auto c = defaultCollection("test-strip");
-        c.devices = QList<DeviceConfiguration> { { "test-strips", "one", "test-strip", "First", "default",
-            true, true, false } };
+        c.devices = QList<DeviceConfiguration> { { "test-strips", "one", "test-strip", "First", true, true,
+            false } };
         DeviceManager runtime({ }, { MULTI_DRIVER_DIR });
         runtime.setPowerState({ true, true, false });
         runtime.configure(c);

@@ -6,6 +6,55 @@
 
 namespace Ambient
 {
+QList<QStringList> presetLayerConditions(const LightingPreset& preset)
+{
+    if (preset.multiDevice)
+        return preset.layerConditions;
+    QList<QStringList> result;
+    for (const auto& layer : preset.layers)
+        result.append(layer.conditions);
+    return result;
+}
+int activePresetLayer(const LightingPreset& preset, const ModifierState& modifiers)
+{
+    KeyboardLayers layers;
+    for (const auto& conditions : presetLayerConditions(preset))
+        layers.append({ conditions.join('+'), conditions, { } });
+    return activeLayer(layers, modifiers);
+}
+bool mergePresetLayers(LightingPreset& preset)
+{
+    if (!preset.multiDevice)
+        return true;
+    auto conditions = preset.layerConditions;
+    const auto indexOf = [&](const QStringList& value) {
+        const QSet<QString> keys(value.cbegin(), value.cend());
+        for (int i = 0; i < conditions.size(); ++i)
+            if (keys == QSet<QString>(conditions[i].cbegin(), conditions[i].cend()))
+                return i;
+        return -1;
+    };
+    for (const auto& profile : preset.devices)
+        for (const auto& layer : profile.layers)
+            if (indexOf(layer.conditions) < 0)
+                conditions.append(layer.conditions);
+    if (conditions.size() > 32)
+        return false;
+    for (auto& profile : preset.devices) {
+        KeyboardLayers layers;
+        for (const auto& condition : conditions)
+            layers.append({ condition.join('+'), condition, { } });
+        for (const auto& layer : profile.layers) {
+            const int index = indexOf(layer.conditions);
+            layers[index] = layer;
+            layers[index].conditions = conditions[index];
+            layers[index].name = conditions[index].join('+');
+        }
+        profile.layers = std::move(layers);
+    }
+    preset.layerConditions = std::move(conditions);
+    return true;
+}
 QList<QPair<QString, QString>> availableConditions()
 {
     QList<QPair<QString, QString>> result {
@@ -220,15 +269,19 @@ namespace
     }
 }
 KeyboardStyles deviceKeyStyles(
-    const LightingPreset& preset, const DeviceDescription& device, const ModifierState& modifiers)
+    const DeviceProfile& preset, const DeviceDescription& device, const ModifierState& modifiers)
+{
+    return deviceKeyStylesForLayer(preset, device, activeLayer(preset.layers, modifiers));
+}
+KeyboardStyles deviceKeyStylesForLayer(
+    const DeviceProfile& preset, const DeviceDescription& device, int selected)
 {
     if (preset.keyboardDeviceId != device.id
         || (!device.capabilities.testFlag(DeviceCapability::PerKeyColor)
             && !device.capabilities.testFlag(DeviceCapability::PerStripColor)))
         return { };
     auto result = stylesWithDefault(preset.base, preset.gradients, preset.effects, device);
-    const int selected = activeLayer(preset.layers, modifiers);
-    if (selected >= 0) {
+    if (selected >= 0 && selected < preset.layers.size()) {
         const auto& layer = preset.layers[selected];
         result = effectiveKeyStyles(
             result, stylesWithDefault(layer.styles, layer.gradients, layer.effects, device), true);
@@ -241,7 +294,7 @@ EffectList implicitEffects(const KeyStyle& style)
         return { { style.effectId } };
     return { };
 }
-QString scopedEffectId(const LightingPreset& preset, const QString& id)
+QString scopedEffectId(const DeviceProfile& preset, const QString& id)
 {
     for (const auto& effect : preset.localEffects)
         if (effect.id == id)
@@ -251,24 +304,33 @@ QString scopedEffectId(const LightingPreset& preset, const QString& id)
 QList<EffectPreset> runtimeEffects(const PresetCollection& collection)
 {
     auto result = collection.effects;
-    for (const auto& preset : collection.presets)
-        for (auto effect : preset.localEffects) {
-            effect.id = scopedEffectId(preset, effect.id);
-            result.append(effect);
-        }
+    for (const auto& scene : collection.presets)
+        for (const auto* preset : deviceProfiles(scene))
+            for (auto effect : preset->localEffects) {
+                effect.id = scopedEffectId(*preset, effect.id);
+                result.append(effect);
+            }
     return result;
 }
 EffectAssignments deviceEffects(
-    const LightingPreset& p, const DeviceDescription& d, const ModifierState& modifiers)
+    const DeviceProfile& p, const DeviceDescription& d, const ModifierState& modifiers)
+{
+    return deviceEffectsForLayer(p, d, activeLayer(p.layers, modifiers));
+}
+EffectAssignments deviceEffectsForLayer(const DeviceProfile& p, const DeviceDescription& d, int selected)
 {
     if (p.keyboardDeviceId != d.id)
         return { };
     if (!d.capabilities.testFlag(DeviceCapability::PerKeyColor)
         && !d.capabilities.testFlag(DeviceCapability::PerStripColor)) {
         EffectAssignments result;
-        if (p.effects.contains(DefaultAssignment))
+        const auto& assignments = selected >= 0 && selected < p.layers.size()
+                && p.layers[selected].effects.contains(DefaultAssignment)
+            ? p.layers[selected].effects
+            : p.effects;
+        if (assignments.contains(DefaultAssignment))
             for (int id : deviceElements(d))
-                result.insert(id, p.effects[DefaultAssignment]);
+                result.insert(id, assignments[DefaultAssignment]);
         const auto overrides = p.effectOverrides.value(DefaultAssignment);
         if (!overrides.isEmpty())
             for (int id : deviceElements(d)) {
@@ -283,8 +345,7 @@ EffectAssignments deviceEffects(
         return result;
     }
     auto result = expandedEffects(p.effects, expandStyles(p.base, p.gradients, d), d);
-    const int selected = activeLayer(p.layers, modifiers);
-    if (selected >= 0) {
+    if (selected >= 0 && selected < p.layers.size()) {
         const auto& layer = p.layers[selected];
         const auto styles = expandStyles(layer.styles, layer.gradients, d);
         for (auto it = styles.cbegin(); it != styles.cend(); ++it)
@@ -294,7 +355,7 @@ EffectAssignments deviceEffects(
         for (auto it = effects.cbegin(); it != effects.cend(); ++it)
             result.insert(it.key(), it.value());
     }
-    const auto styles = deviceKeyStyles(p, d, modifiers);
+    const auto styles = deviceKeyStylesForLayer(p, d, selected);
     const auto overrides = expandedEffects(p.effectOverrides, { }, d);
     for (auto it = overrides.cbegin(); it != overrides.cend(); ++it) {
         auto list = result.value(it.key(), implicitEffects(keyStyle(styles, it.key())));
@@ -316,7 +377,7 @@ EffectAssignments deviceEffects(
     }
     return result;
 }
-QSet<QString> referencedEffects(const LightingPreset& p)
+QSet<QString> referencedEffects(const DeviceProfile& p)
 {
     QSet<QString> ids;
     if (!p.effects.contains(DefaultAssignment) && !p.defaultEffectId.isEmpty())
@@ -351,6 +412,39 @@ QSet<QString> referencedEffects(const LightingPreset& p)
     ids.remove(QString());
     return ids;
 }
+QList<const DeviceProfile*> deviceProfiles(const LightingPreset& preset)
+{
+    if (!preset.multiDevice)
+        return { &preset };
+    QList<const DeviceProfile*> result;
+    for (const auto& profile : preset.devices)
+        result.append(&profile);
+    return result;
+}
+QList<DeviceProfile*> deviceProfiles(LightingPreset& preset)
+{
+    if (!preset.multiDevice)
+        return { &preset };
+    QList<DeviceProfile*> result;
+    for (auto& profile : preset.devices)
+        result.append(&profile);
+    return result;
+}
+const DeviceProfile* profileFor(const LightingPreset& preset, const DeviceConfiguration& device)
+{
+    for (const auto* profile : deviceProfiles(preset))
+        if (profile->keyboardDeviceId == device.modelId
+            && (profile->targetDevice.isEmpty() || profile->targetDevice == device.identity()))
+            return profile;
+    return nullptr;
+}
+QSet<QString> referencedEffects(const LightingPreset& preset)
+{
+    QSet<QString> result;
+    for (const auto* profile : deviceProfiles(preset))
+        result.unite(referencedEffects(*profile));
+    return result;
+}
 int matchingPreset(const PresetCollection& c, const QString& windowClass)
 {
     const auto find = [&c](const QString& id) {
@@ -374,7 +468,7 @@ int devicePreset(const PresetCollection& c, const DeviceConfiguration& device, c
 {
     const auto find = [&](const QString& id) {
         for (int i = 0; i < c.presets.size(); ++i)
-            if (c.presets[i].id == id && c.presets[i].keyboardDeviceId == device.modelId)
+            if (c.presets[i].id == id && profileFor(c.presets[i], device))
                 return i;
         return -1;
     };
@@ -386,6 +480,6 @@ int devicePreset(const PresetCollection& c, const DeviceConfiguration& device, c
                 if (i >= 0)
                     return i;
             }
-    return find(device.presetId);
+    return find(c.defaultId);
 }
 }

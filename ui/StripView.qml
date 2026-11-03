@@ -110,8 +110,8 @@ Item {
     }
 
             function selected(id) {
-            return keyboard.selection.indexOf(id) >= 0 || keyboard.selection.indexOf(strip.id) >= 0 || focusedId
-            === id;
+            return keyboard.wholeSelected || keyboard.selection.indexOf(id) >= 0 || keyboard.selection.indexOf(
+            strip.id) >= 0 || focusedId === id;
     }
 
             implicitHeight: Kirigami.Units.gridUnit * 2
@@ -129,6 +129,10 @@ Item {
     }
 
             function onSelectionChanged() {
+            canvas.requestPaint();
+    }
+
+            function onWholeSelectedChanged() {
             canvas.requestPaint();
     }
 

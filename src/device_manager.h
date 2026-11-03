@@ -36,7 +36,7 @@ private:
         DeviceConfiguration configuration;
         DeviceInstance instance;
         std::unique_ptr<DeviceBackend> backend;
-        LightingPreset preset;
+        DeviceProfile preset;
         KeyboardStyles styles;
         EffectAssignments effects;
         QMap<QString, QColor> lastPalette;

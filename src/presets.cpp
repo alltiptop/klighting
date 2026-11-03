@@ -279,7 +279,7 @@ namespace
         return true;
     }
 }
-QJsonObject presetJson(const LightingPreset& p)
+static QJsonObject profileJson(const DeviceProfile& p)
 {
     QJsonArray local;
     for (const auto& effect : p.localEffects)
@@ -300,14 +300,118 @@ QJsonObject presetJson(const LightingPreset& p)
                 { "gradients", gradientsJson(p.gradients) },
                 { "groups", QJsonDocument::fromJson(serializeKeyGroups(p.groups).toUtf8()).object() } } } };
 }
+QJsonObject presetJson(const LightingPreset& p)
+{
+    if (!p.multiDevice)
+        return profileJson(p);
+    QJsonArray devices;
+    for (const auto& profile : p.devices) {
+        auto data = profileJson(profile);
+        data.insert("targetDevice", profile.targetDevice);
+        auto keyboard = data["keyboard"].toObject();
+        auto layers = keyboard["layers"].toArray();
+        for (int i = 0; i < layers.size(); ++i) {
+            auto layer = layers[i].toObject();
+            layer.remove("name");
+            layer.remove("conditions");
+            layers[i] = layer;
+        }
+        keyboard["layers"] = layers;
+        data["keyboard"] = keyboard;
+        devices.append(data);
+    }
+    QJsonArray layers;
+    for (const auto& conditions : p.layerConditions)
+        layers.append(QJsonArray::fromStringList(conditions));
+    return { { "format", "kwin-ambient-led-preset" }, { "version", 7 }, { "id", p.id }, { "name", p.name },
+        { "layers", layers }, { "devices", devices } };
+}
 std::optional<LightingPreset> parsePreset(const QByteArray& data, QString* error)
 {
     const auto o = QJsonDocument::fromJson(data).object();
+    if (o["version"].toInt() == 6 || o["version"].toInt() == 7) {
+        LightingPreset p;
+        p.multiDevice = true;
+        p.id = o["id"].toString();
+        p.name = o["name"].toString();
+        if (data.size() > MaxFileBytes || o["format"] != QLatin1String("kwin-ambient-led-preset")
+            || !validId(p.id) || p.name.trimmed().isEmpty() || p.name.size() > 128 || !o["devices"].isArray()
+            || o["devices"].toArray().size() > 32) {
+            *error = QStringLiteral("Invalid multi-device preset (maximum: 32 devices).");
+            return std::nullopt;
+        }
+        const bool sharedLayers = o["version"].toInt() == 7;
+        if (sharedLayers) {
+            QSet<QString> allowed;
+            for (const auto& entry : availableConditions())
+                allowed.insert(entry.first);
+            QSet<QStringList> combinations;
+            if (!o["layers"].isArray() || o["layers"].toArray().size() > 32) {
+                *error = QStringLiteral("Invalid preset layers (maximum: 32).");
+                return std::nullopt;
+            }
+            for (const auto& value : o["layers"].toArray()) {
+                const auto conditions = strings(value);
+                auto combination = conditions;
+                combination.sort();
+                const QSet<QString> unique(conditions.cbegin(), conditions.cend());
+                if (!value.isArray() || conditions.isEmpty() || conditions.size() > 8
+                    || unique.size() != conditions.size() || combinations.contains(combination)
+                    || std::any_of(conditions.cbegin(), conditions.cend(),
+                        [&](const auto& condition) { return !allowed.contains(condition); })) {
+                    *error = QStringLiteral("Invalid or duplicate preset layer conditions.");
+                    return std::nullopt;
+                }
+                combinations.insert(combination);
+                p.layerConditions.append(conditions);
+            }
+        }
+        QSet<QString> identities, profileIds;
+        for (const auto& entry : o["devices"].toArray()) {
+            auto object = entry.toObject();
+            const auto identity = object["targetDevice"].toString();
+            // Nested scenes are not profiles. Keep parsing bounded to two levels.
+            if (object["version"].toInt() != 5 || !object["targetDevice"].isString() || identity.size() > 384
+                || identity.contains(QChar::Null) || identities.contains(identity)
+                || profileIds.contains(object["id"].toString())) {
+                *error = QStringLiteral("Invalid or duplicate device profile.");
+                return std::nullopt;
+            }
+            if (sharedLayers) {
+                auto keyboard = object["keyboard"].toObject();
+                auto layers = keyboard["layers"].toArray();
+                if (!keyboard["layers"].isArray() || layers.size() != p.layerConditions.size()) {
+                    *error = QStringLiteral("Device layer assignments do not match preset layers.");
+                    return std::nullopt;
+                }
+                for (int i = 0; i < layers.size(); ++i) {
+                    auto layer = layers[i].toObject();
+                    layer["name"] = p.layerConditions[i].join('+');
+                    layer["conditions"] = QJsonArray::fromStringList(p.layerConditions[i]);
+                    layers[i] = layer;
+                }
+                keyboard["layers"] = layers;
+                object["keyboard"] = keyboard;
+            }
+            auto profile = parsePreset(QJsonDocument(object).toJson(QJsonDocument::Compact), error);
+            if (!profile)
+                return std::nullopt;
+            profile->targetDevice = identity;
+            identities.insert(identity);
+            profileIds.insert(profile->id);
+            p.devices.append(*profile);
+        }
+        if (!sharedLayers && !mergePresetLayers(p)) {
+            *error = QStringLiteral("Too many combined preset layers (maximum: 32).");
+            return std::nullopt;
+        }
+        return p;
+    }
     if (data.size() > MaxFileBytes || o["format"] != QLatin1String("kwin-ambient-led-preset")
         || (o["version"].toInt() != 3 && o["version"].toInt() != 4 && o["version"].toInt() != 5)
         || !o["keyboard"].isObject()) {
-        *error
-            = QStringLiteral("Invalid keyboard preset or unsupported version (expected version 3, 4 or 5).");
+        *error = QStringLiteral(
+            "Invalid keyboard preset or unsupported version (expected version 3, 4, 5, 6 or 7).");
         return std::nullopt;
     }
     LightingPreset p;
@@ -408,7 +512,7 @@ namespace
     }
     bool validCollection(const PresetCollection& c, QString* error)
     {
-        QSet<QString> keyboards, effects;
+        QSet<QString> keyboards, effects, profileIds;
         QMap<QString, QString> types;
         for (const auto& p : c.effects) {
             if (effects.contains(p.id)
@@ -427,51 +531,69 @@ namespace
                 return false;
             }
             keyboards.insert(p.id);
-            auto presetTypes = types;
-            for (const auto& effect : p.localEffects) {
-                if (presetTypes.contains(effect.id)) {
-                    *error = QStringLiteral("Local effect ID conflicts with a saved effect.");
+            if (p.multiDevice)
+                for (const auto& profile : p.devices) {
+                    bool aligned = profile.layers.size() == p.layerConditions.size();
+                    for (int i = 0; aligned && i < profile.layers.size(); ++i)
+                        aligned = profile.layers[i].conditions == p.layerConditions[i];
+                    if (!aligned) {
+                        *error = QStringLiteral("Device layer assignments do not match preset layers.");
+                        return false;
+                    }
+                }
+            for (const auto* profile : deviceProfiles(p)) {
+                const auto& p = *profile;
+                if (profileIds.contains(p.id)) {
+                    *error = QStringLiteral("Duplicate device profile ID.");
                     return false;
                 }
-                presetTypes.insert(effect.id, effect.type);
-            }
-            auto checkAssignments = [&](const EffectAssignments& assignments, bool above = false) {
-                for (const auto& list : assignments)
-                    for (const auto& effect : list)
-                        if (above ? presetTypes.value(effect.id) != "notifications"
-                                  : !effect.id.isEmpty() && effect.id != QLatin1String(InlineColorId)
-                                    && !presetTypes.contains(effect.id))
-                            return false;
-                return true;
-            };
-            auto checkColors = [&](const KeyboardStyles& styles) {
-                return std::all_of(styles.cbegin(), styles.cend(), [&](const auto& style) {
-                    return style.effectId.isEmpty() || types.value(style.effectId) == "ambient";
-                });
-            };
-            const auto checkGradients = [&](const StripGradients& gradients) {
-                return std::all_of(gradients.begin(), gradients.end(), [&](const auto& g) {
-                    return g.effectId.isEmpty() || types.value(g.effectId) == "ambient";
-                });
-            };
-            if (std::any_of(p.localEffects.cbegin(), p.localEffects.cend(),
-                    [&](const auto& effect) { return effect.id == p.defaultEffectId; })
-                || !checkGradients(p.gradients)
-                || (!p.defaultEffectId.isEmpty() && referencedEffects(p).contains(p.defaultEffectId)
-                    && types.value(p.defaultEffectId) != "ambient")
-                || !checkColors(p.base) || !checkAssignments(p.effects)
-                || !checkAssignments(p.effectOverrides, true)
-                || std::any_of(p.layers.cbegin(), p.layers.cend(), [&](const auto& layer) {
-                       return !checkColors(layer.styles) || !checkAssignments(layer.effects)
-                           || !checkGradients(layer.gradients);
-                   })) {
-                *error = QStringLiteral(
-                    "Use Ambient for default colors and Notifications for effects above all layers.");
-                return false;
-            }
-            if (!(referencedEffects(p) - effects).isEmpty()) {
-                *error = QStringLiteral("A keyboard preset references a missing effect preset.");
-                return false;
+                profileIds.insert(p.id);
+                auto presetTypes = types;
+                for (const auto& effect : p.localEffects) {
+                    if (presetTypes.contains(effect.id)) {
+                        *error = QStringLiteral("Local effect ID conflicts with a saved effect.");
+                        return false;
+                    }
+                    presetTypes.insert(effect.id, effect.type);
+                }
+                auto checkAssignments = [&](const EffectAssignments& assignments, bool above = false) {
+                    for (const auto& list : assignments)
+                        for (const auto& effect : list)
+                            if (above ? presetTypes.value(effect.id) != "notifications"
+                                      : !effect.id.isEmpty() && effect.id != QLatin1String(InlineColorId)
+                                        && !presetTypes.contains(effect.id))
+                                return false;
+                    return true;
+                };
+                auto checkColors = [&](const KeyboardStyles& styles) {
+                    return std::all_of(styles.cbegin(), styles.cend(), [&](const auto& style) {
+                        return style.effectId.isEmpty() || types.value(style.effectId) == "ambient";
+                    });
+                };
+                const auto checkGradients = [&](const StripGradients& gradients) {
+                    return std::all_of(gradients.begin(), gradients.end(), [&](const auto& g) {
+                        return g.effectId.isEmpty() || types.value(g.effectId) == "ambient";
+                    });
+                };
+                if (std::any_of(p.localEffects.cbegin(), p.localEffects.cend(),
+                        [&](const auto& effect) { return effect.id == p.defaultEffectId; })
+                    || !checkGradients(p.gradients)
+                    || (!p.defaultEffectId.isEmpty() && referencedEffects(p).contains(p.defaultEffectId)
+                        && types.value(p.defaultEffectId) != "ambient")
+                    || !checkColors(p.base) || !checkAssignments(p.effects)
+                    || !checkAssignments(p.effectOverrides, true)
+                    || std::any_of(p.layers.cbegin(), p.layers.cend(), [&](const auto& layer) {
+                           return !checkColors(layer.styles) || !checkAssignments(layer.effects)
+                               || !checkGradients(layer.gradients);
+                       })) {
+                    *error = QStringLiteral(
+                        "Use Ambient for default colors and Notifications for effects above all layers.");
+                    return false;
+                }
+                if (!(referencedEffects(p) - effects).isEmpty()) {
+                    *error = QStringLiteral("A keyboard preset references a missing effect preset.");
+                    return false;
+                }
             }
         }
         if (c.presets.isEmpty() || c.presets.size() > 64 || c.effects.size() > 64 || c.rules.size() > 128
@@ -494,14 +616,11 @@ namespace
                 return false;
             }
             for (const auto& d : *c.devices) {
-                const auto preset = std::find_if(c.presets.begin(), c.presets.end(),
-                    [&](const auto& p) { return p.id == d.presetId && p.keyboardDeviceId == d.modelId; });
                 if (!validId(d.driverId) || !validId(d.modelId) || d.instanceId.isEmpty()
                     || d.instanceId.size() > 256 || d.instanceId.contains(QChar::Null) || d.name.isEmpty()
                     || d.name.size() > 128 || deviceIds.contains(d.identity())
-                    || !QStringList { "average", "red", "green", "blue" }.contains(d.brightnessChannel)
-                    || (!d.presetId.isEmpty() && preset == c.presets.end())) {
-                    *error = QStringLiteral("Invalid device identity or incompatible device preset.");
+                    || !QStringList { "average", "red", "green", "blue" }.contains(d.brightnessChannel)) {
+                    *error = QStringLiteral("Invalid device identity or options.");
                     return false;
                 }
                 deviceIds.insert(d.identity());
@@ -528,7 +647,6 @@ std::optional<PresetCollection> loadPresets(const PresetCollection& fallback, QS
     }
     PresetCollection c;
     c.effects.clear();
-    QSet<QString> automaticPresets;
     if (o.contains("devices")) {
         if (!o["devices"].isArray() || o["devices"].toArray().size() > 32) {
             *error = QStringLiteral("Invalid device list.");
@@ -547,12 +665,9 @@ std::optional<PresetCollection> loadPresets(const PresetCollection& fallback, QS
                 return std::nullopt;
             }
             c.devices->append({ d["driver"].toString(), d["instance"].toString(), d["model"].toString(),
-                d["name"].toString(), d["preset"].toString(), d["enabled"].toBool(),
-                d["pauseOnBattery"].toBool(false), d["pauseOnLowBattery"].toBool(false),
-                d["lightbarOffOnBattery"].toBool(false), d["lightbarOffOnLowBattery"].toBool(false),
-                d["brightnessChannel"].toString("average") });
-            if (d["preset"].isString() && d["preset"].toString().isEmpty())
-                automaticPresets.insert(c.devices->last().identity());
+                d["name"].toString(), d["enabled"].toBool(), d["pauseOnBattery"].toBool(false),
+                d["pauseOnLowBattery"].toBool(false), d["lightbarOffOnBattery"].toBool(false),
+                d["lightbarOffOnLowBattery"].toBool(false), d["brightnessChannel"].toString("average") });
         }
     }
     c.defaultId = o["defaultPreset"].toString();
@@ -584,17 +699,6 @@ std::optional<PresetCollection> loadPresets(const PresetCollection& fallback, QS
         c.rules.append({ r["name"].toString(), r["windowClass"].toString(), r["preset"].toString(),
             r["enabled"].toBool(true) });
     }
-    // Older files used an empty string for automatic selection; explicit None is now null.
-    if (c.devices)
-        for (auto& device : *c.devices)
-            if (automaticPresets.contains(device.identity()))
-                for (const auto& preset : c.presets)
-                    if (preset.keyboardDeviceId == device.modelId) {
-                        if (device.presetId.isEmpty() || preset.id == c.defaultId)
-                            device.presetId = preset.id;
-                        if (preset.id == c.defaultId)
-                            break;
-                    }
     return validCollection(c, error) ? std::optional(c) : std::nullopt;
 }
 bool savePresets(const PresetCollection& c, QString* error, const PresetCollection* expected,
@@ -631,10 +735,8 @@ bool savePresets(const PresetCollection& c, QString* error, const PresetCollecti
         QJsonArray devices;
         for (const auto& d : *c.devices)
             devices.append(QJsonObject { { "driver", d.driverId }, { "instance", d.instanceId },
-                { "model", d.modelId }, { "name", d.name },
-                { "preset", d.presetId.isEmpty() ? QJsonValue(QJsonValue::Null) : QJsonValue(d.presetId) },
-                { "enabled", d.enabled }, { "pauseOnBattery", d.pauseOnBattery },
-                { "pauseOnLowBattery", d.pauseOnLowBattery },
+                { "model", d.modelId }, { "name", d.name }, { "enabled", d.enabled },
+                { "pauseOnBattery", d.pauseOnBattery }, { "pauseOnLowBattery", d.pauseOnLowBattery },
                 { "lightbarOffOnBattery", d.lightbarOffOnBattery },
                 { "lightbarOffOnLowBattery", d.lightbarOffOnLowBattery },
                 { "brightnessChannel", d.brightnessChannel } });

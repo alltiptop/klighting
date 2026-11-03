@@ -1,10 +1,44 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "color.h"
+#include "device_driver.h"
 #include <algorithm>
 #include <cmath>
 
 namespace Ambient
 {
+int deviceBrightnessSteps(const DeviceInstance& device)
+{
+    // RGB output dims in software; the hardware brightness range is independent.
+    if (device.description.capabilities.testFlag(DeviceCapability::Color))
+        return 0;
+    const int steps = device.options.value("BrightnessSteps").toInt();
+    return steps > 0 && steps <= 65535 ? steps : 0;
+}
+QColor deviceColor(const QColor& color, const DeviceInstance& device, const QString& channel)
+{
+    if (!color.isValid())
+        return color;
+    const auto quantize = [](double value, int steps) {
+        return steps > 0 && steps <= 65535 ? qRound(value * steps) / double(steps) : value;
+    };
+    if (!device.description.capabilities.testFlag(DeviceCapability::Color)) {
+        const double value = channel == "red" ? color.redF()
+            : channel == "green"              ? color.greenF()
+            : channel == "blue"               ? color.blueF()
+                                              : (color.redF() + color.greenF() + color.blueF()) / 3;
+        const auto level = quantize(value, deviceBrightnessSteps(device));
+        return QColor::fromRgbF(level, level, level, color.alphaF());
+    }
+    const auto levels = device.options.value("ColorLevels").toMap();
+    if (levels.isEmpty())
+        return color;
+    const auto component = [&](const QString& name, double value) {
+        const int steps = levels.value(name).toInt();
+        return steps > 0 ? quantize(value, steps) : 0.0;
+    };
+    return QColor::fromRgbF(component("red", color.redF()), component("green", color.greenF()),
+        component("blue", color.blueF()), color.alphaF());
+}
 static double toLinear(double v) { return v <= 0.04045 ? v / 12.92 : std::pow((v + 0.055) / 1.055, 2.4); }
 static double toSrgb(double v) { return v <= 0.0031308 ? 12.92 * v : 1.055 * std::pow(v, 1.0 / 2.4) - 0.055; }
 static double linearComponent(unsigned char value)

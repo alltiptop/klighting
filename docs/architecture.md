@@ -28,10 +28,12 @@ for ownership, discovery limits and a standalone build example.
 
 ## Composition and scheduling
 
-A device chooses a matching application preset or its default. Base is always the
+A device chooses a matching application preset or the shared Default, then selects its profile
+by driver and instance identity. A preset can contain up to 32 independent device
+profiles, including several instances of the same model. Base is always the
 underlay; at most one matching keyboard layer is selected. The combination with the
 most conditions wins, with the last row breaking ties. Effects blend in list order;
-above-layer notifications compose last. Local effect IDs are scoped by preset at runtime.
+above-layer notifications compose last. Local effect IDs are scoped by device profile at runtime.
 
 Continuous effect states are shared across devices using the same effect. One small
 32×18 GPU sample feeds the active Ambient calculations. Readback uses a fence/PBO and
@@ -64,6 +66,29 @@ the current KWin owner and payload bounds. Capture stops on service disconnect.
 The daemon waits for its initial desktop/lock lookup and refuses hardware output
 while a legacy lighting-owning Ambient effect is loaded, preventing two controllers.
 
+### Compositor failure containment
+
+Native KWin plugins share the compositor process. A segmentation fault, abort or GPU
+driver failure in that process cannot be safely recovered with a C++ exception handler.
+Keep hardware access, effect composition, configuration parsing and blocking work in
+`klightingd`, not in the compositor adapters.
+
+Server plugins link with `-z defs` and `-z now`: missing dependencies fail the build,
+and symbols are resolved at load time rather than on the first rendered frame.
+`klighting-plugin-check` tests each binary in a separate unprivileged process, with a
+five-second deadline and core dumps disabled. It loads dependencies without creating
+plugin instances. The local installer runs this check before replacing any files.
+This catches loading failures, not faulty rendering or arbitrary native-code bugs.
+The settings controller disables Ambient startup before a load/unload request and
+re-enables it only after KWin confirms loading. Capture errors stop further sampling until an explicit retry.
+
+Future Wayland/X11 providers should use public protocols from a client process, with
+bounded asynchronous IPC to the lighting runtime. If a server plugin is unavoidable,
+keep it limited to observation/capture, use the same strict/eager linking and isolated
+load checks, and never load hardware drivers there. A fully isolated capture client
+(for example a portal/PipeWire provider) would remove klighting native code from the
+compositor; it is not implemented yet.
+
 ## Persistence and UI
 
 Settings remain pending until Apply. JSON lives under the standard configuration root
@@ -73,7 +98,15 @@ in `kwin-effect-ambient-led/`; the retained name is a compatibility identifier.
 `QLockFile` serializes conflict detection, publication and cleanup. The editor supplies its
 previous snapshot for comparison under that lock. This is not a multi-user database transaction.
 
-Keyboard JSON currently uses version 5; readers retain versions 3 and 4. Existing
+Multi-device JSON uses version 7: layer conditions belong to the preset, with aligned
+assignments in each device profile. One matching layer is selected for every device;
+unassigned elements inherit Base. Readers migrate version 6 device layers and retain
+single-device versions 3–5.
+Device cards share one pending document, selected layer and live layer preview;
+element selections remain independent. The preset sidebar lists Base as the preset
+root and modifier layers as children; selection is editor state, not saved configuration.
+Copy/paste matches keyboard input codes or unambiguous labels and strip positions;
+unsupported assignments are omitted after a capability-loss warning. Existing
 strip gradients remain editable, although new gradients have no creation button.
 Driver metadata/translation resources are isolated from shared application catalogs.
 The only legacy ASUS option injected by the host is `AuraObjectPath`; new driver

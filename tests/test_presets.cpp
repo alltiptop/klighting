@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "effect_palette.h"
+#include "preset_transfer.h"
 #include "presets.h"
 #include <KConfigGroup>
 #include <KSharedConfig>
@@ -16,6 +17,186 @@ class PresetsTest : public QObject
     Q_OBJECT
 private Q_SLOTS:
     void init() { QVERIFY(QDir(presetDirectory()).removeRecursively()); }
+    void multiDevicePresetsRoundTripAndScopeLocalEffects()
+    {
+        auto c = defaultCollection("test");
+        auto& scene = c.presets.first();
+        scene.multiDevice = true;
+        DeviceProfile a, b;
+        a.id = "profile-one";
+        a.targetDevice = "test:one";
+        a.keyboardDeviceId = "test";
+        a.effects[DefaultAssignment] = { { "local" } };
+        EffectPreset local;
+        local.id = "local";
+        local.type = "solid";
+        local.solidColor = Qt::red;
+        a.localEffects.append(local);
+        b = a;
+        b.id = "profile-two";
+        b.targetDevice = "test:two";
+        b.localEffects[0].solidColor = Qt::green;
+        scene.devices = { a, b };
+        QVERIFY(mergePresetLayers(scene));
+        c.devices = QList<DeviceConfiguration> { { "test", "one", "test", "One" },
+            { "test", "two", "test", "Two" } };
+        c.rules.append({ "Editor", "editor", scene.id });
+        QString error;
+        QVERIFY2(savePresets(c, &error), qPrintable(error));
+        QCOMPARE(*loadPresets(defaultCollection(), &error), c);
+        QCOMPARE(devicePreset(c, c.devices->at(1), "editor"), 0);
+        QCOMPARE(profileFor(scene, c.devices->at(1))->id, b.id);
+        const auto effects = runtimeEffects(c);
+        QCOMPARE(effects[1].id, QString("profile-one:local"));
+        QCOMPARE(effects[2].id, QString("profile-two:local"));
+        QTemporaryDir dir;
+        QVERIFY(exportPreset(scene, c.effects, dir.filePath("scene.json"), &error));
+        const auto imported = importPreset(dir.filePath("scene.json"), &error);
+        QVERIFY2(imported, qPrintable(error));
+        QCOMPARE(imported->keyboard, scene);
+        auto json = presetJson(scene);
+        auto devices = json["devices"].toArray();
+        devices.append(devices.first());
+        json["devices"] = devices;
+        QVERIFY(!parsePreset(QJsonDocument(json).toJson(), &error));
+        scene.devices[1].effects[DefaultAssignment] = { { "missing" } };
+        QVERIFY(!savePresets(c, &error));
+        scene.devices.clear();
+        QVERIFY2(savePresets(c, &error), qPrintable(error));
+        QCOMPARE(*loadPresets(defaultCollection(), &error), c);
+    }
+    void sharedLayersMigrateAndSelectOneLayerForEveryDevice()
+    {
+        LightingPreset rgb, mono;
+        rgb.id = "rgb-profile";
+        rgb.keyboardDeviceId = "rgb";
+        rgb.layers = { { "Shift", { "shift" }, { } }, { "Shift+A", { "shift", "key:30" }, { } } };
+        rgb.layers[0].effects[1] = { { InlineColorId, 100, Qt::red } };
+        rgb.layers[1].effects[1] = { { InlineColorId, 100, Qt::green } };
+        mono.id = "mono-profile";
+        mono.keyboardDeviceId = "mono";
+        mono.effects[DefaultAssignment] = { { "bright" } };
+        mono.layers[0].effects[DefaultAssignment] = { { "dim" } };
+        auto a = presetJson(rgb), b = presetJson(mono);
+        a["targetDevice"] = "test:rgb";
+        b["targetDevice"] = "test:mono";
+        QJsonObject old { { "format", "kwin-ambient-led-preset" }, { "version", 6 }, { "id", "scene" },
+            { "name", "Scene" }, { "devices", QJsonArray { a, b } } };
+        QString error;
+        auto scene = parsePreset(QJsonDocument(old).toJson(), &error);
+        QVERIFY2(scene, qPrintable(error));
+        QCOMPARE(scene->layerConditions, (QList<QStringList> { { "shift" }, { "shift", "key:30" } }));
+        QCOMPARE(scene->devices[0].layers.size(), 2);
+        QCOMPARE(scene->devices[1].layers.size(), 2);
+        QVERIFY(scene->devices[1].layers[1].effects.isEmpty());
+        DeviceDescription color { "rgb", "RGB", DeviceCapability::Color | DeviceCapability::PerKeyColor,
+            { { 1, "A", { } } }, { } };
+        DeviceDescription brightness { "mono", "Mono", DeviceCapability::Brightness,
+            { { 10, "A", { } }, { 20, "B", { } } }, { } };
+        ModifierState state;
+        state.pressed.insert(KEY_LEFTSHIFT);
+        int layer = activePresetLayer(*scene, state);
+        QCOMPARE(layer, 0);
+        QCOMPARE(
+            deviceEffectsForLayer(scene->devices[0], color, layer).value(1).first().color, QColor(Qt::red));
+        QCOMPARE(deviceEffectsForLayer(scene->devices[1], brightness, layer).value(10),
+            (EffectList { { "dim" } }));
+        QCOMPARE(deviceEffectsForLayer(scene->devices[1], brightness, layer).value(20),
+            (EffectList { { "dim" } }));
+        state.pressed.insert(KEY_A);
+        layer = activePresetLayer(*scene, state);
+        QCOMPARE(layer, 1);
+        QCOMPARE(
+            deviceEffectsForLayer(scene->devices[0], color, layer).value(1).first().color, QColor(Qt::green));
+        // An unassigned shared layer inherits Base, never another device's simpler matching layer.
+        QCOMPARE(deviceEffectsForLayer(scene->devices[1], brightness, layer).value(10),
+            (EffectList { { "bright" } }));
+        scene->devices[1].layers[1].effects[DefaultAssignment] = { };
+        QVERIFY(deviceEffectsForLayer(scene->devices[1], brightness, layer).value(10).isEmpty());
+        auto json = presetJson(*scene);
+        QCOMPARE(json["version"].toInt(), 7);
+        const auto payload = json["devices"]
+                                 .toArray()[0]
+                                 .toObject()["keyboard"]
+                                 .toObject()["layers"]
+                                 .toArray()[0]
+                                 .toObject();
+        QVERIFY(!payload.contains("conditions"));
+        QVERIFY(!payload.contains("name"));
+        const auto parsed = parsePreset(QJsonDocument(json).toJson(), &error);
+        QVERIFY2(parsed, qPrintable(error));
+        QCOMPARE(*parsed, *scene);
+        auto invalid = json;
+        invalid["layers"] = QJsonArray { QJsonArray { "shift", "ctrl" }, QJsonArray { "ctrl", "shift" } };
+        QVERIFY(!parsePreset(QJsonDocument(invalid).toJson(), &error));
+        invalid["layers"] = QJsonArray { QJsonArray { "shift" } };
+        QVERIFY(!parsePreset(QJsonDocument(invalid).toJson(), &error));
+        invalid["layers"] = QJsonArray { QJsonArray { "unknown" }, QJsonArray { "shift" } };
+        QVERIFY(!parsePreset(QJsonDocument(invalid).toJson(), &error));
+    }
+    void profileTransferMatchesKeysAndFallsBackByCapabilities()
+    {
+        DeviceInstance source, target;
+        source.description = { "a", "Source", DeviceCapability::Color | DeviceCapability::PerKeyColor,
+            { { 1, "A", { } }, { 2, "B", { } }, { 3, "Extra", { } } }, { } };
+        source.options["InputKeyCodes"] = QVariantMap { { "1", KEY_A }, { "2", KEY_B } };
+        target.description = { "b", "Target", DeviceCapability::Color | DeviceCapability::PerKeyColor,
+            { { 2, "A", { } }, { 1, "B", { } }, { 4, "New", { } } }, { } };
+        target.options["InputKeyCodes"] = QVariantMap { { "2", KEY_A }, { "1", KEY_B } };
+        DeviceProfile p;
+        p.keyboardDeviceId = "a";
+        p.effects[DefaultAssignment] = { { InlineColorId, 100, Qt::blue } };
+        p.effects[1] = { { InlineColorId, 100, Qt::red } };
+        p.effects[2] = { { InlineColorId, 100, Qt::green } };
+        p.effects[3] = { { DefaultEffectId } };
+        p.layers[0].effects[DefaultAssignment] = { { InlineColorId, 100, Qt::yellow } };
+        const auto transferred = transferProfile(p, source, target, { EffectPreset() });
+        QVERIFY(!transferred.warnings.isEmpty());
+        QCOMPARE(transferred.profile.effects[2].first().color, QColor(Qt::red));
+        QCOMPARE(transferred.profile.effects[1].first().color, QColor(Qt::green));
+        QVERIFY(!transferred.profile.effects.contains(3));
+        QVERIFY(!transferred.profile.effects.contains(4));
+        const auto resolved = deviceEffects(transferred.profile, target.description, { });
+        QCOMPARE(resolved[4].first().color, QColor(Qt::blue));
+        auto mono = target;
+        mono.description.capabilities = DeviceCapability::Brightness;
+        mono.options["BrightnessSteps"] = 3;
+        p.effects[DefaultAssignment] = { { DefaultEffectId }, { InlineColorId, 100, Qt::red } };
+        auto simple = transferProfile(p, source, mono, { EffectPreset() });
+        QCOMPARE(simple.profile.layers.size(), p.layers.size());
+        QVERIFY(simple.profile.layers[0].styles.isEmpty());
+        QCOMPARE(simple.profile.layers[0].effects.value(DefaultAssignment),
+            p.layers[0].effects.value(DefaultAssignment));
+        QCOMPARE(simple.profile.effects.size(), 1);
+        QCOMPARE(simple.profile.effects[DefaultAssignment], p.effects[DefaultAssignment]);
+        QVERIFY(!simple.warnings.join(' ').contains("Ambient will be omitted"));
+        mono.options["BrightnessSteps"] = 4;
+        simple = transferProfile(p, source, mono, { EffectPreset() });
+        QCOMPARE(simple.profile.effects[DefaultAssignment].size(), 2);
+        QCOMPARE(p.effects[DefaultAssignment].size(), 2); // Conversion never edits its source.
+        const auto identical = transferProfile(p, source, source, { EffectPreset() });
+        QCOMPARE(identical.profile.effects, p.effects);
+        QVERIFY(identical.warnings.isEmpty());
+        // Labels alone must not guess which side of an ambiguous modifier was meant.
+        source.description.keys = { { 1, "Shift", { } }, { 2, "Shift", { } } };
+        source.options.clear();
+        target.description.keys = { { 9, "Shift", { } } };
+        target.options.clear();
+        const auto ambiguous = transferProfile(p, source, target, { EffectPreset() });
+        QVERIFY(!ambiguous.profile.effects.contains(9));
+        // Strips use physical order, never the unrelated numeric element IDs.
+        source.description.keys.clear();
+        target.description.keys.clear();
+        source.description.strips
+            = { { FirstStripId, "From", { { 1, "1", { } }, { 2, "2", { } }, { 3, "3", { } } } } };
+        target.description.capabilities = DeviceCapability::Color | DeviceCapability::PerStripColor;
+        target.description.strips = { { FirstStripId, "To", { { 9, "1", { } }, { 4, "2", { } } } } };
+        const auto strip = transferProfile(p, source, target, { EffectPreset() });
+        QCOMPARE(strip.profile.effects[9].first().color, QColor(Qt::red));
+        QCOMPARE(strip.profile.effects[4].first().color, QColor(Qt::green));
+        QVERIFY(!strip.profile.effects.contains(3));
+        QVERIFY(!strip.warnings.isEmpty());
+    }
     void identifiersMustMatchWholeInput()
     {
         QString error;
@@ -109,6 +290,18 @@ private Q_SLOTS:
         dim.brightness = 100;
         palette.configure({ solid, dim }, { solid.id, dim.id });
         QCOMPARE(frame().uniform, solid.solidColor);
+        p.effects[DefaultAssignment] = { { dim.id } };
+        dim.brightness = 33;
+        palette.configure({ solid, dim }, { solid.id, dim.id });
+        QCOMPARE(frame().uniform.name(), QString("#545454"));
+        p.effects[DefaultAssignment] = { { dim.id, 0 } };
+        QCOMPARE(frame().uniform, QColor(Qt::black));
+        // Explicit black remains off, even when followed by a brightness filter.
+        solid.solidColor = Qt::black;
+        palette.configure({ solid, dim }, { solid.id, dim.id });
+        p.effects[DefaultAssignment] = { { solid.id }, { dim.id } };
+        QCOMPARE(frame().uniform, QColor(Qt::black));
+        dim.brightness = 100;
         // Static filters remain defined while battery policy freezes screen-derived colors.
         palette.configure({ dim }, { }, { true, true, true });
         QCOMPARE(palette.brightnessFilters().value(dim.id), 100);
@@ -268,10 +461,10 @@ private Q_SLOTS:
         QVERIFY2(restored, qPrintable(error));
         QCOMPARE(*restored, p);
     }
-    void legacyAutomaticDevicePresetBecomesAnExplicitReference()
+    void legacyDeviceDefaultsDoNotOverrideTheSharedDefault()
     {
         auto c = defaultCollection("fixture");
-        c.devices = QList<DeviceConfiguration> { { "driver", "instance", "fixture", "Device", { }, true } };
+        c.devices = QList<DeviceConfiguration> { { "driver", "instance", "fixture", "Device" } };
         QString error;
         QVERIFY2(savePresets(c, &error), qPrintable(error));
         QFile file(presetDirectory() + "/settings-v2.json");
@@ -280,17 +473,22 @@ private Q_SLOTS:
         file.close();
         auto devices = index["devices"].toArray();
         auto device = devices[0].toObject();
-        QVERIFY(device["preset"].isNull());
-        QCOMPARE(*loadPresets(defaultCollection("fixture"), &error), c);
-        device["preset"] = ""; // Previous automatic-selection format.
-        devices[0] = device;
-        index["devices"] = devices;
-        QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
-        file.write(QJsonDocument(index).toJson());
-        file.close();
-        auto loaded = loadPresets(defaultCollection("fixture"), &error);
-        QVERIFY2(loaded, qPrintable(error));
-        QCOMPARE(loaded->devices->first().presetId, c.defaultId);
+        QVERIFY(!device.contains("preset"));
+        // Previous files used null for None, an empty string for automatic
+        // selection, or a separate preset ID. All now use the shared default.
+        for (const QJsonValue& legacy :
+            { QJsonValue(QJsonValue::Null), QJsonValue(""), QJsonValue("old-preset") }) {
+            device["preset"] = legacy;
+            devices[0] = device;
+            index["devices"] = devices;
+            QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            file.write(QJsonDocument(index).toJson());
+            file.close();
+            const auto loaded = loadPresets(defaultCollection("fixture"), &error);
+            QVERIFY2(loaded, qPrintable(error));
+            QCOMPARE(*loaded, c);
+            QCOMPARE(devicePreset(*loaded, loaded->devices->first(), { }), 0);
+        }
     }
     void applicationBindingsAlwaysOverrideDeviceDefault()
     {
@@ -299,7 +497,7 @@ private Q_SLOTS:
         application.id = "editor";
         c.presets.append(application);
         c.rules.append({ "Editor", "editor", application.id, true });
-        c.devices = QList<DeviceConfiguration> { { "driver", "instance", "fixture", "Device", c.defaultId } };
+        c.devices = QList<DeviceConfiguration> { { "driver", "instance", "fixture", "Device" } };
         QString error;
         QVERIFY2(savePresets(c, &error), qPrintable(error));
         QFile file(presetDirectory() + "/settings-v2.json");
@@ -329,14 +527,15 @@ private Q_SLOTS:
         QString error;
         QVERIFY(savePresets(c, &error));
         QVERIFY(!loadPresets(defaultCollection(), &error)->devices.has_value());
-        c.devices = QList<DeviceConfiguration> { { "driver", "serial:1", "strip", "External", "default", true,
-                                                     true, false, true, false },
+        c.devices = QList<DeviceConfiguration> { { "driver", "serial:1", "strip", "External", true, true,
+                                                     false, true, false },
             { "driver", "serial:2", "strip", "Offline", "", false, false, true } };
         QVERIFY2(savePresets(c, &error), qPrintable(error));
         QCOMPARE(*loadPresets(defaultCollection(), &error), c);
         auto wrong = c;
         wrong.devices->first().modelId = "wrong-model";
-        QVERIFY(!savePresets(wrong, &error));
+        QVERIFY(savePresets(wrong, &error));
+        QCOMPARE(devicePreset(wrong, wrong.devices->first(), { }), -1);
         wrong = c;
         wrong.devices->append(wrong.devices->first());
         QVERIFY(!savePresets(wrong, &error));

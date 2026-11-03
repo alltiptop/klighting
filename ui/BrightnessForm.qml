@@ -7,7 +7,9 @@ import org.kde.kirigami as Kirigami
 Kirigami.FormLayout {
     id: form
 
+    property int brightnessSteps: 0
     required property var options
+    readonly property int sliderSteps: brightnessSteps > 0 && brightnessSteps < 100 ? brightnessSteps : 100
 
     signal edited(int value)
 
@@ -20,22 +22,36 @@ Kirigami.FormLayout {
             Layout.preferredWidth: Kirigami.Units.gridUnit * 12
             from: 0
             objectName: "BrightnessSlider"
+            snapMode: QQC2.Slider.SnapAlways
             stepSize: 1
-            to: 100
-            value: form.options.brightness ?? 100
+            to: form.sliderSteps
+            value: Math.round((form.options.brightness ?? 100) * form.sliderSteps / 100)
 
-            onMoved: form.edited(Math.round(value))
+            onMoved: form.edited(Math.round(value * 100 / form.sliderSteps))
         }
 
         QQC2.SpinBox {
+            id: brightnessInput
+
             Accessible.name: qsTranslate("AmbientLed.BrightnessForm", "Brightness in percent")
             editable: true
             from: 0
             objectName: "BrightnessValue"
-            to: 100
-            value: form.options.brightness ?? 100
+            textFromValue: (value, locale) => Number(Math.round(value * 100
+                                                                / form.sliderSteps)).toLocaleString(locale,
+                                                                                                    'f', 0)
+            to: form.sliderSteps
+            value: Math.round((form.options.brightness ?? 100) * form.sliderSteps / 100)
+            valueFromText: (text, locale) => Math.round(Number.fromLocaleString(locale, text)
+                                                        * form.sliderSteps / 100)
 
-            onValueModified: form.edited(value)
+            validator: IntValidator {
+                bottom: 0
+                locale: brightnessInput.locale.name
+                top: 100
+            }
+
+            onValueModified: form.edited(Math.round(value * 100 / form.sliderSteps))
         }
 
         QQC2.Label {

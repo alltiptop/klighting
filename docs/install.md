@@ -12,10 +12,22 @@ sudo cmake --install build
 Do not overwrite a library currently loaded in KWin. Log out before replacing a
 running installation, or use the atomic [local installer](../tools/install-local.sh)
 for a verified artifact bundle on its supported `/usr/lib/qt6` layout. Include the
-built `klightingd`, `klighting_integration.so`, generated D-Bus/systemd/autostart
+built `klightingd`, `klighting-plugin-check`, `klighting_integration.so`, generated D-Bus/systemd/autostart
 files and existing effect/driver/KCM artifacts in that bundle's `SHA256SUMS`.
 The installer preserves backups and prints activation commands; it does not restart
 processes or change user settings itself.
+
+Check a bundle without installing it:
+
+```sh
+tools/install-local.sh --check dist/kwin-6.7.5
+```
+
+The installer checks each plugin in a separate process before writing to `/usr`.
+When invoked with sudo, checks run as the invoking user, never as root. A missing
+dependency, crash or timeout rejects the bundle. For a normal CMake installation,
+run `ctest --test-dir build -R plugin_loading_tests --output-on-failure` first.
+These checks do not exercise rendering or hardware.
 
 Reopen **Lighting** and **Apply** to start/reload `klightingd`. The service starts
 automatically at graphical login. It owns colors, presets, notifications and power
@@ -32,6 +44,10 @@ systemctl --user daemon-reload
 systemctl --user restart klightingd.service
 klightingd --status
 ```
+
+After rebuilding, install the updated `klightingd` as well as the settings modules,
+then restart it. Apply rereads configuration; it does not replace a running binary.
+An unsupported preset-version error can indicate an older installed service.
 
 This reloads the lighting core and drivers. To reload Ambient capture:
 

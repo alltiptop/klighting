@@ -23,6 +23,10 @@ class SettingsController : public QObject
     Q_PROPERTY(int selectedEffect READ selectedEffect WRITE selectEffect NOTIFY contentChanged)
     Q_PROPERTY(QString section READ section WRITE setSection NOTIFY changed)
     Q_PROPERTY(bool editableLightbar READ editableLightbar NOTIFY contentChanged)
+    Q_PROPERTY(QVariantList presetDevices READ presetDevices NOTIFY presetDevicesChanged)
+    Q_PROPERTY(QVariantList addablePresetDevices READ addablePresetDevices NOTIFY contentChanged)
+    Q_PROPERTY(QVariantMap profileInfo READ profileInfo NOTIFY contentChanged)
+    Q_PROPERTY(bool canPasteProfile READ canPasteProfile NOTIFY contentChanged)
     Q_PROPERTY(QVariantList presets READ presets NOTIFY contentChanged)
     Q_PROPERTY(QVariantList rules READ rules NOTIFY contentChanged)
     Q_PROPERTY(QVariantMap preset READ preset NOTIFY contentChanged)
@@ -35,7 +39,8 @@ class SettingsController : public QObject
     Q_PROPERTY(QVariantMap device READ device NOTIFY contentChanged)
     Q_PROPERTY(QVariantList conditions READ conditions CONSTANT)
     Q_PROPERTY(int selected READ selected WRITE selectPreset NOTIFY contentChanged)
-    Q_PROPERTY(QString defaultId READ defaultId WRITE setDefaultId NOTIFY contentChanged)
+    Q_PROPERTY(int selectedLayer READ selectedLayer WRITE selectLayer NOTIFY layerSelectionChanged)
+    Q_PROPERTY(QString defaultId READ defaultId NOTIFY contentChanged)
     Q_PROPERTY(bool dirty READ dirty NOTIFY changed)
     Q_PROPERTY(bool representsDefaults READ representsDefaults NOTIFY changed)
     Q_PROPERTY(bool busy READ busy NOTIFY changed)
@@ -53,6 +58,21 @@ class SettingsController : public QObject
 public:
     explicit SettingsController(QObject* parent = nullptr);
     ~SettingsController() override;
+    QVariantList presetDevices() const;
+    QVariantList addablePresetDevices() const;
+    QVariantMap profileInfo() const;
+    bool canPasteProfile() const;
+    Q_INVOKABLE bool addPresetDevice(const QString& identity);
+    Q_INVOKABLE void removePresetDevice(const QString& profileId);
+    Q_INVOKABLE void copyProfile();
+    Q_INVOKABLE QStringList pasteWarnings() const;
+    Q_INVOKABLE bool pasteProfile();
+    Q_INVOKABLE QVariantMap deviceSelectionCapabilities(const QVariantList& targets) const;
+    Q_INVOKABLE QVariantMap deviceSelectionEffects(const QVariantList& targets) const;
+    Q_INVOKABLE QVariantMap deviceSelectionEffectOptions(
+        const QVariantList& targets, const QString& id) const;
+    Q_INVOKABLE QString editDeviceSelection(
+        const QVariantList& targets, const QString& action, const QVariantMap& arguments);
     QVariantList devices() const;
     QVariantList availableDevices() const;
     QVariantMap deviceSettings() const;
@@ -87,6 +107,8 @@ public:
     QVariantMap device() const;
     QVariantList conditions() const;
     int selected() const { return m_selected; }
+    int selectedLayer() const;
+    Q_INVOKABLE void selectLayer(int index);
     QString defaultId() const { return m_collection.defaultId; }
     bool dirty() const;
     bool representsDefaults() const;
@@ -102,7 +124,6 @@ public:
     ServiceControl* service() const { return m_service; }
     const PresetCollection& collection() const { return m_collection; }
     void selectPreset(int index);
-    void setDefaultId(const QString& id);
     void setLightbarEnabled(bool value);
     Q_INVOKABLE void load();
     Q_INVOKABLE void save();
@@ -156,20 +177,54 @@ public:
     Q_INVOKABLE int moveRule(int index, int direction);
     Q_INVOKABLE void selectWindow(int index);
 Q_SIGNALS:
+    void layerSelectionChanged();
+    void presetDevicesChanged();
     void changed();
     void contentChanged();
     void previewChanged();
     void pressedKeysChanged();
 
 private:
+    struct SelectionTarget {
+        SettingsController* editor;
+        int layer;
+        QVariantList keys;
+    };
+    QList<SelectionTarget> selectionTargets(const QVariantList& targets) const;
     bool validateLayerConditions(const QStringList& conditions, int except = -1);
     EffectPreset* editableEffect(const QString& localId);
     EffectList localEffects(int layer, int id) const;
     void storeLocalEffects(int layer, int id, const EffectList& list);
     int effectSource(const EffectAssignments& assignments, int id) const;
     QList<int> effectIds(const QVariantList& ids) const;
+    struct Document {
+        LoadedDriver driver;
+        PresetCollection collection, saved, fallback;
+        int revision = 0;
+        QString error;
+        std::optional<DeviceProfile> clipboard;
+        DeviceInstance clipboardDevice;
+        QList<EffectPreset> clipboardEffects;
+    };
+    SettingsController(SettingsController* owner, const QString& profileId);
+    SettingsController* documentController() const
+    {
+        return m_owner ? m_owner : const_cast<SettingsController*>(this);
+    }
+    std::shared_ptr<Document> m_document;
+    SettingsController* m_owner = nullptr;
+    QString m_profileId;
+    mutable DeviceProfile m_emptyProfile;
+    mutable DeviceInstance m_profileDevice;
+    QMap<QString, SettingsController*> m_editors;
+    QString m_editorsPresetId;
+    void syncProfileEditors();
+    void makeMultiDevice(LightingPreset& scene);
+    DeviceProfile newProfile(const DeviceConfiguration& device) const;
+    const DeviceInstance& editingInstance() const;
+    const DeviceDescription& editingDescription() const { return editingInstance().description; }
     KSharedConfig::Ptr m_config;
-    LoadedDriver m_driver;
+    LoadedDriver& m_driver;
     QTimer m_discoveryTimer;
     struct Controls {
         std::unique_ptr<DeviceControls> backend;
@@ -188,13 +243,21 @@ private:
     LayerKeyTracker m_layerKeys;
     int m_previewLayer = -1;
     void updatePreview(bool force = false);
-    PresetCollection m_collection, m_saved, m_fallback;
-    int m_selected = 0, m_selectedEffect = 0, m_revision = 0;
+    PresetCollection &m_collection, &m_saved, &m_fallback;
+    int m_selected = 0, m_selectedEffect = 0;
+    int& m_revision;
+    int m_selectedLayer = -1;
     QString m_section = QStringLiteral("keyboard");
     bool m_readable = false, m_pickingWindow = false;
-    QString m_error, m_windowStatus;
-    LightingPreset& current() { return m_collection.presets[m_selected]; }
-    const LightingPreset& current() const { return m_collection.presets[m_selected]; }
+    QString& m_error;
+    QString m_windowStatus;
+    LightingPreset& currentPreset() { return m_collection.presets[documentController()->m_selected]; }
+    const LightingPreset& currentPreset() const
+    {
+        return m_collection.presets[documentController()->m_selected];
+    }
+    DeviceProfile& current();
+    const DeviceProfile& current() const;
     QList<int> validIds(const QVariantList& ids) const;
     void touch();
     void pruneLocalEffects();

@@ -50,11 +50,10 @@ QVariantMap SettingsController::deviceSettings() const
         return { };
     const auto d = configured()[i];
     const auto conflict = conflictingDevice(d, configured(), m_driver);
-    return { { "name", d.name }, { "enabled", d.enabled }, { "driver", d.driverId },
+    return { { "id", d.identity() }, { "name", d.name }, { "enabled", d.enabled }, { "driver", d.driverId },
         { "enableBlockedBy", conflict }, { "instance", d.instanceId }, { "model", d.modelId },
-        { "presetId", d.presetId }, { "brightnessChannel", d.brightnessChannel },
-        { "pauseOnBattery", d.pauseOnBattery }, { "pauseOnLowBattery", d.pauseOnLowBattery },
-        { "lightbarOffOnBattery", d.lightbarOffOnBattery },
+        { "brightnessChannel", d.brightnessChannel }, { "pauseOnBattery", d.pauseOnBattery },
+        { "pauseOnLowBattery", d.pauseOnLowBattery }, { "lightbarOffOnBattery", d.lightbarOffOnBattery },
         { "lightbarOffOnLowBattery", d.lightbarOffOnLowBattery } };
 }
 void SettingsController::selectDevice(int index)
@@ -80,8 +79,8 @@ void SettingsController::refreshDevices()
     if (!m_collection.devices && previous != configured())
         m_collection.devices = previous;
     loadLightbar(true);
-    Q_EMIT contentChanged();
-    Q_EMIT changed();
+    Q_EMIT documentController()->contentChanged();
+    Q_EMIT documentController()->changed();
 }
 bool SettingsController::addDevice(const QString& identity)
 {
@@ -92,31 +91,22 @@ bool SettingsController::addDevice(const QString& identity)
     if (std::any_of(entries.begin(), entries.end(), [&](const auto& d) { return d.identity() == identity; }))
         return false;
     const auto& model = found->instance.description;
-    DeviceConfiguration d { found->driverId, found->instance.id, model.id, model.name, { }, true };
+    DeviceConfiguration d { found->driverId, found->instance.id, model.id, model.name, true };
     d.enabled = conflictingDevice(d, entries, m_driver).isEmpty();
-    for (const auto& preset : m_collection.presets)
-        if (preset.keyboardDeviceId == model.id) {
-            if (d.presetId.isEmpty() || preset.id == m_collection.defaultId)
-                d.presetId = preset.id;
-            if (preset.id == m_collection.defaultId)
-                break;
-        }
-    if (devicePreset(m_collection, d, { }) < 0) {
-        if (m_collection.presets.size() >= 64)
+    const auto base = std::find_if(m_collection.presets.begin(), m_collection.presets.end(),
+        [&](const auto& p) { return p.id == m_collection.defaultId; });
+    if (base == m_collection.presets.end())
+        return false;
+    auto updated = *base;
+    makeMultiDevice(updated);
+    if (!profileFor(updated, d)) {
+        if (updated.devices.size() >= 32)
             return false;
-        auto p = LightingPreset();
-        p.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
-        p.name = model.name;
-        p.keyboardDeviceId = model.id;
-        p.defaultEffectId.clear();
-        for (const auto& effect : m_collection.effects)
-            if (effect.type == "ambient") {
-                p.defaultEffectId = effect.id;
-                break;
-            }
-        d.presetId = p.id;
-        m_collection.presets.append(p);
+        updated.devices.append(newProfile(d));
+        if (!mergePresetLayers(updated))
+            return false;
     }
+    *base = std::move(updated);
     entries.append(d);
     m_collection.devices = entries;
     selectDevice(entries.size() - 1);
@@ -159,14 +149,7 @@ void SettingsController::setDevice(const QString& key, const QVariant& value)
         d.lightbarOffOnBattery = value.toBool();
     else if (key == "lightbarOffOnLowBattery")
         d.lightbarOffOnLowBattery = value.toBool();
-    else if (key == "presetId") {
-        const auto id = value.toString();
-        if (!id.isEmpty()
-            && std::none_of(m_collection.presets.begin(), m_collection.presets.end(),
-                [&](const auto& p) { return p.id == id && p.keyboardDeviceId == d.modelId; }))
-            return;
-        d.presetId = id;
-    } else if (key == "name") {
+    else if (key == "name") {
         const auto name = value.toString().trimmed();
         if (name.isEmpty() || name.size() > 128)
             return;
@@ -179,7 +162,7 @@ void SettingsController::setDevice(const QString& key, const QVariant& value)
 QVariantList SettingsController::strips() const
 {
     QVariantList result;
-    for (const auto& strip : m_driver.description().strips) {
+    for (const auto& strip : editingDescription().strips) {
         QVariantList elements;
         for (const auto& element : strip.elements)
             elements.append(QVariantMap { { "id", element.id }, { "label", element.label } });

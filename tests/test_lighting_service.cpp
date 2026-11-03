@@ -17,8 +17,7 @@ namespace
 PresetCollection collection()
 {
     auto c = defaultCollection("test-strip");
-    c.devices
-        = QList<DeviceConfiguration> { { "test-strips", "one", "test-strip", "Strip", "default", true } };
+    c.devices = QList<DeviceConfiguration> { { "test-strips", "one", "test-strip", "Strip", true } };
     c.presets[0].layers.clear();
     c.presets[0].effects[DefaultAssignment] = { { InlineColorId, 100, QColor(Qt::red) } };
     return c;
@@ -131,6 +130,52 @@ private Q_SLOTS:
         QVERIFY(qApp->property("test.one.enabled").toBool());
         runtime.setDesktop({ }, { });
         QCOMPARE(color(), "#ff0000");
+    }
+    void sharedLayersReloadAndControlBrightnessOnlyKeyboard()
+    {
+        const auto reset = qScopeGuard([] { qApp->setProperty("test.one.brightnessSteps", QVariant()); });
+        qApp->setProperty("test.one.brightnessSteps", 3);
+        auto c = collection();
+        EffectPreset base, dim;
+        base.id = "full";
+        base.type = "brightness";
+        base.brightness = 100;
+        dim = base;
+        dim.id = "dim";
+        dim.brightness = 33;
+        c.effects = { base, dim };
+        auto& scene = c.presets[0];
+        DeviceProfile profile = scene;
+        profile.id = "mono-profile";
+        profile.targetDevice = "test-strips:one";
+        profile.defaultEffectId.clear();
+        profile.effects[DefaultAssignment] = { { "full" } };
+        profile.layers = { { "Shift", { "shift" }, { } }, { "Shift+A", { "shift", "key:30" }, { } } };
+        profile.layers[0].effects[DefaultAssignment] = { { "dim" } };
+        scene.multiDevice = true;
+        scene.devices = { profile };
+        QVERIFY(mergePresetLayers(scene));
+        QVERIFY(persist(c)); // The service reads the same version 7 files saved by the editor.
+        auto desktop = std::make_unique<Desktop>();
+        auto* input = desktop.get();
+        LightingService service({ }, { MULTI_DRIVER_DIR }, std::move(desktop));
+        QVERIFY(service.Status()["error"].toString().isEmpty());
+        Q_EMIT input->stateChanged("editor", { }, false);
+        QTRY_VERIFY(service.Status()["running"].toBool());
+        QCOMPARE(color(), "#ffffff");
+        QCOMPARE(service.Status()["captureFps"].toInt(), 0);
+        QVERIFY(input->tracked.contains(KEY_A));
+        Q_EMIT input->stateChanged("editor", { { KEY_LEFTSHIFT }, Qt::ShiftModifier, false }, false);
+        QCOMPARE(color(), "#555555");
+        Q_EMIT input->stateChanged("editor", { { KEY_LEFTSHIFT, KEY_A }, Qt::ShiftModifier, false }, false);
+        QCOMPARE(color(), "#ffffff"); // An empty, more specific layer inherits Base.
+        Q_EMIT input->stateChanged("editor", { { KEY_LEFTSHIFT }, Qt::ShiftModifier, false }, false);
+        c.effects[1].brightness = 67;
+        QVERIFY(persist(c));
+        QVERIFY(service.Reload().isEmpty());
+        QCOMPARE(color(), "#aaaaaa");
+        Q_EMIT input->stateChanged("editor", { }, false);
+        QCOMPARE(color(), "#ffffff");
     }
     void ambientLossKeepsOutputAndPowerPolicyStopsCapture()
     {

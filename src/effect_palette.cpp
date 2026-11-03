@@ -105,7 +105,7 @@ QMap<QString, QColor> EffectPalette::colors() const
         colors.insert(it.key(), it->color);
     return colors;
 }
-QSet<QString> activeEffects(const LightingPreset& p, const KeyboardStyles& styles,
+QSet<QString> activeEffects(const DeviceProfile& p, const KeyboardStyles& styles,
     const DeviceDescription& device, const EffectAssignments& assignments)
 {
     QSet<QString> ids;
@@ -131,7 +131,7 @@ QSet<QString> activeEffects(const LightingPreset& p, const KeyboardStyles& style
     ids.remove(QString());
     return ids;
 }
-LightingColors lightingColors(const LightingPreset& p, const KeyboardStyles& styles,
+LightingColors lightingColors(const DeviceProfile& p, const KeyboardStyles& styles,
     const DeviceDescription& device, const QMap<QString, QColor>& palette,
     const EffectAssignments& assignments, const QMap<QString, QColor>& pulses,
     const QMap<QString, int>& brightness)
@@ -139,10 +139,18 @@ LightingColors lightingColors(const LightingPreset& p, const KeyboardStyles& sty
     auto colorFor = [&](int id, int fallback) {
         const auto style = keyStyle(styles, styles.contains(id) ? id : fallback);
         QColor color = style.mode == KeyMode::Off ? QColor(Qt::black) : blendColor(Qt::black, style.color);
+        bool hasColor = style.mode == KeyMode::Off || style.color.alpha() > 0;
         const auto list = assignments.value(id, implicitEffects(style));
         for (const auto& effect : list) {
             const auto effectId = effect.id.isEmpty() ? p.defaultEffectId : effect.id;
+            if (effect.opacity <= 0)
+                continue;
             if (brightness.contains(effectId)) {
+                // A standalone brightness filter controls a neutral light. Once a
+                // color (including explicit black) exists, it only scales that color.
+                if (!hasColor)
+                    color = Qt::white;
+                hasColor = true;
                 const double factor = 1.0 - (100 - brightness.value(effectId)) * effect.opacity / 10000.0;
                 color = QColor::fromRgbF(
                     color.redF() * factor, color.greenF() * factor, color.blueF() * factor, color.alphaF());
@@ -153,6 +161,7 @@ LightingColors lightingColors(const LightingPreset& p, const KeyboardStyles& sty
                 : palette.contains(effectId)        ? blendColor(palette.value(effectId), style.color)
                                                     : pulses.value(effectId, QColor(Qt::transparent));
             overlay.setAlpha((overlay.alpha() * effect.opacity + 50) / 100);
+            hasColor |= overlay.alpha() > 0;
             color = blendColor(color, overlay);
         }
         return color;

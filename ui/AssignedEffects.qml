@@ -80,10 +80,20 @@ ColumnLayout {
                                - assignmentState.items.length);
     }
 
+    function supports(type) {
+        return !!controller.device.id;
+    }
+
     objectName: "AssignedEffectsEditor"
     spacing: Kirigami.Units.smallSpacing
 
     Component.onCompleted: refresh()
+    onControllerChanged: {
+        dragOrigin = null;
+        expanded = false;
+        expandedEffect = "";
+        refresh();
+    }
     onLayerIndexChanged: {
         expanded = false;
         expandedEffect = "";
@@ -336,6 +346,7 @@ ColumnLayout {
 
                         ColumnLayout {
                             Layout.fillWidth: true
+                            enabled: root.supports(row.modelData.type)
                             spacing: Kirigami.Units.largeSpacing
                             visible: row.expanded
 
@@ -384,6 +395,7 @@ ColumnLayout {
                                     id: brightnessForm
 
                                     BrightnessForm {
+                                        brightnessSteps: root.controller.device.brightnessSteps || 0
                                         options: row.options
 
                                         onEdited: value => {
@@ -489,7 +501,7 @@ ColumnLayout {
 
     RowLayout {
         QQC2.Button {
-            enabled: root.controller.device.color
+            enabled: !!root.controller.device.id
             icon.name: "list-add"
             objectName: "AddAssignedEffect"
             text: qsTranslate("AmbientLed.AssignedEffects", "Add Effect")
@@ -516,6 +528,7 @@ ColumnLayout {
 
                             required property var modelData
 
+                            enabled: root.supports(modelData.type)
                             objectName: "AddAssignedEffect:" + modelData.id
                             text: modelData.name
 
@@ -572,6 +585,7 @@ ColumnLayout {
                     QQC2.MenuItem {
                         required property var modelData
 
+                        enabled: root.supports(modelData.type)
                         objectName: "AddLocalEffect:" + modelData.type
                         text: modelData.name
 
@@ -588,15 +602,7 @@ ColumnLayout {
         }
 
         QQC2.Button {
-            enabled: root.controller.device.color
-            objectName: "ClearKeyLighting"
-            text: qsTranslate("AmbientLed.AssignedEffects", "Turn Off")
-
-            onClicked: root.controller.clearKeyLighting(root.layerIndex, root.selection, false)
-        }
-
-        QQC2.Button {
-            enabled: root.controller.device.color
+            enabled: !!root.controller.device.id
             objectName: "InheritKeyLighting"
             text: qsTranslate("AmbientLed.AssignedEffects", "Inherit")
             visible: root.layerIndex >= 0

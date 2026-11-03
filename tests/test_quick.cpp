@@ -7,6 +7,7 @@
 #include <QQuickItem>
 #include <QQuickWidget>
 #include <QQuickWindow>
+#include <QScopeGuard>
 #include <QTemporaryDir>
 #include <QtTest>
 #include <linux/input-event-codes.h>
@@ -21,6 +22,37 @@ class QuickTest : public QObject
             if (auto* found = itemNamed(child, name))
                 return found;
         return nullptr;
+    }
+    static QList<QObject*> itemsNamed(QQuickItem* root, const QString& name)
+    {
+        QList<QObject*> result;
+        if (root->objectName() == name)
+            result.append(root);
+        for (auto* child : root->childItems())
+            result.append(itemsNamed(child, name));
+        return result;
+    }
+    template <typename T> static T visualChild(QObject* root, const QString& name)
+    {
+        if (auto found = root->findChild<T>(name))
+            return found;
+        if (auto* item = qobject_cast<QQuickItem*>(root))
+            for (auto* child : item->childItems()) {
+                if (child->objectName() == name)
+                    if (auto found = qobject_cast<T>(child))
+                        return found;
+                if (auto found = visualChild<T>(child, name))
+                    return found;
+            }
+        return nullptr;
+    }
+    template <typename T> static T editorChild(QObject* root, const QString& name)
+    {
+        // ScrollablePage reparents visual content; device editors load asynchronously.
+        T result = nullptr;
+        if (!QTest::qWaitFor([&] { return (result = visualChild<T>(root, name)) != nullptr; }, 5000))
+            return nullptr;
+        return result;
     }
     static bool inView(QQuickItem* item, QQuickWidget* host)
     {
@@ -45,6 +77,38 @@ class QuickTest : public QObject
                 return button;
         return nullptr;
     }
+    static QQuickItem* actionButton(QQuickItem* item, const QString& name)
+    {
+        auto* action = item->property("action").value<QObject*>();
+        if (item->isVisible() && action && action->objectName() == name)
+            return item;
+        for (auto* child : item->childItems())
+            if (auto* button = actionButton(child, name))
+                return button;
+        return nullptr;
+    }
+    static bool triggerAction(QObject* page, const QString& name)
+    {
+        auto* action = page->findChild<QObject*>(name);
+        return action && action->property("visible").toBool() && action->property("enabled").toBool()
+            && QMetaObject::invokeMethod(action, "trigger");
+    }
+    static QQuickItem* presetSidebar(KQuickConfigModule* module)
+    {
+        return module->property("nativeSection").toBool() ? module->mainUi() : module->subPage(0);
+    }
+    static QQuickItem* presetEntry(KQuickConfigModule* module, int layer)
+    {
+        auto* settings = module->property("controller").value<QObject*>();
+        const auto name = QString("Preset%1").arg(settings->property("selected").toInt());
+        return itemNamed(presetSidebar(module), layer < 0 ? name : name + QString("Layer%1").arg(layer));
+    }
+    static QQuickItem* addLayerButton(KQuickConfigModule* module)
+    {
+        auto* settings = module->property("controller").value<QObject*>();
+        return itemNamed(
+            presetSidebar(module), QString("AddLayer%1").arg(settings->property("selected").toInt()));
+    }
     static void recordChord(QWindow* window, const QList<QPair<quint32, int>>& keys)
     {
         for (const auto& [code, key] : keys) {
@@ -63,6 +127,293 @@ class QuickTest : public QObject
         return dir.isEmpty() || dialog.grab().save(dir + "/" + name + ".png");
     }
 private Q_SLOTS:
+    void deviceCardsExpandIndependentlyAndKeepSelection()
+    {
+        const auto oldPath = qgetenv("AMBIENT_LED_DRIVER_PATH");
+        const auto restore = qScopeGuard([&] {
+            qputenv("AMBIENT_LED_DRIVER_PATH", oldPath);
+            qApp->setProperty("test.two.brightnessSteps", QVariant());
+        });
+        qputenv("AMBIENT_LED_DRIVER_PATH", oldPath + ":" + MULTI_DRIVER_DIR);
+        KCMultiDialog dialog;
+        QVERIFY(
+            dialog.addModule(KPluginMetaData(QString(CONFIG_SECTION_DIR) + "/kcm_ambientled_presets.so")));
+        dialog.resize(1240, 950);
+        dialog.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&dialog));
+        dialog.resize(1240, 950);
+        auto* host = dialog.findChild<QQuickWidget*>();
+        QVERIFY(host && host->rootObject());
+        auto* module
+            = qobject_cast<KQuickConfigModule*>(host->rootObject()->property("kcm").value<QObject*>());
+        QVERIFY(module);
+        QTRY_COMPARE(module->depth(), 2);
+        auto* settings = module->property("controller").value<QObject*>();
+        bool ok = false;
+        QVERIFY(QMetaObject::invokeMethod(
+            settings, "addDevice", Q_RETURN_ARG(bool, ok), Q_ARG(QString, "test-strips:one")));
+        QVERIFY(ok);
+        QVERIFY(QMetaObject::invokeMethod(
+            settings, "addDevice", Q_RETURN_ARG(bool, ok), Q_ARG(QString, "test-strips:two")));
+        QVERIFY(ok);
+        QVERIFY(QMetaObject::invokeMethod(
+            settings, "setDevice", Q_ARG(QString, "enabled"), Q_ARG(QVariant, false)));
+        QVERIFY(QMetaObject::invokeMethod(settings, "addPreset", Q_RETURN_ARG(bool, ok), Q_ARG(bool, false)));
+        QVERIFY(ok);
+        QVERIFY(QMetaObject::invokeMethod(
+            settings, "addPresetDevice", Q_RETURN_ARG(bool, ok), Q_ARG(QString, "test-strips:two")));
+        QVERIFY(ok);
+        auto* editor = module->subPage(0);
+        QList<QObject*> cards;
+        QTRY_COMPARE((cards = itemsNamed(editor, "PresetDeviceCard")).size(), 3);
+        auto* commonEditor = editorChild<QObject*>(editor, "KeyboardPage");
+        auto* effects = editorChild<QQuickItem*>(editor, "AssignedEffectsEditor");
+        auto* layers = editorChild<QQuickItem*>(editor, "LivePreview");
+        QVERIFY(commonEditor && effects && layers);
+        QCOMPARE(itemsNamed(editor, "AssignedEffectsEditor").size(), 1);
+        QVERIFY(itemsNamed(editor, "LayerChoiceBase").isEmpty());
+        for (auto* card : cards) {
+            QVERIFY(!visualChild<QObject*>(card, "AssignedEffectsEditor"));
+            QVERIFY(!visualChild<QObject*>(card, "LayerChoiceBase"));
+            QVERIFY(!editorChild<QObject*>(card, "SelectPresetDevice")->property("highlighted").toBool());
+            QVERIFY(card->property("background").value<QQuickItem*>());
+            auto* title = editorChild<QQuickItem*>(card, "SelectPresetDevice");
+            auto* label = title->property("contentItem").value<QQuickItem*>();
+            auto* copy = editorChild<QQuickItem*>(card, "CopyDeviceProfile");
+            QTRY_VERIFY(qAbs(label->mapToScene(label->boundingRect().center()).y()
+                            - copy->mapToScene(copy->boundingRect().center()).y())
+                <= 1);
+            if (card->property("expanded").toBool()) {
+                auto* map = editorChild<QQuickItem*>(card, "KeyboardView");
+                auto* selectAll = editorChild<QQuickItem*>(card, "SelectWholeDevice");
+                QCOMPARE(selectAll->property("text").toString(), QString("Select all"));
+                QTRY_VERIFY(
+                    selectAll->mapToScene(QPointF()).y() >= map->mapToScene(QPointF(0, map->height())).y());
+            }
+        }
+        auto* lastCard = qobject_cast<QQuickItem*>(cards.last());
+        QTRY_VERIFY(
+            layers->mapToScene(QPointF()).y() >= lastCard->mapToScene(QPointF(0, lastCard->height())).y());
+        int layer = -1;
+        QVERIFY(QMetaObject::invokeMethod(
+            settings, "addLayer", Q_RETURN_ARG(int, layer), Q_ARG(QStringList, QStringList { "shift" })));
+        QCOMPARE(layer, 0);
+        auto* choice = presetEntry(module, 0);
+        QVERIFY(choice);
+        QVERIFY(QMetaObject::invokeMethod(choice, "clicked"));
+        QTRY_COMPARE(commonEditor->property("layerIndex").toInt(), 0);
+        for (auto* card : cards)
+            QCOMPARE(card->property("layerIndex").toInt(), 0);
+        QVERIFY(QMetaObject::invokeMethod(cards[1], "activated"));
+        QCOMPARE(commonEditor->property("layerIndex").toInt(), 0);
+        QCOMPARE(effects->property("layerIndex").toInt(), 0);
+        QVERIFY(QMetaObject::invokeMethod(presetEntry(module, -1), "clicked"));
+        for (auto* card : cards)
+            QCOMPARE(card->property("layerIndex").toInt(), -1);
+        QCOMPARE(cards[0]->property("expanded").toBool(), true);
+        QCOMPARE(cards[1]->property("expanded").toBool(), true);
+        QCOMPARE(cards[2]->property("expanded").toBool(), false);
+        QVERIFY(cards[2]->setProperty("expanded", true));
+        QVERIFY(cards[0]->property("expanded").toBool());
+        QVERIFY(cards[1]->property("expanded").toBool());
+        auto* warning = editorChild<QQuickItem*>(cards[2], "DisabledDeviceMessage");
+        QTRY_VERIFY(warning && warning->isVisible());
+        auto* disabledName = editorChild<QQuickItem*>(cards[2], "SelectPresetDevice");
+        QVERIFY(disabledName && disabledName->isEnabled());
+        QVERIFY(QMetaObject::invokeMethod(disabledName, "clicked"));
+        QVERIFY(!cards[2]->property("expanded").toBool());
+        QVERIFY(QMetaObject::invokeMethod(disabledName, "clicked"));
+        QVERIFY(cards[2]->property("expanded").toBool());
+        QVERIFY(snapshot(dialog, "disabled-device-warning"));
+        QObject* keyboard = nullptr;
+        QTRY_VERIFY((keyboard = editorChild<QObject*>(cards[0], "KeyboardView")));
+        const QVariantList selection { 17, 36 };
+        QVERIFY(keyboard->setProperty("selection", selection));
+        auto* profile = cards[0]->property("controller").value<QObject*>();
+        QVERIFY(profile);
+        QVERIFY(QMetaObject::invokeMethod(profile, "setKeyColor", Q_ARG(int, -1),
+            Q_ARG(QVariantList, selection), Q_ARG(QString, "#ff0000"), Q_ARG(int, 100)));
+        QCoreApplication::processEvents();
+        QCOMPARE(keyboard->property("selection").toList(), (QVariantList { 17, 36 }));
+        QCOMPARE(effects->property("controller").value<QObject*>(), profile);
+        QCOMPARE(effects->property("selection").toList(), selection);
+        QCOMPARE(itemsNamed(editor, "PresetDeviceCard"), cards);
+        QVERIFY(cards[1]->setProperty("expanded", false));
+        QVERIFY(cards[0]->property("expanded").toBool());
+        QVERIFY(cards[2]->property("expanded").toBool());
+        QVERIFY(snapshot(dialog, "multi-device-presets"));
+        QVERIFY(cards[0]->setProperty("expanded", false));
+        QVERIFY(snapshot(dialog, "multi-device-overview"));
+        QVERIFY(cards[2]->setProperty("expanded", false));
+        QVERIFY(effects->isVisible());
+        QVERIFY(layers->isVisible());
+        QCOMPARE(effects->property("selection").toList(), selection);
+        QCOMPARE(effects->property("controller").value<QObject*>(), profile);
+        QVERIFY(snapshot(dialog, "device-maps-collapsed"));
+
+        QVERIFY(cards[0]->setProperty("expanded", true));
+        keyboard = editorChild<QObject*>(cards[0], "KeyboardView");
+        QVERIFY(keyboard);
+        QTRY_COMPARE(keyboard->property("selection").toList(), selection);
+        // Selecting another map changes the single inspector's destination.
+        QVERIFY(cards[1]->setProperty("expanded", true));
+        auto* strip = editorChild<QObject*>(cards[1], "KeyboardView");
+        QVERIFY(strip);
+        auto* stripProfile = cards[1]->property("controller").value<QObject*>();
+        const auto strips = stripProfile->property("strips").toList();
+        QVERIFY(!strips.isEmpty());
+        const auto elements = strips[0].toMap()["elements"].toList();
+        QVERIFY(!elements.isEmpty());
+        const QVariantList stripSelection { elements[0].toMap()["id"] };
+        QVERIFY(strip->setProperty("selection", stripSelection));
+        // Selections on both maps remain active and share one effects editor.
+        QTRY_COMPARE(commonEditor->property("effectTargets").toList().size(), 2);
+        QCOMPARE(effects->property("assignmentState").toMap()["count"].toInt(), 3);
+        QVERIFY(effects->property("assignmentState").toMap()["mixed"].toBool());
+        // Group selection still updates the map after direct pointer selection.
+        QVERIFY(cards[1]->setProperty("selection", QVariantList()));
+        QCOMPARE(strip->property("selection").toList(), QVariantList());
+        QVERIFY(cards[1]->setProperty("selection", stripSelection));
+        QCOMPARE(strip->property("selection").toList(), stripSelection);
+        auto* addSolid = editorChild<QObject*>(editor, "AddLocalEffect:solid");
+        QVERIFY(addSolid && addSolid->property("enabled").toBool());
+        QVERIFY(QMetaObject::invokeMethod(addSolid, "triggered"));
+        const auto sharedColor = effects->property("expandedEffect").toString();
+        QVERIFY(!sharedColor.isEmpty());
+        auto* colorRow = editorChild<QObject*>(editor, "AssignedEffect:" + sharedColor);
+        QVERIFY(colorRow);
+        auto* field = editorChild<QObject*>(colorRow, "HexColorInput");
+        QVERIFY(field);
+        field->setProperty("text", "#00ff00");
+        QVERIFY(QMetaObject::invokeMethod(field, "textEdited"));
+        QVariantMap firstOptions, secondOptions;
+        QVERIFY(QMetaObject::invokeMethod(profile, "assignedEffectOptions",
+            Q_RETURN_ARG(QVariantMap, firstOptions), Q_ARG(QString, sharedColor)));
+        QVERIFY(QMetaObject::invokeMethod(stripProfile, "assignedEffectOptions",
+            Q_RETURN_ARG(QVariantMap, secondOptions), Q_ARG(QString, sharedColor)));
+        QCOMPARE(firstOptions["solidColor"].toString(), QString("#00ff00"));
+        QCOMPARE(secondOptions["solidColor"], firstOptions["solidColor"]);
+        QCOMPARE(keyboard->property("selection").toList(), selection);
+        QCOMPARE(strip->property("selection").toList(), stripSelection);
+        QVERIFY(snapshot(dialog, "multi-device-selection"));
+
+        // Removing the selected map must leave a usable inspector for the next device.
+        QVERIFY(QMetaObject::invokeMethod(presetEntry(module, 0), "clicked"));
+        auto* removeDevice = editorChild<QObject*>(cards[0], "RemovePresetDevice");
+        QVERIFY(QMetaObject::invokeMethod(removeDevice, "clicked"));
+        auto* confirmation = editorChild<QObject*>(cards[0], "RemoveDeviceDialog");
+        QVERIFY(confirmation);
+        QTRY_VERIFY(confirmation->property("visible").toBool());
+        QCOMPARE(itemsNamed(editor, "PresetDeviceCard").size(), 3);
+        QVERIFY(confirmation->property("modal").toBool());
+        QVERIFY(snapshot(dialog, "remove-device-confirmation"));
+        QVERIFY(QMetaObject::invokeMethod(confirmation, "reject"));
+        QCOMPARE(itemsNamed(editor, "PresetDeviceCard").size(), 3);
+        QTRY_VERIFY(!cards[0]->property("confirmingRemoval").toBool());
+        QVERIFY(QMetaObject::invokeMethod(removeDevice, "clicked"));
+        confirmation = editorChild<QObject*>(cards[0], "RemoveDeviceDialog");
+        QVERIFY(confirmation);
+        QTRY_VERIFY(confirmation->property("visible").toBool());
+        QVERIFY(QMetaObject::invokeMethod(confirmation, "accept"));
+        QTRY_COMPARE(itemsNamed(editor, "PresetDeviceCard").size(), 2);
+        QVERIFY(QMetaObject::invokeMethod(presetEntry(module, -1), "clicked"));
+        QCOMPARE(itemsNamed(editor, "PresetDeviceCard").size(), 2);
+        cards = itemsNamed(editor, "PresetDeviceCard");
+        QVERIFY(cards[0]->setProperty("selection", stripSelection));
+        QTRY_COMPARE(effects->property("controller").value<QObject*>(), stripProfile);
+        QCOMPARE(effects->property("selection").toList(), stripSelection);
+
+        // The same model can expose different capabilities per instance.
+        qApp->setProperty("test.two.brightnessSteps", 3);
+        QVERIFY(QMetaObject::invokeMethod(settings, "refreshDevices"));
+        cards = itemsNamed(editor, "PresetDeviceCard");
+        for (auto* card : cards)
+            card->setProperty("expanded", false);
+        cards[1]->setProperty("expanded", true);
+        auto* whole = editorChild<QQuickItem*>(cards[1], "SelectWholeDevice");
+        QVERIFY(whole);
+        auto* flick = editor->property("flickable").value<QObject*>();
+        flick->setProperty("contentY", 0);
+        QTRY_VERIFY(inView(whole, host));
+        QTest::mouseClick(host, Qt::LeftButton, Qt::NoModifier,
+            whole->mapToScene(whole->boundingRect().center()).toPoint());
+        QVERIFY(cards[1]->property("wholeDevice").toBool());
+        QTRY_COMPARE(commonEditor->property("effectTargets").toList().size(), 2);
+        QTRY_VERIFY(editorChild<QObject*>(editor, "AddLocalEffect:solid")->property("enabled").toBool());
+        QVERIFY(editorChild<QObject*>(editor, "AddLocalEffect:ambient")->property("enabled").toBool());
+        auto* addBrightness = editorChild<QObject*>(editor, "AddLocalEffect:brightness");
+        QVERIFY(addBrightness && addBrightness->property("enabled").toBool());
+        QVERIFY(QMetaObject::invokeMethod(addBrightness, "triggered"));
+        const auto brightnessId = effects->property("expandedEffect").toString();
+        QVERIFY(!brightnessId.isEmpty());
+        auto* brightness = editorChild<QObject*>(editor, "BrightnessValue");
+        QVERIFY(brightness);
+        brightness->setProperty("value", 35);
+        QVERIFY(QMetaObject::invokeMethod(brightness, "valueModified"));
+        for (auto* card : cards) {
+            QVariantMap options;
+            QVERIFY(QMetaObject::invokeMethod(card->property("controller").value<QObject*>(),
+                "assignedEffectOptions", Q_RETURN_ARG(QVariantMap, options), Q_ARG(QString, brightnessId)));
+            QCOMPARE(options["brightness"].toInt(), 35);
+        }
+        QVERIFY(snapshot(dialog, "mixed-device-capabilities"));
+
+        cards[0]->setProperty("selection", QVariantList());
+        QTRY_COMPARE(commonEditor->property("effectTargets").toList().size(), 1);
+        cards[1]->setProperty("expanded", true);
+        auto* wholeKeyboard = editorChild<QQuickItem*>(cards[1], "SelectWholeKeyboard");
+        QVERIFY(wholeKeyboard);
+        auto* outline = editorChild<QQuickItem*>(wholeKeyboard, "WholeKeyboardSelectionBorder");
+        QVERIFY(outline);
+        QTRY_VERIFY(outline->isVisible());
+        QCOMPARE(outline->property("border").value<QObject*>()->property("width").toInt(), 1);
+        QCOMPARE(outline->property("color").value<QColor>(), QColor(Qt::transparent));
+        for (auto* keyOutline : itemsNamed(qobject_cast<QQuickItem*>(cards[1]), "KeySelectionBorder"))
+            QVERIFY(!keyOutline->property("visible").toBool());
+        flick->setProperty("contentY", 0);
+        QTRY_VERIFY(inView(wholeKeyboard, host));
+        const auto center = wholeKeyboard->mapToScene(wholeKeyboard->boundingRect().center()).toPoint();
+        QTest::mouseClick(host, Qt::LeftButton, Qt::NoModifier, center);
+        QTRY_VERIFY(!cards[1]->property("wholeDevice").toBool());
+        QTest::mouseClick(host, Qt::LeftButton, Qt::NoModifier, center);
+        QTRY_VERIFY(cards[1]->property("wholeDevice").toBool());
+        QTRY_COMPARE(commonEditor->property("effectTargets").toList().size(), 1);
+        effects->setProperty("expandedEffect", brightnessId);
+        effects->setProperty("expanded", true);
+        // The inspector rebuilds when the selection changes from multiple devices to one.
+        QObject* slider = nullptr;
+        QTRY_VERIFY((slider = visualChild<QObject*>(editor, "BrightnessSlider"))
+            && slider->property("to").toInt() == 3);
+        const QList<int> percentages { 0, 33, 67, 100 };
+        const QStringList colors { "#000000", "#555555", "#aaaaaa", "#ffffff" };
+        for (int level = 0; level < percentages.size(); ++level) {
+            slider->setProperty("value", level);
+            QVERIFY(QMetaObject::invokeMethod(slider, "moved"));
+            auto* mono = cards[1]->property("controller").value<QObject*>();
+            QVariantMap options;
+            QVERIFY(QMetaObject::invokeMethod(mono, "assignedEffectOptions",
+                Q_RETURN_ARG(QVariantMap, options), Q_ARG(QString, brightnessId)));
+            QCOMPARE(options["brightness"].toInt(), percentages[level]);
+            auto* value = editorChild<QObject*>(editor, "BrightnessValue");
+            QTRY_COMPARE(value->property("displayText").toString(), QString::number(percentages[level]));
+            QVariantList preview;
+            QVERIFY(QMetaObject::invokeMethod(
+                mono, "keyPreview", Q_RETURN_ARG(QVariantList, preview), Q_ARG(int, -1)));
+            QCOMPARE(preview.size(), 2);
+            for (const auto& key : preview)
+                QCOMPARE(key.toMap()["color"].toString(), colors[level]);
+        }
+        // The text input accepts percentages, not the slider's internal step indices.
+        auto* percentInput
+            = editorChild<QObject*>(editor, "BrightnessValue")->property("contentItem").value<QQuickItem*>();
+        QVERIFY(percentInput);
+        percentInput->forceActiveFocus();
+        QTest::keyClick(host, Qt::Key_A, Qt::ControlModifier);
+        QTest::keyClicks(host, "33");
+        QTest::keyClick(host, Qt::Key_Return);
+        QTRY_COMPARE(editorChild<QObject*>(editor, "BrightnessValue")->property("value").toInt(), 1);
+        QVERIFY(snapshot(dialog, "whole-keyboard-selection"));
+    }
     void brightnessEditorTracksSelectedPreset()
     {
         KCMultiDialog dialog;
@@ -83,8 +434,8 @@ private Q_SLOTS:
         QVERIFY(QMetaObject::invokeMethod(add, "triggered"));
         auto* editor = module->subPage(0);
         QObject *slider = nullptr, *field = nullptr;
-        QTRY_VERIFY((slider = editor->findChild<QObject*>("BrightnessSlider")));
-        QTRY_VERIFY((field = editor->findChild<QObject*>("BrightnessValue")));
+        QTRY_VERIFY((slider = editorChild<QObject*>(editor, "BrightnessSlider")));
+        QTRY_VERIFY((field = editorChild<QObject*>(editor, "BrightnessValue")));
         const int first = settings->property("selectedEffect").toInt();
         QCOMPARE(slider->property("value").toInt(), 100);
         slider->setProperty("value", 35);
@@ -120,11 +471,11 @@ private Q_SLOTS:
         QVERIFY(QMetaObject::invokeMethod(add, "triggered"));
         auto* editor = module->subPage(0);
         QObject* field = nullptr;
-        QTRY_VERIFY((field = editor->findChild<QObject*>("HexColorInput")));
+        QTRY_VERIFY((field = editorChild<QObject*>(editor, "HexColorInput")));
         const int first = settings->property("selectedEffect").toInt();
-        auto* picker = editor->findChild<QObject*>("ColorPicker");
+        auto* picker = editorChild<QObject*>(editor, "ColorPicker");
         QVERIFY(picker);
-        QVERIFY(QMetaObject::invokeMethod(editor->findChild<QObject*>("ColorSwatch"), "clicked"));
+        QVERIFY(QMetaObject::invokeMethod(editorChild<QObject*>(editor, "ColorSwatch"), "clicked"));
         picker->setProperty("color", QColor("#c05020"));
         QVERIFY(QMetaObject::invokeMethod(picker, "accept"));
         QCOMPARE(field->property("text").toString(), QString("#c05020"));
@@ -138,7 +489,7 @@ private Q_SLOTS:
         settings->setProperty("selectedEffect", first);
         QTRY_COMPARE(field->property("text").toString(), QString("#c05020"));
         QCOMPARE(settings->property("effectPreset").toMap()["solidColor"].toString(), QString("#c05020"));
-        QVERIFY(QMetaObject::invokeMethod(editor->findChild<QObject*>("ColorSwatch"), "clicked"));
+        QVERIFY(QMetaObject::invokeMethod(editorChild<QObject*>(editor, "ColorSwatch"), "clicked"));
         QCOMPARE(picker->property("currentColor").value<QColor>(), QColor("#c05020"));
         QVERIFY(QMetaObject::invokeMethod(picker, "reject"));
         settings->setProperty("selectedEffect", second);
@@ -191,7 +542,7 @@ private Q_SLOTS:
         const auto id = settings->property("effectPreset").toMap()["id"].toString();
         QVERIFY(QMetaObject::invokeMethod(
             settings, "setSolidColor", Q_ARG(QString, "#2040c0"), Q_ARG(QString, id)));
-        auto* add = editor->findChild<QObject*>("AddAssignedEffect:" + id);
+        auto* add = editorChild<QObject*>(editor, "AddAssignedEffect:" + id);
         QVERIFY(add && QMetaObject::invokeMethod(add, "triggered"));
         settings->setProperty("selectedEffect", 0);
         QQuickItem* row = nullptr;
@@ -223,12 +574,12 @@ private Q_SLOTS:
         QCOMPARE(circle->property("radius").toReal(), circle->width() / 2);
         auto* keyboard = itemNamed(editor, "KeyboardView");
         auto* assigned = itemNamed(editor, "AssignedEffectsEditor");
-        auto* keyboardPage = editor->findChild<QObject*>("KeyboardPage");
+        auto* keyboardPage = editorChild<QObject*>(editor, "KeyboardPage");
         QVERIFY(keyboard && assigned && keyboardPage);
         const auto maximum = keyboardPage->property("formMaximumWidth").toReal();
         QVERIFY(assigned->width() <= maximum + 1);
         QVERIFY(keyboard->width() > assigned->width());
-        auto* flick = keyboardPage->property("flickable").value<QObject*>();
+        auto* flick = editor->property("flickable").value<QObject*>();
         QVERIFY(flick);
         flick->setProperty(
             "contentY", flick->property("contentHeight").toReal() - flick->property("height").toReal());
@@ -287,6 +638,10 @@ private Q_SLOTS:
         auto* list = module->mainUi();
         auto* editor = module->subPage(0);
         QCOMPARE(list->objectName(), sidebar);
+        if (section == "devices")
+            QVERIFY(!visualChild<QObject*>(editor, "DevicePreset"));
+        if (section == "applications")
+            QVERIFY(!visualChild<QObject*>(list, "DefaultPreset"));
         // The section menu belongs to System Settings, outside the module and its footer.
         QVERIFY(!itemNamed(host->rootObject(), "SectionSidebar"));
         QTRY_VERIFY(beside(list, editor, host));
@@ -394,14 +749,16 @@ private Q_SLOTS:
         search->setProperty("text", "no such result");
         QTRY_COMPARE(list->property("count").toInt(), 0);
         search->setProperty("text", "");
-        QTRY_COMPARE(list->property("count").toInt(), 2);
+        // Presets also show the first preset's existing Shift child.
+        QTRY_COMPARE(list->property("count").toInt(), section == "presets" ? 3 : 2);
         QCOMPARE(settings->property("dirty").toBool(), dirty);
     }
-    void layerListRecordsReplacesAndRejectsDuplicates()
+    void presetTreeRecordsReplacesFiltersAndRejectsDuplicates()
     {
         KCMultiDialog dialog;
         QVERIFY(
             dialog.addModule(KPluginMetaData(QString(CONFIG_SECTION_DIR) + "/kcm_ambientled_presets.so")));
+        dialog.resize(1240, 950);
         dialog.show();
         QVERIFY(QTest::qWaitForWindowExposed(&dialog));
         dialog.resize(1240, 950);
@@ -414,43 +771,96 @@ private Q_SLOTS:
         auto* editor = module->subPage(0);
         auto* settings = module->property("controller").value<QObject*>();
         auto* recorder = module->property("recorder").value<QObject*>();
-        auto* keyboard = editor->findChild<QQuickItem*>("KeyboardView");
+        auto* keyboard = editorChild<QQuickItem*>(editor, "KeyboardView");
         QVERIFY(settings && recorder && keyboard);
         const auto layers = [&] { return settings->property("preset").toMap()["layers"].toList(); };
-        const auto click = [&](const QString& name) {
-            auto* button = itemNamed(editor, name);
-            return button && QMetaObject::invokeMethod(button, "clicked");
-        };
+        const auto click
+            = [](QQuickItem* button) { return button && QMetaObject::invokeMethod(button, "clicked"); };
         QCOMPARE(layers().size(), 1);
-        auto* livePreview = itemNamed(editor, "LivePreview");
-        auto* addLayer = itemNamed(editor, "AddLayer");
-        auto* base = itemNamed(editor, "LayerChoiceBase");
-        QVERIFY(livePreview && addLayer && base);
-        QVERIFY(!livePreview->property("checked").toBool());
-        QTRY_VERIFY(beside(livePreview, addLayer, host));
-        QCOMPARE(base->height(), itemNamed(editor, "LayerRow0")->height());
-        QVERIFY(itemNamed(editor, "LayerSeparator0"));
-        QVERIFY(!editor->findChild<QObject*>("LayerSelector"));
-        QVERIFY(click("AddLayer"));
+        QVERIFY(itemNamed(editor, "LivePreview"));
+        QVERIFY(!itemNamed(editor, "LivePreview")->property("checked").toBool());
+        auto* name = itemNamed(editor, "PresetName");
+        QVERIFY(name && name->isEnabled());
+        QCOMPARE(name->property("text").toString(), settings->property("preset").toMap()["name"].toString());
+        const auto namePosition = name->mapToScene(QPointF());
+        auto* card = editorChild<QObject*>(editor, "PresetDeviceCard");
+        QVERIFY(card);
+        QVERIFY(!card->property("collapsible").toBool());
+        QVERIFY(!itemNamed(editor, "ToggleDeviceCard"));
+        QVERIFY(click(itemNamed(editor, "SelectPresetDevice")));
+        QVERIFY(card->property("expanded").toBool());
+        QVERIFY(!itemNamed(editor, "LayerChoiceBase"));
+        QVERIFY(!itemNamed(editor, "AddLayer"));
+        QTRY_VERIFY(presetEntry(module, -1) && presetEntry(module, 0) && addLayerButton(module));
+        const auto checkRows = [&] {
+            auto* root = presetEntry(module, -1);
+            auto* child = presetEntry(module, 0);
+            auto* label = visualChild<QQuickItem*>(root, "PresetLabel");
+            auto* childLabel = visualChild<QQuickItem*>(child, "PresetLabel");
+            auto* add = addLayerButton(module);
+            QVERIFY(root && child && label && childLabel && add);
+            QCOMPARE(root->height(), child->height());
+            QCOMPARE(label->mapToScene(QPointF()).x(), childLabel->mapToScene(QPointF()).x());
+            QVERIFY(qAbs(label->mapToScene(label->boundingRect().center()).y()
+                        - add->mapToScene(add->boundingRect().center()).y())
+                <= 1);
+        };
+        QCoreApplication::processEvents();
+        checkRows();
+        QVERIFY(click(presetEntry(module, 0)));
+        QTRY_COMPARE(name->mapToScene(QPointF()), namePosition);
+        QVERIFY(!name->isEnabled());
+        QCOMPARE(name->property("text").toString(), settings->property("preset").toMap()["name"].toString());
+        QVERIFY(!module->needsSave());
+        QVERIFY(click(presetEntry(module, -1)));
+        QVERIFY(name->isEnabled());
+        QVERIFY(!module->needsSave());
+        QVERIFY(click(addLayerButton(module)));
         QVERIFY(recorder->property("recording").toBool());
-        QCOMPARE(layers().size(), 1); // A pending capture is not a layer.
+        QTRY_VERIFY(itemNamed(editor, "NewLayerPrompt"));
+        QVERIFY(!itemNamed(editor, "PresetName"));
+        QVERIFY(!itemNamed(editor, "KeyboardPage"));
+        QVERIFY(snapshot(dialog, "new-layer-recording"));
+        QCOMPARE(layers().size(), 1);
         recordChord(dialog.windowHandle(), { { KEY_ESC, Qt::Key_Escape } });
         QVERIFY(!recorder->property("recording").toBool());
+        QVERIFY(!itemNamed(editor, "NewLayerPrompt"));
+        QVERIFY(itemNamed(editor, "KeyboardPage"));
         QCOMPARE(layers().size(), 1);
         QVERIFY(!module->needsSave());
-        QVERIFY(click("AddLayer"));
+        QVERIFY(click(addLayerButton(module)));
         recordChord(
             dialog.windowHandle(), { { KEY_LEFTMETA, Qt::Key_Meta }, { KEY_RIGHTSHIFT, Qt::Key_Shift } });
         QTRY_COMPARE(layers().size(), 2);
         QCOMPARE(keyboard->property("layerIndex").toInt(), 1);
-        QTRY_VERIFY(itemNamed(editor, "LayerChoice1"));
-        QTRY_COMPARE(itemNamed(editor, "LayerRow1")->height(), base->height());
-        QVERIFY(itemNamed(editor, "LayerSeparator1"));
-        QCOMPARE(itemNamed(editor, "LayerChoice1")->property("text").toString(),
-            QString("Meta (Left) + Shift (Right)"));
+        QVERIFY(itemNamed(editor, "PresetName"));
+        QVERIFY(!name->isEnabled());
+        QTRY_VERIFY(presetEntry(module, 1));
+        QCOMPARE(presetEntry(module, 1)->property("text").toString(), QString("Meta (Left) + Shift (Right)"));
         QVERIFY(QMetaObject::invokeMethod(settings, "assignKeys", Q_ARG(int, 1),
             Q_ARG(QVariantList, QVariantList { 36 }), Q_ARG(int, 1), Q_ARG(QString, "#00ff00")));
-        QVERIFY(click("RecordLayerKeys1"));
+        const auto beforeRecording = layers();
+        QVERIFY(triggerAction(editor, "RecordLayerKeys1"));
+        auto* recordingDialog = editorChild<QObject*>(editor, "RecordLayerDialog");
+        QVERIFY(recordingDialog && recordingDialog->property("modal").toBool());
+        QTRY_VERIFY(recordingDialog->property("visible").toBool());
+        QKeyEvent altPress(QEvent::KeyPress, Qt::Key_Alt, Qt::NoModifier, KEY_LEFTALT + 8, 0, 0);
+        QKeyEvent altRelease(QEvent::KeyRelease, Qt::Key_Alt, Qt::AltModifier, KEY_LEFTALT + 8, 0, 0);
+        QApplication::sendEvent(dialog.windowHandle(), &altPress);
+        QVERIFY(recordingDialog->property("text").toString().contains("Alt (Left)"));
+        QVERIFY(snapshot(dialog, "record-layer-combination"));
+        auto* cancel = buttonWithText(recordingDialog->property("footer").value<QQuickItem*>(), "Cancel");
+        QVERIFY(cancel && inView(cancel, host));
+        QTest::mouseClick(host, Qt::LeftButton, Qt::NoModifier,
+            cancel->mapToScene(cancel->boundingRect().center()).toPoint());
+        QApplication::sendEvent(dialog.windowHandle(), &altRelease);
+        QTRY_VERIFY(!recorder->property("recording").toBool());
+        QCOMPARE(layers(), beforeRecording);
+        QVERIFY(triggerAction(editor, "RecordLayerKeys1"));
+        recordChord(dialog.windowHandle(), { { KEY_ESC, Qt::Key_Escape } });
+        QVERIFY(!recorder->property("recording").toBool());
+        QCOMPARE(layers(), beforeRecording);
+        QVERIFY(triggerAction(editor, "RecordLayerKeys1"));
         recordChord(
             dialog.windowHandle(), { { KEY_LEFTCTRL, Qt::Key_Control }, { KEY_RIGHTSHIFT, Qt::Key_Shift } });
         QCOMPARE(layers().size(), 2);
@@ -458,43 +868,115 @@ private Q_SLOTS:
             layers()[1].toMap()["conditions"].toStringList(), (QStringList { "ctrl-left", "shift-right" }));
         QCOMPARE(keyboard->property("preview").toList()[36].toMap()["color"].toString(), QString("#00ff00"));
         const auto beforeDuplicate = layers();
-        for (const auto& button : { QString("AddLayer"), QString("RecordLayerKeys0") }) {
-            QVERIFY(click(button));
-            recordChord(dialog.windowHandle(),
-                { { KEY_RIGHTSHIFT, Qt::Key_Shift }, { KEY_LEFTCTRL, Qt::Key_Control } });
-            QCOMPARE(layers(), beforeDuplicate);
-            QVERIFY(!settings->property("error").toString().isEmpty());
-        }
-        // Let the duplicate-error banner finish opening before locating the radio text.
-        QTest::qWait(250);
-        QVERIFY(snapshot(dialog, "layers-duplicate"));
-        // Clicking the text of the radio button selects that row without editing its combination.
-        auto* first = itemNamed(editor, "LayerChoice0");
-        QVERIFY(first && inView(first, host));
-        QTest::mouseClick(host, Qt::LeftButton, Qt::NoModifier,
-            first->mapToScene(QPointF(first->width() / 2, first->height() / 2)).toPoint());
-        QCOMPARE(keyboard->property("layerIndex").toInt(), 0);
-        QVERIFY(click("LayerChoice1"));
-        QVERIFY(click("RemoveLayer0"));
+        QVERIFY(click(addLayerButton(module)));
+        recordChord(
+            dialog.windowHandle(), { { KEY_RIGHTSHIFT, Qt::Key_Shift }, { KEY_LEFTCTRL, Qt::Key_Control } });
+        QCOMPARE(layers(), beforeDuplicate);
+        QVERIFY(!settings->property("error").toString().isEmpty());
+        QVERIFY(click(presetEntry(module, 0)));
+        QVERIFY(triggerAction(editor, "RecordLayerKeys0"));
+        recordChord(
+            dialog.windowHandle(), { { KEY_RIGHTSHIFT, Qt::Key_Shift }, { KEY_LEFTCTRL, Qt::Key_Control } });
+        QCOMPARE(layers(), beforeDuplicate);
+        QVERIFY(!settings->property("error").toString().isEmpty());
+        auto* search = itemNamed(presetSidebar(module), "PresetSearch");
+        QVERIFY(search);
+        search->setProperty("text", "Ctrl");
+        QTRY_VERIFY(presetEntry(module, -1) && presetEntry(module, 1));
+        QVERIFY(!presetEntry(module, 0));
+        QVERIFY(click(presetEntry(module, 1)));
+        QCOMPARE(keyboard->property("layerIndex").toInt(), 1);
+        search->setProperty("text", "");
+        QTRY_VERIFY(presetEntry(module, 0));
+        checkRows(); // Filtering and adding layers must not change row alignment.
+        QVERIFY(snapshot(dialog, "preset-tree"));
+        QVERIFY(!itemNamed(presetSidebar(module), "TogglePreset0"));
+        QVERIFY(presetEntry(module, 1));
+        QVERIFY(click(presetEntry(module, -1)));
+        QCOMPARE(keyboard->property("layerIndex").toInt(), -1);
+        QVERIFY(itemNamed(editor, "PresetName"));
+        QVERIFY(presetEntry(module, 0));
+        QVERIFY(presetEntry(module, 1));
+        QVERIFY(click(presetEntry(module, 0)));
+        QVERIFY(triggerAction(editor, "RemoveLayer0"));
+        auto* confirmation = editorChild<QObject*>(editor, "RemovePresetDialog");
+        QVERIFY(confirmation && confirmation->property("modal").toBool());
+        QCOMPARE(layers().size(), 2);
+        QVERIFY(snapshot(dialog, "remove-layer-confirmation"));
+        QVERIFY(QMetaObject::invokeMethod(confirmation, "reject"));
+        QCOMPARE(layers().size(), 2);
+        QTRY_VERIFY(!editor->property("removing").toBool());
+        QVERIFY(triggerAction(editor, "RemoveLayer0"));
+        confirmation = editorChild<QObject*>(editor, "RemovePresetDialog");
+        QVERIFY(confirmation);
+        QVERIFY(QMetaObject::invokeMethod(confirmation, "accept"));
         QCOMPARE(layers().size(), 1);
-        QCOMPARE(keyboard->property("layerIndex").toInt(), 0);
+        QCOMPARE(keyboard->property("layerIndex").toInt(), -1);
         QCOMPARE(
             layers()[0].toMap()["conditions"].toStringList(), (QStringList { "ctrl-left", "shift-right" }));
-        QVERIFY(snapshot(dialog, "layers-list"));
+        QTRY_VERIFY(presetEntry(module, 0));
+        QVERIFY(click(presetEntry(module, 0)));
         dialog.resize(500, 950);
         QTest::qWait(150);
-        auto* radio = itemNamed(editor, "LayerChoice0");
-        auto* replace = itemNamed(editor, "RecordLayerKeys0");
-        auto* remove = itemNamed(editor, "RemoveLayer0");
-        QVERIFY(inView(radio, host) && inView(replace, host) && inView(remove, host));
-        QVERIFY(beside(radio, replace, host) && beside(replace, remove, host));
-        QCOMPARE(base->height(), itemNamed(editor, "LayerRow0")->height());
-        QVERIFY(beside(livePreview, addLayer, host));
-        QVERIFY(snapshot(dialog, "layers-list-narrow"));
-        QVERIFY(click("RemoveLayer0"));
+        auto* replace = actionButton(host->rootObject(), "RecordLayerKeys0");
+        auto* remove = actionButton(host->rootObject(), "RemoveLayer0");
+        QVERIFY(inView(replace, host) && inView(remove, host));
+        QVERIFY(beside(replace, remove, host));
+        QVERIFY(snapshot(dialog, "preset-layer-narrow"));
+        // Back returns to the same tree; selecting a child reuses the editor page.
+        module->setCurrentIndex(0);
+        QTRY_VERIFY(inView(presetEntry(module, 0), host));
+        QVERIFY(click(presetEntry(module, 0)));
+        QTRY_VERIFY(inView(remove, host));
+        QCOMPARE(module->depth(), 2);
+        QTest::mouseClick(host, Qt::LeftButton, Qt::NoModifier,
+            remove->mapToScene(remove->boundingRect().center()).toPoint());
+        confirmation = editorChild<QObject*>(editor, "RemovePresetDialog");
+        QVERIFY(confirmation);
+        QCOMPARE(layers().size(), 1);
+        QVERIFY(QMetaObject::invokeMethod(confirmation, "accept"));
         QCOMPARE(layers().size(), 0);
         QCOMPARE(keyboard->property("layerIndex").toInt(), -1);
-        QVERIFY(itemNamed(editor, "LayerChoiceBase")->property("checked").toBool());
+        QVERIFY(itemNamed(editor, "PresetName"));
+        // The plus button belongs to its own preset, even if another preset is open.
+        bool added = false;
+        QVERIFY(
+            QMetaObject::invokeMethod(settings, "addPreset", Q_RETURN_ARG(bool, added), Q_ARG(bool, false)));
+        QVERIFY(added);
+        QCOMPARE(settings->property("selected").toInt(), 1);
+        dialog.resize(1240, 950);
+        QTRY_VERIFY(itemNamed(presetSidebar(module), "AddLayer0"));
+        QVERIFY(click(itemNamed(presetSidebar(module), "AddLayer0")));
+        QVERIFY(recorder->property("recording").toBool());
+        QTest::qWait(50); // Let the device-card switch settle while recording.
+        QVERIFY(recorder->property("recording").toBool());
+        recordChord(dialog.windowHandle(), { { KEY_LEFTALT, Qt::Key_Alt } });
+        QTRY_COMPARE(layers().size(), 1);
+        QCOMPARE(settings->property("selected").toInt(), 0);
+        QCOMPARE(settings->property("selectedLayer").toInt(), 0);
+        QVERIFY(settings->property("presets").toList()[1].toMap()["layers"].toList().isEmpty());
+        QVERIFY(snapshot(dialog, "preset-tree-two-presets"));
+        QVERIFY(click(presetEntry(module, -1)));
+        const auto presetCount = settings->property("presets").toList().size();
+        QTRY_COMPARE(settings->property("selectedLayer").toInt(), -1);
+        QQuickItem* removeDefault = nullptr;
+        QTRY_VERIFY((removeDefault = actionButton(host->rootObject(), "RemovePreset")));
+        QVERIFY(!removeDefault->isEnabled());
+        QVERIFY(click(itemNamed(presetSidebar(module), "Preset1")));
+        QTRY_COMPARE(settings->property("selected").toInt(), 1);
+        QVERIFY(triggerAction(editor, "RemovePreset"));
+        confirmation = editorChild<QObject*>(editor, "RemovePresetDialog");
+        QVERIFY(confirmation && confirmation->property("modal").toBool());
+        QCOMPARE(settings->property("presets").toList().size(), presetCount);
+        QVERIFY(snapshot(dialog, "remove-preset-confirmation"));
+        QVERIFY(QMetaObject::invokeMethod(confirmation, "reject"));
+        QCOMPARE(settings->property("presets").toList().size(), presetCount);
+        QTRY_VERIFY(!editor->property("removing").toBool());
+        QVERIFY(triggerAction(editor, "RemovePreset"));
+        confirmation = editorChild<QObject*>(editor, "RemovePresetDialog");
+        QVERIFY(confirmation);
+        QVERIFY(QMetaObject::invokeMethod(confirmation, "accept"));
+        QCOMPARE(settings->property("presets").toList().size(), presetCount - 1);
         module->load();
     }
     void keyboardDragSurvivesHoldAndScrolling()
@@ -514,7 +996,7 @@ private Q_SLOTS:
         QTRY_COMPARE(module->depth(), 3);
         QTRY_VERIFY(beside(module->mainUi(), module->subPage(0), host)
             && beside(module->subPage(0), module->subPage(1), host));
-        auto* keyboard = module->subPage(1)->findChild<QQuickItem*>("KeyboardView");
+        auto* keyboard = editorChild<QQuickItem*>(module->subPage(1), "KeyboardView");
         QVERIFY(keyboard);
         const auto key = [&](int id) -> QQuickItem* {
             for (auto* child : keyboard->childItems())
@@ -522,7 +1004,7 @@ private Q_SLOTS:
                     return child;
             return nullptr;
         };
-        QVERIFY(!module->subPage(1)->findChild<QObject*>("LayerPreviewStatus"));
+        QVERIFY(!editorChild<QObject*>(module->subPage(1), "LayerPreviewStatus"));
         auto* first = key(36);
         auto* last = key(52);
         QVERIFY(first && last);
@@ -583,9 +1065,9 @@ private Q_SLOTS:
             Q_ARG(QStringList, QStringList { "shift-right" })));
         QVERIFY(QMetaObject::invokeMethod(settings, "assignKeys", Q_ARG(int, upper),
             Q_ARG(QVariantList, QVariantList { 36 }), Q_ARG(int, 1), Q_ARG(QString, "#00ff00")));
-        auto* layers = itemNamed(module->subPage(1), "LayerChoice0");
+        auto* layers = presetEntry(module, 0);
         QVERIFY(layers);
-        QVERIFY(QMetaObject::invokeMethod(layers, "clicked"));
+        QVERIFY(QMetaObject::invokeMethod(presetEntry(module, 0), "clicked"));
         keyboard->setProperty("selection", selected);
         QTRY_COMPARE(color(), QString("#ff0000"));
         QApplication::sendEvent(dialog.windowHandle(), &press);
@@ -612,7 +1094,7 @@ private Q_SLOTS:
         livePreview->setProperty("checked", false);
         QVERIFY(QMetaObject::invokeMethod(
             settings, "setLayer", Q_ARG(int, 0), Q_ARG(QStringList, QStringList { "ctrl" })));
-        QVERIFY(QMetaObject::invokeMethod(itemNamed(module->subPage(1), "LayerChoiceBase"), "clicked"));
+        QVERIFY(QMetaObject::invokeMethod(presetEntry(module, -1), "clicked"));
         keyboard->setProperty("selection", selected);
         QKeyEvent ctrlPress(QEvent::KeyPress, Qt::Key_Control, Qt::NoModifier, KEY_LEFTCTRL + 8, 0, 0);
         QKeyEvent ctrlRelease(
@@ -671,13 +1153,13 @@ private Q_SLOTS:
         QVERIFY(settings);
         QVERIFY(QMetaObject::invokeMethod(root, "selectSection", Q_ARG(QVariant, 2)));
         QTRY_COMPARE(module->depth(), 3);
-        auto* add = module->subPage(0)->findChild<QObject*>("AddNotificationsEffect");
+        auto* add = editorChild<QObject*>(module->subPage(0), "AddNotificationsEffect");
         QVERIFY(add);
         QVERIFY(QMetaObject::invokeMethod(add, "triggered"));
         auto* editor = module->subPage(1);
-        QTRY_VERIFY(editor->findChild<QObject*>("NotificationsEditor"));
-        auto* trigger = editor->findChild<QObject*>("NotificationTrigger");
-        auto* applicationFilter = editor->findChild<QQuickItem*>("NotificationApplication");
+        QTRY_VERIFY(editorChild<QObject*>(editor, "NotificationsEditor"));
+        auto* trigger = editorChild<QObject*>(editor, "NotificationTrigger");
+        auto* applicationFilter = editorChild<QQuickItem*>(editor, "NotificationApplication");
         QVERIFY(trigger && applicationFilter);
         trigger->setProperty("currentIndex", 1);
         QVERIFY(QMetaObject::invokeMethod(trigger, "activated", Q_ARG(int, 1)));
@@ -688,24 +1170,24 @@ private Q_SLOTS:
         QVERIFY(QMetaObject::invokeMethod(trigger, "activated", Q_ARG(int, 0)));
         QCOMPARE(settings->property("effectPreset").toMap()["trigger"].toString(), QString("notification"));
         QVERIFY(applicationFilter->isVisible());
-        auto* pattern = editor->findChild<QObject*>("NotificationPattern");
+        auto* pattern = editorChild<QObject*>(editor, "NotificationPattern");
         QVERIFY(pattern);
         pattern->setProperty("currentIndex", 2);
         QVERIFY(QMetaObject::invokeMethod(pattern, "activated", Q_ARG(int, 2)));
         QCOMPARE(settings->property("effectPreset").toMap()["pattern"].toString(), QString("double"));
-        auto* urgency = editor->findChild<QObject*>("NotificationUrgency");
+        auto* urgency = editorChild<QObject*>(editor, "NotificationUrgency");
         QVERIFY(urgency);
         urgency->setProperty("currentIndex", 3);
         QVERIFY(QMetaObject::invokeMethod(urgency, "activated", Q_ARG(int, 3)));
         QCOMPARE(settings->property("effectPreset").toMap()["urgency"].toInt(), 2);
-        auto* app = editor->findChild<QObject*>("NotificationApplication");
+        auto* app = editorChild<QObject*>(editor, "NotificationApplication");
         QVERIFY(app);
         app->setProperty("text", "org.kde.kate");
         QVERIFY(QMetaObject::invokeMethod(app, "textEdited"));
         QCOMPARE(
             settings->property("effectPreset").toMap()["application"].toString(), QString("org.kde.kate"));
-        auto* choose = editor->findChild<QObject*>("ChooseNotificationColor");
-        auto* picker = editor->findChild<QObject*>("NotificationColorDialog");
+        auto* choose = editorChild<QObject*>(editor, "ChooseNotificationColor");
+        auto* picker = editorChild<QObject*>(editor, "NotificationColorDialog");
         QVERIFY(choose && picker);
         QVERIFY(QMetaObject::invokeMethod(choose, "clicked"));
         QTRY_VERIFY(picker->property("visible").toBool());
@@ -723,11 +1205,11 @@ private Q_SLOTS:
         QVERIFY(QMetaObject::invokeMethod(root, "selectSection", Q_ARG(QVariant, 1)));
         QTRY_COMPARE(module->depth(), 3);
         editor = module->subPage(1);
-        QVERIFY(!editor->findChild<QObject*>("DefaultNotificationLayout"));
-        auto* keyboard = editor->findChild<QQuickItem*>("KeyboardView");
+        QVERIFY(!visualChild<QObject*>(editor, "DefaultNotificationLayout"));
+        auto* keyboard = editorChild<QQuickItem*>(editor, "KeyboardView");
         QVERIFY(keyboard);
         keyboard->setProperty("selection", QVariantList { 14, 15, 16, 17 });
-        auto* assign = editor->findChild<QObject*>("AddAssignedEffect:" + id);
+        auto* assign = editorChild<QObject*>(editor, "AddAssignedEffect:" + id);
         QVERIFY(assign);
         QVERIFY(QMetaObject::invokeMethod(assign, "triggered"));
         QQuickItem* notificationRow = nullptr;
@@ -750,7 +1232,7 @@ private Q_SLOTS:
         // Wait for the view to remove rows belonging to the previous key selection.
         QTRY_VERIFY(!itemNamed(editor, "AssignedEffect:" + id)
             && !itemNamed(editor, "AssignedEffect:" + id + ":above"));
-        auto* addNotify = editor->findChild<QObject*>("AddAssignedEffect:" + id);
+        auto* addNotify = editorChild<QObject*>(editor, "AddAssignedEffect:" + id);
         QVERIFY(addNotify);
         QVERIFY(QMetaObject::invokeMethod(addNotify, "triggered"));
         QQuickItem* row = nullptr;
@@ -768,7 +1250,7 @@ private Q_SLOTS:
         QVERIFY(QMetaObject::invokeMethod(
             settings, "addEffect", Q_ARG(QString, "notifications"), Q_ARG(bool, false)));
         const auto normalId = settings->property("effectPreset").toMap()["id"].toString();
-        auto* addNormal = editor->findChild<QObject*>("AddAssignedEffect:" + normalId);
+        auto* addNormal = editorChild<QObject*>(editor, "AddAssignedEffect:" + normalId);
         QVERIFY(addNormal);
         QVERIFY(QMetaObject::invokeMethod(addNormal, "triggered"));
         QVariantMap stack;
@@ -789,9 +1271,9 @@ private Q_SLOTS:
         // Collapse the edited settings before reordering the compact effect rows.
         QVERIFY(QMetaObject::invokeMethod(row->findChild<QObject*>("ExpandAssignedEffect"), "clicked"));
         // Scroll the list into view for responsive screenshots.
-        auto* keyboardPage = editor->findChild<QObject*>("KeyboardPage");
+        auto* keyboardPage = editorChild<QObject*>(editor, "KeyboardPage");
         QVERIFY(keyboardPage);
-        auto* flick = keyboardPage->property("flickable").value<QObject*>();
+        auto* flick = editor->property("flickable").value<QObject*>();
         QVERIFY(flick);
         flick->setProperty(
             "contentY", flick->property("contentHeight").toReal() - flick->property("height").toReal());
@@ -881,12 +1363,12 @@ private Q_SLOTS:
         QVERIFY(QMetaObject::invokeMethod(root, "selectSection", Q_ARG(QVariant, 1)));
         QTRY_COMPARE(module->depth(), 3);
         auto* editor = module->subPage(1);
-        auto* list = editor->findChild<QObject*>("AssignedEffectsEditor");
-        auto* keyboard = editor->findChild<QObject*>("KeyboardView");
+        auto* list = editorChild<QObject*>(editor, "AssignedEffectsEditor");
+        auto* keyboard = editorChild<QObject*>(editor, "KeyboardView");
         QVERIFY(list && keyboard);
         QVERIFY(list->property("assignmentState").toMap()["defaults"].toBool());
-        QVERIFY(!editor->findChild<QObject*>("DefaultEffect"));
-        auto* addAmbient = editor->findChild<QObject*>("AddLocalEffect:ambient");
+        QVERIFY(!visualChild<QObject*>(editor, "DefaultEffect"));
+        auto* addAmbient = editorChild<QObject*>(editor, "AddLocalEffect:ambient");
         QVERIFY(addAmbient);
         QVERIFY(QMetaObject::invokeMethod(addAmbient, "triggered"));
         const auto ambient = list->property("expandedEffect").toString();
@@ -909,7 +1391,7 @@ private Q_SLOTS:
         QCOMPARE(list->property("assignmentState").toMap(), defaults);
         keyboard->setProperty("selection", QVariantList { 14 });
         QVERIFY(!list->property("assignmentState").toMap()["defaults"].toBool());
-        auto* addNotify = editor->findChild<QObject*>("AddLocalEffect:notifications");
+        auto* addNotify = editorChild<QObject*>(editor, "AddLocalEffect:notifications");
         QVERIFY(addNotify);
         QVERIFY(QMetaObject::invokeMethod(addNotify, "triggered"));
         const auto notify = list->property("expandedEffect").toString();
@@ -955,7 +1437,7 @@ private Q_SLOTS:
         QVERIFY(QMetaObject::invokeMethod(module->mainUi(), "selectSection", Q_ARG(QVariant, 1)));
         QTRY_COMPARE(module->depth(), 3);
         auto* editor = module->subPage(1);
-        auto* keyboard = editor->findChild<QQuickItem*>("KeyboardView");
+        auto* keyboard = editorChild<QQuickItem*>(editor, "KeyboardView");
         QVERIFY(keyboard);
         QTRY_VERIFY(itemNamed(editor, "StripElement11"));
         const auto selectEveryElement = [&] {
@@ -984,7 +1466,7 @@ private Q_SLOTS:
         QTest::mouseClick(host, Qt::LeftButton, Qt::ShiftModifier,
             middle->mapToScene(middle->boundingRect().center()).toPoint());
         QCOMPARE(keyboard->property("selection").toList(), (QVariantList { 89, 91, 93, 95, 97, 99 }));
-        QVERIFY(!editor->findChild<QObject*>("AddGradient"));
+        QVERIFY(!visualChild<QObject*>(editor, "AddGradient"));
         // Existing presets can still contain gradients; keep their editing coverage.
         QVERIFY(QMetaObject::invokeMethod(settings, "setGradient", Q_ARG(int, -1), Q_ARG(int, -1),
             Q_ARG(int, 65536), Q_ARG(int, 89), Q_ARG(int, 88), Q_ARG(QString, "#00ff00"),
@@ -1015,12 +1497,12 @@ private Q_SLOTS:
         auto* stripEditor = itemNamed(editor, "StripView65536");
         QVERIFY(stripEditor);
         QCOMPARE(stripEditor->property("gradientList").toList().size(), 1);
-        auto* layerChoice = itemNamed(editor, "LayerChoice0");
-        auto* baseChoice = itemNamed(editor, "LayerChoiceBase");
+        auto* layerChoice = presetEntry(module, 0);
+        auto* baseChoice = presetEntry(module, -1);
         QVERIFY(layerChoice && baseChoice);
         QVERIFY(QMetaObject::invokeMethod(layerChoice, "clicked"));
         QTRY_VERIFY(stripEditor->property("gradientList").toList().isEmpty());
-        QVERIFY(QMetaObject::invokeMethod(baseChoice, "clicked"));
+        QVERIFY(QMetaObject::invokeMethod(presetEntry(module, -1), "clicked"));
         QTRY_COMPARE(stripEditor->property("gradientList").toList().size(), 1);
         QVariantList preview;
         QVERIFY(QMetaObject::invokeMethod(
@@ -1071,9 +1553,9 @@ private Q_SLOTS:
         auto section = [&](int value) {
             return QMetaObject::invokeMethod(root, "selectSection", Q_ARG(QVariant, value));
         };
-        QVERIFY(module->subPage(1)->findChild<QObject*>("EnableLightbar"));
-        auto* pauseBattery = module->subPage(1)->findChild<QObject*>("PauseOnBattery");
-        auto* pauseLow = module->subPage(1)->findChild<QObject*>("PauseOnLowBattery");
+        QVERIFY(editorChild<QObject*>(module->subPage(1), "EnableLightbar"));
+        auto* pauseBattery = editorChild<QObject*>(module->subPage(1), "PauseOnBattery");
+        auto* pauseLow = editorChild<QObject*>(module->subPage(1), "PauseOnLowBattery");
         QVERIFY(pauseBattery && pauseLow);
         QVERIFY(!pauseBattery->property("checked").toBool());
         QVERIFY(!pauseLow->property("checked").toBool());
@@ -1102,12 +1584,12 @@ private Q_SLOTS:
         QVERIFY(add);
         QVERIFY(QMetaObject::invokeMethod(add, "triggered"));
         QCOMPARE(settings->property("effectPresets").toList().size(), 2);
-        auto* effectName = editor->findChild<QObject*>("EffectName");
+        auto* effectName = editorChild<QObject*>(editor, "EffectName");
         QVERIFY(effectName);
         effectName->setProperty("text", "Warm and slow");
         QVERIFY(QMetaObject::invokeMethod(effectName, "textEdited"));
         QCOMPARE(settings->property("effectPreset").toMap()["name"].toString(), QString("Warm and slow"));
-        auto* fps = editor->findChild<QObject*>("FramesPerSecond");
+        auto* fps = editorChild<QObject*>(editor, "FramesPerSecond");
         QVERIFY(fps);
         fps->setProperty("value", 7);
         QVERIFY(QMetaObject::invokeMethod(fps, "valueModified"));
@@ -1117,12 +1599,12 @@ private Q_SLOTS:
         QTRY_COMPARE(module->depth(), 3);
         list = module->subPage(0);
         editor = module->subPage(1);
-        auto* keyboard = editor->findChild<QQuickItem*>("KeyboardView");
-        QVERIFY(!editor->findChild<QObject*>("LightbarView"));
+        auto* keyboard = editorChild<QQuickItem*>(editor, "KeyboardView");
+        QVERIFY(!visualChild<QObject*>(editor, "LightbarView"));
         auto* groupSelector = itemNamed(editor, "KeyGroupSelector");
-        auto* effectChoice = editor->findChild<QObject*>("AddAssignedEffect:" + effectId);
-        auto* layers = itemNamed(editor, "LayerChoice0");
-        auto* addColor = editor->findChild<QObject*>("AddLocalEffect:solid");
+        auto* effectChoice = editorChild<QObject*>(editor, "AddAssignedEffect:" + effectId);
+        auto* layers = presetEntry(module, 0);
+        auto* addColor = editorChild<QObject*>(editor, "AddLocalEffect:solid");
         QVERIFY(keyboard && groupSelector && effectChoice && addColor && layers);
         QVariantList keyGroups;
         QVERIFY(QMetaObject::invokeMethod(settings, "groups", Q_RETURN_ARG(QVariantList, keyGroups)));
@@ -1142,7 +1624,7 @@ private Q_SLOTS:
         QCOMPARE(keyboard->property("selection").toList(), (QVariantList { 65536, 17 }));
         QVERIFY(QMetaObject::invokeMethod(effectChoice, "triggered"));
         QVERIFY(QMetaObject::invokeMethod(addColor, "triggered"));
-        auto* assigned = editor->findChild<QObject*>("AssignedEffectsEditor");
+        auto* assigned = editorChild<QObject*>(editor, "AssignedEffectsEditor");
         QVERIFY(assigned);
         const auto solidId = assigned->property("expandedEffect").toString();
         QQuickItem* colorRow = nullptr;
@@ -1186,16 +1668,14 @@ private Q_SLOTS:
         QVERIFY(keyboard->width() <= 1200);
         QVERIFY(keyboard->width() >= 1199);
         const auto formWidth
-            = editor->findChild<QObject*>("KeyboardPage")->property("formMaximumWidth").toReal();
+            = editorChild<QObject*>(editor, "KeyboardPage")->property("formMaximumWidth").toReal();
         QVERIFY(itemNamed(editor, "StripView65536")->width() <= formWidth + 1);
         QVERIFY(assigned->property("width").toReal() <= formWidth + 1);
         QVERIFY(snapshot(dialog, "keyboard-max-width"));
         dialog.resize(1240, 950);
         QTest::qWait(150);
-        QVERIFY(QMetaObject::invokeMethod(layers, "clicked"));
-        auto* record = itemNamed(editor, "RecordLayerKeys0");
-        QVERIFY(record);
-        QVERIFY(QMetaObject::invokeMethod(record, "clicked"));
+        QVERIFY(QMetaObject::invokeMethod(presetEntry(module, 0), "clicked"));
+        QVERIFY(triggerAction(editor, "RecordLayerKeys0"));
         recordChord(
             dialog.windowHandle(), { { KEY_LEFTCTRL, Qt::Key_Control }, { KEY_RIGHTSHIFT, Qt::Key_Shift } });
         QCOMPARE(module->depth(), 3);
@@ -1212,16 +1692,18 @@ private Q_SLOTS:
             settings, "keyPreview", Q_RETURN_ARG(QVariantList, preview), Q_ARG(int, 0)));
         QCOMPARE(preview.last().toMap()["color"].toString(), QString("#00ff00"));
         QVERIFY(snapshot(dialog, "layer-wide"));
-        auto* addLayer = editor->findChild<QObject*>("AddLayer");
+        auto* addLayer = addLayerButton(module);
         QVERIFY(addLayer);
         QVERIFY(QMetaObject::invokeMethod(addLayer, "clicked"));
         recordChord(dialog.windowHandle(), { { KEY_LEFTALT, Qt::Key_Alt } });
         QTRY_COMPARE(settings->property("preset").toMap()["layers"].toList().size(), 2);
-        QQuickItem* removeLayer = nullptr;
-        QTRY_VERIFY((removeLayer = itemNamed(editor, "RemoveLayer1")));
-        QVERIFY(QMetaObject::invokeMethod(removeLayer, "clicked"));
+        QVERIFY(triggerAction(editor, "RemoveLayer1"));
+        auto* confirmation = editorChild<QObject*>(editor, "RemovePresetDialog");
+        QVERIFY(confirmation);
+        QCOMPARE(settings->property("preset").toMap()["layers"].toList().size(), 2);
+        QVERIFY(QMetaObject::invokeMethod(confirmation, "accept"));
         QCOMPARE(settings->property("preset").toMap()["layers"].toList().size(), 1);
-        QVERIFY(QMetaObject::invokeMethod(layers, "clicked"));
+        QVERIFY(QMetaObject::invokeMethod(presetEntry(module, 0), "clicked"));
         QVERIFY(QMetaObject::invokeMethod(recorder, "start", Q_ARG(QWindow*, host->quickWindow())));
         QVERIFY(recorder->property("recording").toBool());
         QVERIFY(section(2));
@@ -1231,11 +1713,12 @@ private Q_SLOTS:
         QVERIFY(section(3));
         QTRY_COMPARE(module->depth(), 3);
         list = module->subPage(0);
+        QVERIFY(!visualChild<QObject*>(list, "DefaultPreset"));
         editor = module->subPage(1);
         auto* addApplication = list->findChild<QObject*>("AddApplication");
         QVERIFY(addApplication);
         QVERIFY(QMetaObject::invokeMethod(addApplication, "clicked"));
-        auto* windowClass = editor->findChild<QObject*>("WindowClass");
+        auto* windowClass = editorChild<QObject*>(editor, "WindowClass");
         QVERIFY(windowClass);
         windowClass->setProperty("text", "org.kde.konsole");
         QVERIFY(QMetaObject::invokeMethod(windowClass, "textEdited"));

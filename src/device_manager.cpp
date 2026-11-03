@@ -22,19 +22,11 @@ QList<DeviceConfiguration> configuredDevices(const PresetCollection& c, const Lo
     if (c.devices)
         return *c.devices;
     // Existing settings controlled one device. Do not silently add new hardware.
-    for (const auto& d : drivers.devices()) {
-        QString presetId;
+    for (const auto& d : drivers.devices())
         for (const auto& p : c.presets)
-            if (p.keyboardDeviceId == d.instance.description.id) {
-                if (presetId.isEmpty() || p.id == c.defaultId)
-                    presetId = p.id;
-                if (p.id == c.defaultId)
-                    break;
-            }
-        if (!presetId.isEmpty())
-            return { { d.driverId, d.instance.id, d.instance.description.id, d.instance.description.name,
-                presetId, true } };
-    }
+            if (profileFor(p, { d.driverId, d.instance.id, d.instance.description.id }))
+                return { { d.driverId, d.instance.id, d.instance.description.id, d.instance.description.name,
+                    true } };
     return { };
 }
 DeviceManager::DeviceManager(const DeviceEnvironment& environment, const QStringList& directories)
@@ -133,11 +125,12 @@ void DeviceManager::selectPresets(const QString& windowClass, const ModifierStat
         const int index = devicePreset(m_collection, output.configuration, windowClass);
         if (index < 0)
             continue;
-        if (output.preset.id != m_collection.presets[index].id)
+        if (output.preset.id != profileFor(m_collection.presets[index], output.configuration)->id)
             output.lastPalette.clear();
-        output.preset = m_collection.presets[index];
-        output.styles = deviceKeyStyles(output.preset, output.instance.description, modifiers);
-        output.effects = deviceEffects(output.preset, output.instance.description, modifiers);
+        output.preset = *profileFor(m_collection.presets[index], output.configuration);
+        const int layer = activePresetLayer(m_collection.presets[index], modifiers);
+        output.styles = deviceKeyStylesForLayer(output.preset, output.instance.description, layer);
+        output.effects = deviceEffectsForLayer(output.preset, output.instance.description, layer);
         if (lightbarOff(output.configuration)) {
             auto off = [&](int id) {
                 output.styles.insert(id, { KeyMode::Off, Qt::black });
@@ -217,28 +210,27 @@ void DeviceManager::submit(const QMap<QString, QColor>& palette, const QMap<QStr
             auto frame = lightingColors(output.preset, output.styles, output.instance.description,
                 paused ? output.lastPalette : palette, output.effects,
                 paused ? QMap<QString, QColor>() : pulses, brightness);
-            if (!output.instance.description.capabilities.testFlag(DeviceCapability::Color)) {
-                const auto& channel = output.configuration.brightnessChannel;
-                const auto grayscale = [&](const QColor& color) {
-                    const int value = channel == "red" ? color.red()
-                        : channel == "green"           ? color.green()
-                        : channel == "blue"            ? color.blue()
-                                                       : (color.red() + color.green() + color.blue() + 1) / 3;
-                    return QColor(value, value, value);
-                };
-                frame.uniform = grayscale(frame.uniform);
-                for (auto& color : frame.keys)
-                    color = grayscale(color);
-                for (auto& strip : frame.strips)
-                    for (auto& color : strip)
-                        color = grayscale(color);
-            }
+            const auto adapt = [&](const QColor& color) {
+                return deviceColor(color, output.instance, output.configuration.brightnessChannel);
+            };
+            frame.uniform = adapt(frame.uniform);
+            for (auto& color : frame.keys)
+                color = adapt(color);
+            for (auto& strip : frame.strips)
+                for (auto& color : strip)
+                    color = adapt(color);
             output.backend->submit(frame);
         }
 }
 QString DeviceManager::status() const
 {
     QStringList status = m_conflicts;
+    for (const auto& config : configuredDevices(m_collection, m_drivers))
+        if (config.enabled && m_drivers.find(config.identity())
+            && devicePreset(m_collection, config, m_windowClass) < 0)
+            status.append(QStringLiteral(
+                "%1: no active preset; add this device to the default preset or an application preset")
+                    .arg(config.name));
     for (const auto& [id, output] : m_outputs)
         status.append(id + " [" + output.preset.name + "]: "
             + (powerPaused(output.configuration)
