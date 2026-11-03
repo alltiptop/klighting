@@ -22,26 +22,26 @@
         <translation>KWin недоступен: %1</translation>
     </message>
     <message>
-        <location line="+11"/>
-        <source>Install the Ambient LED effect to enable lighting.</source>
-        <translation>Установите эффект Ambient LED для включения подсветки.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+12"/>
         <source>Multiple or outdated Ambient LED effects were found. Reload the installed effect first.</source>
         <translation>Найдено несколько или устаревшие эффекты Ambient LED. Сначала перезагрузите установленный эффект.</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="-1"/>
+        <source>Install the Ambient LED effect to enable screen capture.</source>
+        <translation>Установите эффект Ambient LED для захвата экрана.</translation>
+    </message>
+    <message>
+        <location line="+17"/>
         <location line="+87"/>
-        <source>Ambient LED is running.</source>
-        <translation>Ambient LED работает.</translation>
+        <source>Ambient screen capture is running.</source>
+        <translation>Захват экрана Ambient работает.</translation>
     </message>
     <message>
         <location line="-87"/>
         <location line="+87"/>
-        <source>Ambient LED is stopped.</source>
-        <translation>Ambient LED остановлен.</translation>
+        <source>Ambient screen capture is stopped.</source>
+        <translation>Захват экрана Ambient остановлен.</translation>
     </message>
     <message>
         <location line="-85"/>
@@ -213,27 +213,50 @@
     </message>
 </context>
 <context>
+    <name>Ambient::ServiceControl</name>
+    <message>
+        <location filename="../src/service_control.cpp" line="+34"/>
+        <source>Lighting service is stopped. Apply settings to start it.</source>
+        <translation>Сервис подсветки остановлен. Примените настройки, чтобы запустить его.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Lighting is paused: %1</source>
+        <translation>Подсветка приостановлена: %1</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Lighting service is running.</source>
+        <translation>Сервис подсветки работает.</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>Settings saved, but the lighting service could not apply them: %1</source>
+        <translation>Настройки сохранены, но сервис подсветки не смог их применить: %1</translation>
+    </message>
+</context>
+<context>
     <name>Ambient::SettingsController</name>
     <message>
         <location filename="../src/settings_effects.cpp" line="+231"/>
-        <location line="+301"/>
+        <location line="+303"/>
         <source>Solid Color</source>
         <translation>Сплошной цвет</translation>
     </message>
     <message>
-        <location line="-300"/>
+        <location line="-302"/>
         <source>Ambient</source>
         <translation>Ambient</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <location line="+526"/>
+        <location line="+2"/>
+        <location line="+527"/>
         <source>Notifications</source>
         <translation>Уведомления</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+337"/>
-        <location filename="../src/settings_effects.cpp" line="-480"/>
+        <location filename="../src/settings_controller.cpp" line="+358"/>
+        <location filename="../src/settings_effects.cpp" line="-481"/>
         <source>%1 copy</source>
         <translation>%1 — копия</translation>
     </message>
@@ -248,7 +271,7 @@
         <translation>Новый пресет сплошного цвета</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>New Ambient preset</source>
         <translation>Новый пресет Ambient</translation>
     </message>
@@ -258,17 +281,17 @@
         <translation>Эффект используется пресетом клавиатуры «%1». Сначала измените его назначения.</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="-82"/>
+        <location filename="../src/settings_controller.cpp" line="-85"/>
         <source>Cannot save unreadable preset files. Repair them and reset.</source>
         <translation>Нельзя сохранить нечитаемые файлы пресетов. Исправьте их и сбросьте изменения.</translation>
     </message>
     <message>
-        <location filename="../src/presets.cpp" line="+591"/>
+        <location filename="../src/presets.cpp" line="+619"/>
         <source>Presets changed on disk. Reset before saving to preserve those changes.</source>
         <translation>Пресеты изменены на диске. Сбросьте правки перед сохранением, чтобы сохранить внешние изменения.</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+82"/>
+        <location filename="../src/settings_controller.cpp" line="+85"/>
         <source>New preset</source>
         <translation>Новый пресет</translation>
     </message>
@@ -283,12 +306,7 @@
         <translation>Сначала удалите привязки приложений к этому пресету.</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>Select another preset for device &quot;%1&quot; first.</source>
-        <translation>Сначала выберите другой пресет для устройства «%1».</translation>
-    </message>
-    <message>
-        <location line="+32"/>
+        <location line="+36"/>
         <source>Import would exceed the limit of 64 effect presets.</source>
         <translation>Импорт превысит ограничение в 64 пресета эффектов.</translation>
     </message>
@@ -298,20 +316,20 @@
         <translation>Ambient по умолчанию</translation>
     </message>
     <message>
-        <location line="-474"/>
+        <location line="-476"/>
         <location line="+165"/>
-        <location line="+356"/>
+        <location line="+358"/>
         <source>Use at most 32 effects per element and layer.</source>
         <translation>Не более 32 эффектов на элемент в каждом слое.</translation>
     </message>
     <message>
-        <location line="-400"/>
+        <location line="-402"/>
         <location line="+38"/>
         <source>Use at most 128 local effects per preset.</source>
         <translation>В пресете можно использовать не более 128 локальных эффектов.</translation>
     </message>
     <message>
-        <location line="+533"/>
+        <location line="+535"/>
         <source>This keyboard does not expose F9-F12 lighting zones.</source>
         <translation>У клавиатуры нет доступных зон подсветки F9–F12.</translation>
     </message>
@@ -331,7 +349,7 @@
         <translation>Слой с таким сочетанием уже существует.</translation>
     </message>
     <message>
-        <location line="+163"/>
+        <location line="+170"/>
         <source>All keys</source>
         <translation>Все клавиши</translation>
     </message>
@@ -361,7 +379,7 @@
         <translation>У этого окна нет класса приложения.</translation>
     </message>
     <message>
-        <location filename="../src/settings_devices.cpp" line="+229"/>
+        <location filename="../src/settings_devices.cpp" line="+245"/>
         <source>Reading lightbar settings…</source>
         <translation>Чтение настроек ленты…</translation>
     </message>
@@ -381,14 +399,14 @@
         <translation>Не удалось сохранить настройку ленты: %1</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+28"/>
-        <source>Settings saved, but KWin could not be reached.</source>
-        <translation>Настройки сохранены, но KWin недоступен.</translation>
+        <location filename="../src/settings_effects.cpp" line="-520"/>
+        <source>Brightness</source>
+        <translation>Яркость</translation>
     </message>
     <message>
-        <location line="+17"/>
-        <source>Settings saved, but could not be applied to the running effect.</source>
-        <translation>Настройки сохранены, но не применены к работающему эффекту.</translation>
+        <location line="+50"/>
+        <source>New Brightness preset</source>
+        <translation>Новый пресет яркости</translation>
     </message>
 </context>
 <context>
@@ -584,7 +602,7 @@
         <translation>Сплошной цвет</translation>
     </message>
     <message>
-        <location line="+60"/>
+        <location line="+77"/>
         <source>Intensity:</source>
         <translation>Интенсивность:</translation>
     </message>
@@ -614,7 +632,7 @@
         <translation>Сохранённые пресеты</translation>
     </message>
     <message>
-        <location line="+47"/>
+        <location line="+51"/>
         <source>New Solid Color</source>
         <translation>Новый сплошной цвет</translation>
     </message>
@@ -642,6 +660,36 @@
         <location line="+9"/>
         <source>These notifications override every layer, including unlit keys.</source>
         <translation>Эти уведомления перекрывают все слои, включая выключенные клавиши.</translation>
+    </message>
+    <message>
+        <location line="-57"/>
+        <source>New Brightness</source>
+        <translation>Новая яркость</translation>
+    </message>
+</context>
+<context>
+    <name>AmbientLed.BrightnessForm</name>
+    <message>
+        <location filename="../ui/BrightnessForm.qml" line="+18"/>
+        <location filename="../ui/BrightnessPage.qml" line="+8"/>
+        <location filename="../ui/EffectsPage.qml" line="+49"/>
+        <source>Brightness</source>
+        <translation>Яркость</translation>
+    </message>
+    <message>
+        <location line="-3"/>
+        <source>Brightness:</source>
+        <translation>Яркость:</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Brightness in percent</source>
+        <translation>Яркость в процентах</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Scales colors from earlier effects in the list. 100% keeps their brightness.</source>
+        <translation>Изменяет яркость цветов предыдущих эффектов в списке. 100% сохраняет их яркость.</translation>
     </message>
 </context>
 <context>
@@ -717,8 +765,8 @@
     </message>
     <message>
         <location line="-2"/>
-        <source>Add a Solid Color, Ambient or Notifications preset, then assign it to keys or the lightbar.</source>
-        <translation>Создайте пресет цвета, Ambient или уведомлений, затем назначьте клавишам или ленте.</translation>
+        <source>Add an effect preset, then assign it to keys or the lightbar.</source>
+        <translation>Добавьте пресет эффекта и назначьте его клавишам или световой полосе.</translation>
     </message>
     <message>
         <location line="-65"/>
@@ -767,12 +815,12 @@
 <context>
     <name>AmbientLed.EffectsPage</name>
     <message>
-        <location filename="../ui/EffectsPage.qml" line="+29"/>
+        <location filename="../ui/EffectsPage.qml" line="-20"/>
         <source>Effects</source>
         <translation>Эффекты</translation>
     </message>
     <message>
-        <location line="+125"/>
+        <location line="+136"/>
         <source>Import Effect Preset</source>
         <translation>Импорт пресета эффекта</translation>
     </message>
@@ -792,12 +840,12 @@
         <translation>Фильтр эффектов</translation>
     </message>
     <message>
-        <location line="-60"/>
+        <location line="-71"/>
         <source>Add…</source>
         <translation>Добавить…</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+24"/>
         <source>Solid Color</source>
         <translation>Сплошной цвет</translation>
     </message>
@@ -912,7 +960,7 @@
 <context>
     <name>AmbientLed.KeyboardView</name>
     <message>
-        <location filename="../ui/KeyboardView.qml" line="+55"/>
+        <location filename="../ui/KeyboardView.qml" line="+56"/>
         <source>Keyboard layout</source>
         <translation>Раскладка клавиатуры</translation>
     </message>
@@ -989,7 +1037,12 @@
 <context>
     <name>AmbientLed.LightingPage</name>
     <message>
-        <location filename="../ui/LightingPage.qml" line="+22"/>
+        <location filename="../ui/LightingPage.qml" line="+85"/>
+        <source>Disable %1 to use this device.</source>
+        <translation>Отключите %1, чтобы использовать это устройство.</translation>
+    </message>
+    <message>
+        <location line="-63"/>
         <source>Devices</source>
         <translation>Устройства</translation>
     </message>
@@ -999,22 +1052,17 @@
         <translation>Добавить устройство подсветки</translation>
     </message>
     <message>
-        <location line="+19"/>
-        <source>Enable Ambient LED effect</source>
-        <translation>Включить эффект Ambient LED</translation>
-    </message>
-    <message>
-        <location line="+14"/>
+        <location line="+39"/>
         <source>Lighting will resume when this device reconnects.</source>
         <translation>Подсветка возобновится при подключении устройства.</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>Enable this device</source>
         <translation>Включить устройство</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+13"/>
         <source>Name:</source>
         <translation>Название:</translation>
     </message>
@@ -1025,16 +1073,11 @@
     </message>
     <message>
         <location line="+10"/>
-        <source>Default for this device</source>
-        <translation>По умолчанию для устройства</translation>
+        <source>None</source>
+        <translation>Нет</translation>
     </message>
     <message>
-        <location line="+16"/>
-        <source>Follow application bindings</source>
-        <translation>Учитывать привязки приложений</translation>
-    </message>
-    <message>
-        <location line="+10"/>
+        <location line="+50"/>
         <source>Enable lightbar</source>
         <translation>Включить ленту</translation>
     </message>
@@ -1092,6 +1135,36 @@
         <location line="+5"/>
         <source>Add a device to configure its lighting.</source>
         <translation>Добавьте устройство, чтобы настроить подсветку.</translation>
+    </message>
+    <message>
+        <location line="-132"/>
+        <source>Brightness source:</source>
+        <translation>Источник яркости:</translation>
+    </message>
+    <message>
+        <location line="-74"/>
+        <source>Enable Ambient screen capture</source>
+        <translation>Включить захват экрана Ambient</translation>
+    </message>
+    <message>
+        <location line="+82"/>
+        <source>RGB average</source>
+        <translation>Среднее RGB</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Red channel</source>
+        <translation>Красный канал</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Green channel</source>
+        <translation>Зелёный канал</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Blue channel</source>
+        <translation>Синий канал</translation>
     </message>
 </context>
 <context>
@@ -1259,7 +1332,7 @@
     </message>
     <message>
         <location line="+7"/>
-        <location line="+23"/>
+        <location line="+27"/>
         <source>Remove</source>
         <translation>Удалить</translation>
     </message>
@@ -1274,12 +1347,12 @@
         <translation>Пресеты подсветки (*.json)</translation>
     </message>
     <message>
-        <location line="-56"/>
+        <location line="-57"/>
         <source>Remove this preset? You can undo pending changes with Reset.</source>
         <translation>Удалить пресет? Несохранённые изменения можно отменить кнопкой сброса.</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+18"/>
         <source>Cancel</source>
         <translation>Отмена</translation>
     </message>
@@ -1287,6 +1360,11 @@
         <location line="+15"/>
         <source>Name:</source>
         <translation>Название:</translation>
+    </message>
+    <message>
+        <location line="-36"/>
+        <source>Remove this preset? Devices using it will have no default preset. You can undo pending changes with Reset.</source>
+        <translation>Удалить этот пресет? Устройства, использующие его, останутся без пресета по умолчанию. Несохранённые изменения можно отменить кнопкой «Сбросить».</translation>
     </message>
 </context>
 <context>

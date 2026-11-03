@@ -22,26 +22,26 @@
         <translation>KWin אינו זמין: %1</translation>
     </message>
     <message>
-        <location line="+11"/>
-        <source>Install the Ambient LED effect to enable lighting.</source>
-        <translation>יש להתקין את אפקט Ambient LED כדי להפעיל תאורה.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+12"/>
         <source>Multiple or outdated Ambient LED effects were found. Reload the installed effect first.</source>
         <translation>נמצאו אפקטי Ambient LED כפולים או ישנים. יש לטעון מחדש את האפקט המותקן תחילה.</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="-1"/>
+        <source>Install the Ambient LED effect to enable screen capture.</source>
+        <translation>יש להתקין את האפקט Ambient LED כדי להפעיל לכידת מסך.</translation>
+    </message>
+    <message>
+        <location line="+17"/>
         <location line="+87"/>
-        <source>Ambient LED is running.</source>
-        <translation>Ambient LED פעיל.</translation>
+        <source>Ambient screen capture is running.</source>
+        <translation>לכידת המסך של Ambient פועלת.</translation>
     </message>
     <message>
         <location line="-87"/>
         <location line="+87"/>
-        <source>Ambient LED is stopped.</source>
-        <translation>Ambient LED מופסק.</translation>
+        <source>Ambient screen capture is stopped.</source>
+        <translation>לכידת המסך של Ambient נעצרה.</translation>
     </message>
     <message>
         <location line="-85"/>
@@ -213,27 +213,50 @@
     </message>
 </context>
 <context>
+    <name>Ambient::ServiceControl</name>
+    <message>
+        <location filename="../src/service_control.cpp" line="+34"/>
+        <source>Lighting service is stopped. Apply settings to start it.</source>
+        <translation>שירות התאורה נעצר. יש להחיל את ההגדרות כדי להפעילו.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Lighting is paused: %1</source>
+        <translation>התאורה מושהית: %1</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Lighting service is running.</source>
+        <translation>שירות התאורה פועל.</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>Settings saved, but the lighting service could not apply them: %1</source>
+        <translation>ההגדרות נשמרו, אך שירות התאורה לא הצליח להחיל אותן: %1</translation>
+    </message>
+</context>
+<context>
     <name>Ambient::SettingsController</name>
     <message>
         <location filename="../src/settings_effects.cpp" line="+231"/>
-        <location line="+301"/>
+        <location line="+303"/>
         <source>Solid Color</source>
         <translation>צבע אחיד</translation>
     </message>
     <message>
-        <location line="-300"/>
+        <location line="-302"/>
         <source>Ambient</source>
         <translation>תאורת סביבה</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <location line="+526"/>
+        <location line="+2"/>
+        <location line="+527"/>
         <source>Notifications</source>
         <translation>התראות</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+337"/>
-        <location filename="../src/settings_effects.cpp" line="-480"/>
+        <location filename="../src/settings_controller.cpp" line="+358"/>
+        <location filename="../src/settings_effects.cpp" line="-481"/>
         <source>%1 copy</source>
         <translation>עותק של %1</translation>
     </message>
@@ -248,7 +271,7 @@
         <translation>ערכת צבע אחיד חדשה</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>New Ambient preset</source>
         <translation>ערכת תאורת סביבה חדשה</translation>
     </message>
@@ -258,17 +281,17 @@
         <translation>ערכת המקלדת „%1” משתמשת באפקט זה. יש לשנות תחילה את השיוכים שלה.</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="-82"/>
+        <location filename="../src/settings_controller.cpp" line="-85"/>
         <source>Cannot save unreadable preset files. Repair them and reset.</source>
         <translation>לא ניתן לשמור קובצי ערכות בלתי קריאים. יש לתקן אותם ולאפס.</translation>
     </message>
     <message>
-        <location filename="../src/presets.cpp" line="+591"/>
+        <location filename="../src/presets.cpp" line="+619"/>
         <source>Presets changed on disk. Reset before saving to preserve those changes.</source>
         <translation>הערכות השתנו בדיסק. יש לאפס לפני השמירה כדי לשמור על שינויים אלה.</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+82"/>
+        <location filename="../src/settings_controller.cpp" line="+85"/>
         <source>New preset</source>
         <translation>ערכה חדשה</translation>
     </message>
@@ -283,12 +306,7 @@
         <translation>יש להסיר תחילה את שיוכי היישומים של ערכה זו.</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>Select another preset for device &quot;%1&quot; first.</source>
-        <translation>יש לבחור תחילה ערכה אחרת להתקן „%1”.</translation>
-    </message>
-    <message>
-        <location line="+32"/>
+        <location line="+36"/>
         <source>Import would exceed the limit of 64 effect presets.</source>
         <translation>הייבוא יחרוג ממגבלת 64 ערכות האפקטים.</translation>
     </message>
@@ -298,20 +316,20 @@
         <translation>תאורת סביבה כברירת מחדל</translation>
     </message>
     <message>
-        <location line="-474"/>
+        <location line="-476"/>
         <location line="+165"/>
-        <location line="+356"/>
+        <location line="+358"/>
         <source>Use at most 32 effects per element and layer.</source>
         <translation>אפשר להשתמש בעד 32 אפקטים לכל רכיב ושכבה.</translation>
     </message>
     <message>
-        <location line="-400"/>
+        <location line="-402"/>
         <location line="+38"/>
         <source>Use at most 128 local effects per preset.</source>
         <translation>ניתן להשתמש ב־128 אפקטים מקומיים לכל היותר בכל ערכה מוגדרת מראש.</translation>
     </message>
     <message>
-        <location line="+533"/>
+        <location line="+535"/>
         <source>This keyboard does not expose F9-F12 lighting zones.</source>
         <translation>מקלדת זו אינה חושפת אזורי תאורה ל־F9–F12.</translation>
     </message>
@@ -331,7 +349,7 @@
         <translation>כבר קיימת שכבה עם צירוף המקשים הזה.</translation>
     </message>
     <message>
-        <location line="+163"/>
+        <location line="+170"/>
         <source>All keys</source>
         <translation>כל המקשים</translation>
     </message>
@@ -361,7 +379,7 @@
         <translation>לחלון זה אין מחלקת יישום.</translation>
     </message>
     <message>
-        <location filename="../src/settings_devices.cpp" line="+229"/>
+        <location filename="../src/settings_devices.cpp" line="+245"/>
         <source>Reading lightbar settings…</source>
         <translation>הגדרות פס התאורה נקראות…</translation>
     </message>
@@ -381,14 +399,14 @@
         <translation>לא ניתן לשמור את הגדרת פס התאורה: %1</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+28"/>
-        <source>Settings saved, but KWin could not be reached.</source>
-        <translation>ההגדרות נשמרו, אך לא ניתן להתחבר ל־KWin.</translation>
+        <location filename="../src/settings_effects.cpp" line="-520"/>
+        <source>Brightness</source>
+        <translation>בהירות</translation>
     </message>
     <message>
-        <location line="+17"/>
-        <source>Settings saved, but could not be applied to the running effect.</source>
-        <translation>ההגדרות נשמרו, אך לא ניתן להחיל אותן על האפקט הפעיל.</translation>
+        <location line="+50"/>
+        <source>New Brightness preset</source>
+        <translation>הגדרת בהירות חדשה</translation>
     </message>
 </context>
 <context>
@@ -584,7 +602,7 @@
         <translation>צבע אחיד</translation>
     </message>
     <message>
-        <location line="+60"/>
+        <location line="+77"/>
         <source>Intensity:</source>
         <translation>עוצמה:</translation>
     </message>
@@ -614,7 +632,7 @@
         <translation>ערכות שמורות</translation>
     </message>
     <message>
-        <location line="+47"/>
+        <location line="+51"/>
         <source>New Solid Color</source>
         <translation>צבע אחיד חדש</translation>
     </message>
@@ -642,6 +660,36 @@
         <location line="+9"/>
         <source>These notifications override every layer, including unlit keys.</source>
         <translation>התראות אלה עוקפות כל שכבה, כולל מקשים כבויים.</translation>
+    </message>
+    <message>
+        <location line="-57"/>
+        <source>New Brightness</source>
+        <translation>בהירות חדשה</translation>
+    </message>
+</context>
+<context>
+    <name>AmbientLed.BrightnessForm</name>
+    <message>
+        <location filename="../ui/BrightnessForm.qml" line="+18"/>
+        <location filename="../ui/BrightnessPage.qml" line="+8"/>
+        <location filename="../ui/EffectsPage.qml" line="+49"/>
+        <source>Brightness</source>
+        <translation>בהירות</translation>
+    </message>
+    <message>
+        <location line="-3"/>
+        <source>Brightness:</source>
+        <translation>בהירות:</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Brightness in percent</source>
+        <translation>בהירות באחוזים</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Scales colors from earlier effects in the list. 100% keeps their brightness.</source>
+        <translation>משנה את בהירות הצבעים של האפקטים הקודמים ברשימה. 100% שומר על הבהירות שלהם.</translation>
     </message>
 </context>
 <context>
@@ -717,8 +765,8 @@
     </message>
     <message>
         <location line="-2"/>
-        <source>Add a Solid Color, Ambient or Notifications preset, then assign it to keys or the lightbar.</source>
-        <translation>יש להוסיף ערכת צבע אחיד, תאורת סביבה או התראות, ואז לשייך אותה למקשים או לפס התאורה.</translation>
+        <source>Add an effect preset, then assign it to keys or the lightbar.</source>
+        <translation>יש להוסיף הגדרת אפקט ואז לשייך אותה למקשים או לפס התאורה.</translation>
     </message>
     <message>
         <location line="-65"/>
@@ -767,12 +815,12 @@
 <context>
     <name>AmbientLed.EffectsPage</name>
     <message>
-        <location filename="../ui/EffectsPage.qml" line="+29"/>
+        <location filename="../ui/EffectsPage.qml" line="-20"/>
         <source>Effects</source>
         <translation>אפקטים</translation>
     </message>
     <message>
-        <location line="+125"/>
+        <location line="+136"/>
         <source>Import Effect Preset</source>
         <translation>ייבוא ערכת אפקט</translation>
     </message>
@@ -792,12 +840,12 @@
         <translation>סינון אפקטים</translation>
     </message>
     <message>
-        <location line="-60"/>
+        <location line="-71"/>
         <source>Add…</source>
         <translation>הוספה…</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+24"/>
         <source>Solid Color</source>
         <translation>צבע אחיד</translation>
     </message>
@@ -912,7 +960,7 @@
 <context>
     <name>AmbientLed.KeyboardView</name>
     <message>
-        <location filename="../ui/KeyboardView.qml" line="+55"/>
+        <location filename="../ui/KeyboardView.qml" line="+56"/>
         <source>Keyboard layout</source>
         <translation>פריסת מקלדת</translation>
     </message>
@@ -989,7 +1037,12 @@
 <context>
     <name>AmbientLed.LightingPage</name>
     <message>
-        <location filename="../ui/LightingPage.qml" line="+22"/>
+        <location filename="../ui/LightingPage.qml" line="+85"/>
+        <source>Disable %1 to use this device.</source>
+        <translation>יש להשבית את %1 כדי להשתמש בהתקן זה.</translation>
+    </message>
+    <message>
+        <location line="-63"/>
         <source>Devices</source>
         <translation>התקנים</translation>
     </message>
@@ -999,22 +1052,17 @@
         <translation>הוספת התקן תאורה</translation>
     </message>
     <message>
-        <location line="+19"/>
-        <source>Enable Ambient LED effect</source>
-        <translation>הפעלת אפקט Ambient LED</translation>
-    </message>
-    <message>
-        <location line="+14"/>
+        <location line="+39"/>
         <source>Lighting will resume when this device reconnects.</source>
         <translation>התאורה תתחדש כשההתקן יתחבר שוב.</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>Enable this device</source>
         <translation>הפעלת התקן זה</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+13"/>
         <source>Name:</source>
         <translation>שם:</translation>
     </message>
@@ -1025,16 +1073,11 @@
     </message>
     <message>
         <location line="+10"/>
-        <source>Default for this device</source>
-        <translation>ברירת המחדל להתקן זה</translation>
+        <source>None</source>
+        <translation>ללא</translation>
     </message>
     <message>
-        <location line="+16"/>
-        <source>Follow application bindings</source>
-        <translation>שימוש בשיוכי יישומים</translation>
-    </message>
-    <message>
-        <location line="+10"/>
+        <location line="+50"/>
         <source>Enable lightbar</source>
         <translation>הפעלת פס התאורה</translation>
     </message>
@@ -1092,6 +1135,36 @@
         <location line="+5"/>
         <source>Add a device to configure its lighting.</source>
         <translation>יש להוסיף התקן כדי להגדיר את התאורה שלו.</translation>
+    </message>
+    <message>
+        <location line="-132"/>
+        <source>Brightness source:</source>
+        <translation>מקור הבהירות:</translation>
+    </message>
+    <message>
+        <location line="-74"/>
+        <source>Enable Ambient screen capture</source>
+        <translation>הפעלת לכידת מסך של Ambient</translation>
+    </message>
+    <message>
+        <location line="+82"/>
+        <source>RGB average</source>
+        <translation>ממוצע RGB</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Red channel</source>
+        <translation>הערוץ האדום</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Green channel</source>
+        <translation>הערוץ הירוק</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Blue channel</source>
+        <translation>הערוץ הכחול</translation>
     </message>
 </context>
 <context>
@@ -1259,7 +1332,7 @@
     </message>
     <message>
         <location line="+7"/>
-        <location line="+23"/>
+        <location line="+27"/>
         <source>Remove</source>
         <translation>הסרה</translation>
     </message>
@@ -1274,12 +1347,12 @@
         <translation>ערכות תאורה (*.json)</translation>
     </message>
     <message>
-        <location line="-56"/>
+        <location line="-57"/>
         <source>Remove this preset? You can undo pending changes with Reset.</source>
         <translation>להסיר ערכה זו? ניתן לבטל שינויים ממתינים באמצעות איפוס.</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+18"/>
         <source>Cancel</source>
         <translation>ביטול</translation>
     </message>
@@ -1287,6 +1360,11 @@
         <location line="+15"/>
         <source>Name:</source>
         <translation>שם:</translation>
+    </message>
+    <message>
+        <location line="-36"/>
+        <source>Remove this preset? Devices using it will have no default preset. You can undo pending changes with Reset.</source>
+        <translation>להסיר את ההגדרה הזאת? למכשירים שמשתמשים בה לא תהיה הגדרת ברירת מחדל. ניתן לבטל שינויים שטרם נשמרו באמצעות איפוס.</translation>
     </message>
 </context>
 <context>

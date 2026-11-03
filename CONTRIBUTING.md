@@ -14,7 +14,8 @@ libepoxy, libdrm, Vulkan headers/loader). Dependencies are installed separately;
 configuration never downloads them. Native KWin plugins must be rebuilt after KWin updates.
 
 Use the build commands in [README](README.md#build). A core-only build
-exercises drivers, presets, power and notification logic without KWin headers:
+builds `klightingd` and exercises drivers, presets, desktop input adapters, power
+and notification logic without KWin headers:
 
 ```sh
 cmake -S . -B build-core -G Ninja -DBUILD_KWIN_EFFECT=OFF

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "aura_protocol.h"
+#include "lighting_ipc.h"
 #include "settings_controller.h"
 #include <KConfigGroup>
 #include <QApplication>
@@ -158,17 +159,47 @@ public:
     }
 };
 
+class FakeLighting : public QObject
+{
+    Q_OBJECT
+    Q_CLASSINFO("D-Bus Interface", "org.klighting.Service1")
+public:
+    int reloads = 0;
+    FakeLighting()
+    {
+        auto bus = QDBusConnection::sessionBus();
+        if (!bus.registerService(Ipc::Service)
+            || !bus.registerObject(Ipc::Path, this, QDBusConnection::ExportAllSlots))
+            qFatal("Cannot register isolated lighting service");
+    }
+    ~FakeLighting() override
+    {
+        auto bus = QDBusConnection::sessionBus();
+        bus.unregisterObject(Ipc::Path);
+        bus.unregisterService(Ipc::Service);
+    }
+public Q_SLOTS:
+    QString Reload()
+    {
+        ++reloads;
+        return { };
+    }
+    QVariantMap Status() const { return { { "protocol", Ipc::Version }, { "safeToControl", true } }; }
+};
+
 class ConfigTest : public QObject
 {
     Q_OBJECT
     KSharedConfig::Ptr config = KSharedConfig::openConfig("kwinrc");
     std::unique_ptr<FakeAsusd> asusd;
+    std::unique_ptr<FakeLighting> lighting;
     std::unique_ptr<SettingsController> openModule() { return std::make_unique<SettingsController>(); }
 private Q_SLOTS:
     void init()
     {
         QVERIFY(QDir(presetDirectory()).removeRecursively());
         asusd = std::make_unique<FakeAsusd>();
+        lighting = std::make_unique<FakeLighting>();
         config->reparseConfiguration();
         config->deleteGroup("Effect-ambientled");
         config->deleteGroup("Plugins");
@@ -178,6 +209,7 @@ private Q_SLOTS:
     {
         QCOMPARE(asusd->unexpected, 0);
         asusd.reset();
+        lighting.reset();
     }
     void defaultsMetadataAndPendingEdits()
     {
@@ -288,6 +320,35 @@ private Q_SLOTS:
         QCOMPARE(c.dirty(), dirty);
         QCOMPARE(edited.size(), 0);
     }
+    void alternativeDeviceEnableIsBlockedUntilPreviousOwnerIsDisabled()
+    {
+        FakeKWin fake;
+        const auto path = qgetenv("AMBIENT_LED_DRIVER_PATH");
+        const auto restore = qScopeGuard([&] {
+            qputenv("AMBIENT_LED_DRIVER_PATH", path);
+            qApp->setProperty("test.one.claims", QVariant());
+        });
+        qApp->setProperty("test.one.claims", QStringList { "test:shared" });
+        qputenv("AMBIENT_LED_DRIVER_PATH", path + ":" + MULTI_DRIVER_DIR + ":" + ALTERNATIVE_DRIVER_DIR);
+        SettingsController c;
+        QVERIFY(c.addDevice("test-strips:one"));
+        QVERIFY(c.deviceSettings()["enabled"].toBool());
+        QVERIFY(c.addDevice("test-alternative:alternative"));
+        QVERIFY(!c.deviceSettings()["enabled"].toBool());
+        QCOMPARE(c.deviceSettings()["enableBlockedBy"].toString(), QString("Test LED strip"));
+        c.setDevice("enabled", true);
+        QVERIFY(!c.deviceSettings()["enabled"].toBool());
+        c.selectDevice(1);
+        c.setDevice("enabled", false);
+        c.selectDevice(2);
+        QVERIFY(c.deviceSettings()["enableBlockedBy"].toString().isEmpty());
+        c.setDevice("enabled", true);
+        QVERIFY(c.deviceSettings()["enabled"].toBool());
+        c.selectDevice(1);
+        QCOMPARE(c.deviceSettings()["enableBlockedBy"].toString(), QString("Alternative"));
+        QVERIFY(!QFile::exists(presetDirectory() + "/settings-v2.json"));
+        QCOMPARE(asusd->writes.size(), 0);
+    }
     void deviceChoicesAndGradientsRemainPendingUntilApply()
     {
         FakeKWin fake;
@@ -305,7 +366,6 @@ private Q_SLOTS:
         QCOMPARE(c.devices().size(), 3);
         QVERIFY(c.editableLightbar());
         QVERIFY(!c.editableKeys());
-        c.setDevice("followApplications", false);
         c.setDevice("pauseOnBattery", true);
         c.setDevice("pauseOnLowBattery", true);
         c.setDevice("lightbarOffOnBattery", true);
@@ -333,7 +393,6 @@ private Q_SLOTS:
         QCOMPARE(loaded.devices().size(), 3);
         loaded.selectDevice(2);
         QCOMPARE(loaded.gradients(-1).size(), 1);
-        QCOMPARE(loaded.deviceSettings()["followApplications"].toBool(), false);
         QVERIFY(loaded.deviceSettings()["pauseOnBattery"].toBool());
         QVERIFY(loaded.deviceSettings()["pauseOnLowBattery"].toBool());
         QVERIFY(loaded.deviceSettings()["lightbarOffOnBattery"].toBool());
@@ -519,6 +578,81 @@ private Q_SLOTS:
         c.setKeyColor(-1, { 14 }, "#ffaa00", 30);
         QCOMPARE(c.collection().presets[0].effects[14], (EffectList { { DefaultEffectId } }));
         QCOMPARE(c.collection().presets[0].base[14].color, QColor(255, 170, 0, 77));
+        c.save();
+        QVERIFY2(c.error().isEmpty(), qPrintable(c.error()));
+        const auto saved = c.collection();
+        c.load();
+        QCOMPARE(c.collection(), saved);
+    }
+    void deletingDeviceDefaultLeavesItUnassigned()
+    {
+        SettingsController c;
+        QVERIFY(c.addPreset(true));
+        const auto removed = c.preset()["id"].toString();
+        c.setDevice("presetId", removed);
+        QVERIFY(!c.preset()["defaultDevices"].toStringList().isEmpty());
+        QVERIFY(c.removePreset());
+        QVERIFY(c.deviceSettings()["presetId"].toString().isEmpty());
+        QCOMPARE(c.collection().presets.size(), 1);
+        c.save();
+        QVERIFY2(c.error().isEmpty(), qPrintable(c.error()));
+        const auto saved = c.collection();
+        c.load();
+        QCOMPARE(c.collection(), saved);
+        QCOMPARE(devicePreset(c.collection(), c.collection().devices->first(), { }), -1);
+    }
+    void monochromeAmbientRequiresFourNonzeroSteps()
+    {
+        const auto oldPath = qgetenv("AMBIENT_LED_DRIVER_PATH");
+        const auto oldDevices = qApp->property("test.devices");
+        const auto restore = qScopeGuard([&] {
+            qputenv("AMBIENT_LED_DRIVER_PATH", oldPath);
+            qApp->setProperty("test.devices", oldDevices);
+            qApp->setProperty("test.mono.brightnessSteps", QVariant());
+        });
+        qputenv("AMBIENT_LED_DRIVER_PATH", oldPath + ":" + MULTI_DRIVER_DIR);
+        qApp->setProperty("test.devices", QStringList { "mono" });
+        qApp->setProperty("test.mono.brightnessSteps", 3);
+        SettingsController c;
+        QVERIFY(c.device()["ambient"].toBool()); // RGB support needs no step metadata.
+        QVERIFY(c.addDevice("test-strips:mono"));
+        QVERIFY(!c.device()["color"].toBool());
+        QVERIFY(!c.device()["ambient"].toBool());
+        qApp->setProperty("test.mono.brightnessSteps", 4);
+        c.refreshDevices();
+        QVERIFY(c.device()["ambient"].toBool());
+        c.setDevice("brightnessChannel", "blue");
+        QCOMPARE(c.deviceSettings()["brightnessChannel"].toString(), QString("blue"));
+        c.setDevice("brightnessChannel", "invalid");
+        QCOMPARE(c.deviceSettings()["brightnessChannel"].toString(), QString("blue"));
+        c.save();
+        QVERIFY2(c.error().isEmpty(), qPrintable(c.error()));
+        c.load();
+        QCOMPARE(c.deviceSettings()["brightnessChannel"].toString(), QString("blue"));
+    }
+    void brightnessCanBeEditedAsSharedAndLocalEffect()
+    {
+        SettingsController c;
+        QVERIFY(c.addEffect("brightness"));
+        const auto shared = c.effectPreset()["id"].toString();
+        QCOMPARE(c.effectPreset()["brightness"].toInt(), 100);
+        c.setBrightness(40);
+        c.setSection("effects");
+        c.defaults();
+        QCOMPARE(c.effectPreset()["brightness"].toInt(), 100);
+        c.setBrightness(40);
+        c.addAssignedEffect(-1, { }, shared);
+        const auto local = c.addLocalEffect(-1, { 14 }, "brightness");
+        QVERIFY(!local.isEmpty());
+        c.selectEffect(0);
+        c.setBrightness(60, local);
+        c.setBrightness(30, shared);
+        QCOMPARE(c.localEffectOptions(local)["brightness"].toInt(), 60);
+        QCOMPARE(c.assignedEffectOptions(shared)["brightness"].toInt(), 30);
+        c.setBrightness(-1, local);
+        QCOMPARE(c.localEffectOptions(local)["brightness"].toInt(), 0);
+        c.setBrightness(120, local);
+        QCOMPARE(c.localEffectOptions(local)["brightness"].toInt(), 100);
         c.save();
         QVERIFY2(c.error().isEmpty(), qPrintable(c.error()));
         const auto saved = c.collection();
@@ -790,13 +924,13 @@ private Q_SLOTS:
         QTRY_VERIFY(c.effect()->available());
         c.effect()->setEnabled(true);
         c.save();
-        QTRY_VERIFY(!c.effect()->busy());
+        QTRY_VERIFY(!c.busy());
         QVERIFY(c.dirty());
         QVERIFY(!c.effect()->loaded());
         QVERIFY(c.effect()->status().contains("could not change"));
         fake.refuseLoad = false;
         c.save();
-        QTRY_VERIFY(!c.effect()->busy());
+        QTRY_VERIFY(!c.busy());
         QVERIFY(c.effect()->loaded());
         QVERIFY(!c.dirty());
         c.effect()->setEnabled(false);
@@ -806,6 +940,7 @@ private Q_SLOTS:
         c.save();
         QVERIFY(c.effect()->status().contains("changed elsewhere"));
         QVERIFY(fake.unloads.isEmpty());
+        QTRY_VERIFY(!c.busy());
         c.load();
         QTRY_VERIFY(c.effect()->enabled()); // Reset shows the still-running effect, not just its saved flag.
         QVERIFY(!c.dirty());
@@ -821,14 +956,14 @@ private Q_SLOTS:
         QVERIFY(!c.dirty());
         c.effect()->setEnabled(false);
         c.save();
-        QTRY_VERIFY(!c.effect()->busy());
+        QTRY_VERIFY(!c.busy());
         QCOMPARE(fake.unloads, (QStringList { "ambientled_dev15" }));
         QVERIFY(fake.loaded.isEmpty());
         QVERIFY(!c.effect()->enabled());
         QVERIFY(!c.dirty());
         c.effect()->setEnabled(true);
         c.save();
-        QTRY_VERIFY(!c.effect()->busy());
+        QTRY_VERIFY(!c.busy());
         QCOMPARE(fake.loads, (QStringList { "ambientled" }));
         QCOMPARE(fake.loaded, fake.installed);
         QVERIFY(!fake.overlappingLoad);
@@ -856,7 +991,7 @@ private Q_SLOTS:
         QTest::qWait(30);
         QVERIFY(c.effect()->enabled()); // Polling preserves pending edits.
         c.save();
-        QTRY_VERIFY(!c.effect()->busy());
+        QTRY_VERIFY(!c.busy());
         QCOMPARE(fake.unloads, (QStringList { "ambientled_dev15" }));
         if (refuseUnload) {
             QVERIFY(fake.loads.isEmpty());
@@ -917,7 +1052,8 @@ private Q_SLOTS:
         QVERIFY(module->dirty());
         module->save();
         QVERIFY(!module->dirty());
-        QTRY_COMPARE(fake.reconfigured, (QStringList { "ambientled" }));
+        QTRY_COMPARE(lighting->reloads, 1);
+        QVERIFY(fake.reconfigured.isEmpty());
         QCOMPARE(fake.unexpected, 0);
         config->reparseConfiguration();
         QCOMPARE(group.readEntry("FramesPerSecond", 0), 7); // Old snapshot is left untouched.
@@ -941,8 +1077,9 @@ private Q_SLOTS:
         module->setAmbient("temperature", 60);
         module->save();
         QTRY_VERIFY(!module->busy());
-        QTRY_COMPARE(fake.reconfigured, (QStringList { "ambientled" }));
-        fake.reconfigured.clear();
+        QTRY_COMPARE(lighting->reloads, 1);
+        QVERIFY(fake.reconfigured.isEmpty());
+        lighting->reloads = 0;
         module->defaults();
         QVERIFY(module->dirty());
         QVERIFY(module->representsDefaults());
@@ -951,7 +1088,8 @@ private Q_SLOTS:
         QCOMPARE(before.effectPreset().value("minimum").toInt(), 80);
         module->save();
         module.reset();
-        QTRY_COMPARE(fake.reconfigured, (QStringList { "ambientled" }));
+        QTRY_COMPARE(lighting->reloads, 1);
+        QVERIFY(fake.reconfigured.isEmpty());
         SettingsController after;
         QCOMPARE(after.effectPreset().value("fps").toInt(), 3);
         QCOMPARE(after.effectPreset().value("minimum").toInt(), 25);
@@ -1046,7 +1184,8 @@ private Q_SLOTS:
         QTRY_VERIFY((reopened->lightbarAvailable() && !reopened->busy()));
         QVERIFY(!reopened->lightbarEnabled());
         QCOMPARE(asusd->writes.size(), 1);
-        QTRY_COMPARE(fake.reconfigured.size(), 1);
+        QTRY_COMPARE(lighting->reloads, 1);
+        QVERIFY(fake.reconfigured.isEmpty());
     }
     void lightbarApplySurvivesClose()
     {
@@ -1059,7 +1198,8 @@ private Q_SLOTS:
         module.reset();
         QTRY_COMPARE(asusd->writes.size(), 1);
         QVERIFY(asusd->power.states[1].awake);
-        QTRY_COMPARE(fake.reconfigured.size(), 1);
+        QTRY_COMPARE(lighting->reloads, 1);
+        QVERIFY(fake.reconfigured.isEmpty());
     }
     void lightbarInvalidStateIsDisabled()
     {
@@ -1113,7 +1253,8 @@ private Q_SLOTS:
         QVERIFY(module->lightbarStatus().startsWith("Could not save lightbar setting:"));
         QCOMPARE(asusd->writes.size(), failure == 2 ? 1 : 0);
         QVERIFY(asusd->power.states[1].awake);
-        QTRY_COMPARE(fake.reconfigured.size(), 1);
+        QTRY_COMPARE(lighting->reloads, 1);
+        QVERIFY(fake.reconfigured.isEmpty());
     }
 };
 int main(int argc, char** argv)

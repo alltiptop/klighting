@@ -4,8 +4,10 @@
 #include "effect_control.h"
 #include "layer_key_tracker.h"
 #include "presets.h"
+#include "service_control.h"
 #include <KSharedConfig>
 #include <QObject>
+#include <QTimer>
 #include <QUrl>
 #include <QVariantList>
 #include <map>
@@ -45,6 +47,7 @@ class SettingsController : public QObject
     Q_PROPERTY(bool pickingWindow READ pickingWindow NOTIFY changed)
     Q_PROPERTY(QString windowStatus READ windowStatus NOTIFY changed)
     Q_PROPERTY(Ambient::EffectControl* effect READ effect CONSTANT)
+    Q_PROPERTY(Ambient::ServiceControl* service READ service CONSTANT)
     Q_PROPERTY(int previewLayer READ previewLayer NOTIFY previewChanged)
     Q_PROPERTY(QVariantList pressedKeys READ pressedKeys NOTIFY pressedKeysChanged)
 public:
@@ -96,6 +99,7 @@ public:
     bool pickingWindow() const { return m_pickingWindow; }
     QString windowStatus() const { return m_windowStatus; }
     EffectControl* effect() const { return m_effect; }
+    ServiceControl* service() const { return m_service; }
     const PresetCollection& collection() const { return m_collection; }
     void selectPreset(int index);
     void setDefaultId(const QString& id);
@@ -130,6 +134,7 @@ public:
     Q_INVOKABLE void clearKeyLighting(int layer, const QVariantList& ids, bool inherit);
     Q_INVOKABLE void addNotificationLayout(const QString& effectId = { });
     Q_INVOKABLE void setAmbient(const QString& key, int value, const QString& localId = { });
+    Q_INVOKABLE void setBrightness(int value, const QString& localId = { });
     Q_INVOKABLE QString layerLabel(const QStringList& conditions) const;
     Q_INVOKABLE int addLayer(const QStringList& conditions);
     Q_INVOKABLE bool setLayer(int index, const QStringList& conditions);
@@ -165,6 +170,7 @@ private:
     QList<int> effectIds(const QVariantList& ids) const;
     KSharedConfig::Ptr m_config;
     LoadedDriver m_driver;
+    QTimer m_discoveryTimer;
     struct Controls {
         std::unique_ptr<DeviceControls> backend;
         bool available = false, enabled = false, saved = false, saving = false, reading = false;
@@ -178,6 +184,7 @@ private:
     QString applicationIcon(const QString& windowClass) const;
     mutable std::optional<QMap<QString, QString>> m_applicationIcons;
     EffectControl* m_effect;
+    ServiceControl* m_service;
     LayerKeyTracker m_layerKeys;
     int m_previewLayer = -1;
     void updatePreview(bool force = false);
@@ -193,6 +200,5 @@ private:
     void pruneLocalEffects();
     void loadLightbar(bool refresh = false);
     void saveLightbar();
-    void notifyEffects();
 };
 }

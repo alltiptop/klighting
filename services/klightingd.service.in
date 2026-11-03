@@ -1,0 +1,14 @@
+[Unit]
+Description=klighting device lighting
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=dbus
+BusName=org.klighting.Service
+ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/klightingd
+Restart=on-failure
+TimeoutStopSec=10
+
+[Install]
+WantedBy=graphical-session.target

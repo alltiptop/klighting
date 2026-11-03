@@ -49,10 +49,12 @@ QVariantMap SettingsController::deviceSettings() const
     if (i < 0)
         return { };
     const auto d = configured()[i];
+    const auto conflict = conflictingDevice(d, configured(), m_driver);
     return { { "name", d.name }, { "enabled", d.enabled }, { "driver", d.driverId },
-        { "instance", d.instanceId }, { "model", d.modelId }, { "presetId", d.presetId },
-        { "followApplications", d.followApplications }, { "pauseOnBattery", d.pauseOnBattery },
-        { "pauseOnLowBattery", d.pauseOnLowBattery }, { "lightbarOffOnBattery", d.lightbarOffOnBattery },
+        { "enableBlockedBy", conflict }, { "instance", d.instanceId }, { "model", d.modelId },
+        { "presetId", d.presetId }, { "brightnessChannel", d.brightnessChannel },
+        { "pauseOnBattery", d.pauseOnBattery }, { "pauseOnLowBattery", d.pauseOnLowBattery },
+        { "lightbarOffOnBattery", d.lightbarOffOnBattery },
         { "lightbarOffOnLowBattery", d.lightbarOffOnLowBattery } };
 }
 void SettingsController::selectDevice(int index)
@@ -73,6 +75,8 @@ void SettingsController::refreshDevices()
     // Freeze the legacy single-device choice before discovery changes order.
     const auto previous = configured();
     m_driver.refresh();
+    if (m_driver.discoveryPending())
+        m_discoveryTimer.start(50);
     if (!m_collection.devices && previous != configured())
         m_collection.devices = previous;
     loadLightbar(true);
@@ -88,7 +92,15 @@ bool SettingsController::addDevice(const QString& identity)
     if (std::any_of(entries.begin(), entries.end(), [&](const auto& d) { return d.identity() == identity; }))
         return false;
     const auto& model = found->instance.description;
-    DeviceConfiguration d { found->driverId, found->instance.id, model.id, model.name, { }, true, true };
+    DeviceConfiguration d { found->driverId, found->instance.id, model.id, model.name, { }, true };
+    d.enabled = conflictingDevice(d, entries, m_driver).isEmpty();
+    for (const auto& preset : m_collection.presets)
+        if (preset.keyboardDeviceId == model.id) {
+            if (d.presetId.isEmpty() || preset.id == m_collection.defaultId)
+                d.presetId = preset.id;
+            if (preset.id == m_collection.defaultId)
+                break;
+        }
     if (devicePreset(m_collection, d, { }) < 0) {
         if (m_collection.presets.size() >= 64)
             return false;
@@ -131,11 +143,15 @@ void SettingsController::setDevice(const QString& key, const QVariant& value)
     if (i < 0)
         return;
     auto d = configured()[i];
-    if (key == "enabled")
+    if (key == "enabled") {
+        if (value.toBool() && !conflictingDevice(d, configured(), m_driver).isEmpty())
+            return;
         d.enabled = value.toBool();
-    else if (key == "followApplications")
-        d.followApplications = value.toBool();
-    else if (key == "pauseOnBattery")
+    } else if (key == "brightnessChannel") {
+        if (!QStringList { "average", "red", "green", "blue" }.contains(value.toString()))
+            return;
+        d.brightnessChannel = value.toString();
+    } else if (key == "pauseOnBattery")
         d.pauseOnBattery = value.toBool();
     else if (key == "pauseOnLowBattery")
         d.pauseOnLowBattery = value.toBool();
@@ -206,10 +222,11 @@ QString SettingsController::lightbarStatus() const
 }
 bool SettingsController::busy() const
 {
-    return m_effect->busy() || std::any_of(m_controls.begin(), m_controls.end(), [](const auto& entry) {
-        return entry.second->saving
-            || (entry.second->reading && entry.second->enabled != entry.second->saved);
-    });
+    return m_effect->busy() || m_service->busy()
+        || std::any_of(m_controls.begin(), m_controls.end(), [](const auto& entry) {
+               return entry.second->saving
+                   || (entry.second->reading && entry.second->enabled != entry.second->saved);
+           });
 }
 void SettingsController::loadLightbar(bool refresh)
 {

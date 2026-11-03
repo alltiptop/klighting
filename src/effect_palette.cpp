@@ -17,7 +17,11 @@ void EffectPalette::configure(
 {
     QMap<QString, State> next;
     m_solids.clear();
+    m_brightness.clear();
     for (const auto& p : presets) {
+        // Static filters also apply to colors frozen by a device's battery policy.
+        if (p.type == "brightness")
+            m_brightness.insert(p.id, std::clamp(p.brightness, 0, 100));
         if (p.type == "solid" && used.contains(p.id))
             m_solids.insert(p.id, p.solidColor);
         if (p.type != "ambient" || !used.contains(p.id))
@@ -129,7 +133,8 @@ QSet<QString> activeEffects(const LightingPreset& p, const KeyboardStyles& style
 }
 LightingColors lightingColors(const LightingPreset& p, const KeyboardStyles& styles,
     const DeviceDescription& device, const QMap<QString, QColor>& palette,
-    const EffectAssignments& assignments, const QMap<QString, QColor>& pulses)
+    const EffectAssignments& assignments, const QMap<QString, QColor>& pulses,
+    const QMap<QString, int>& brightness)
 {
     auto colorFor = [&](int id, int fallback) {
         const auto style = keyStyle(styles, styles.contains(id) ? id : fallback);
@@ -137,6 +142,12 @@ LightingColors lightingColors(const LightingPreset& p, const KeyboardStyles& sty
         const auto list = assignments.value(id, implicitEffects(style));
         for (const auto& effect : list) {
             const auto effectId = effect.id.isEmpty() ? p.defaultEffectId : effect.id;
+            if (brightness.contains(effectId)) {
+                const double factor = 1.0 - (100 - brightness.value(effectId)) * effect.opacity / 10000.0;
+                color = QColor::fromRgbF(
+                    color.redF() * factor, color.greenF() * factor, color.blueF() * factor, color.alphaF());
+                continue;
+            }
             // Color opacity tints Ambient. Transient notifications retain their own color.
             QColor overlay = effect.color.isValid() ? effect.color
                 : palette.contains(effectId)        ? blendColor(palette.value(effectId), style.color)

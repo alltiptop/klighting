@@ -140,6 +140,9 @@ namespace
 }
 static QJsonObject effectDefinitionJson(const EffectPreset& p)
 {
+    if (p.type == "brightness")
+        return { { "format", "ambient-led-effect" }, { "version", 1 }, { "id", p.id }, { "name", p.name },
+            { "type", p.type }, { "options", QJsonObject { { "brightness", p.brightness } } } };
     if (p.type == "solid")
         return { { "format", "ambient-led-effect" }, { "version", 1 }, { "id", p.id }, { "name", p.name },
             { "type", p.type }, { "options", QJsonObject { { "color", p.solidColor.name() } } } };
@@ -172,7 +175,7 @@ std::optional<EffectPreset> parseEffectPreset(const QByteArray& data, QString* e
     if (data.size() > MaxFileBytes || o["format"] != QLatin1String("ambient-led-effect")
         || o["version"].toInt() != 1
         || (o["type"] != QLatin1String("ambient") && o["type"] != QLatin1String("notifications")
-            && o["type"] != QLatin1String("solid"))
+            && o["type"] != QLatin1String("solid") && o["type"] != QLatin1String("brightness"))
         || !o["options"].isObject()) {
         *error = QStringLiteral("Invalid effect preset or unsupported effect type/version.");
         return std::nullopt;
@@ -195,6 +198,15 @@ std::optional<EffectPreset> parseEffectPreset(const QByteArray& data, QString* e
     p.pauseOnLowBattery = power["pauseOnLowBattery"].toBool();
     p.type = o["type"].toString();
     const auto a = o["options"].toObject();
+    if (p.type == "brightness") {
+        const auto value = a["brightness"];
+        if (!value.isUndefined() && (!value.isDouble() || value.toInt(-1) < 0 || value.toInt(-1) > 100)) {
+            *error = QStringLiteral("Brightness must be an integer from 0 to 100.");
+            return std::nullopt;
+        }
+        p.brightness = value.toInt(p.brightness);
+        return p;
+    }
     if (p.type == "solid") {
         p.solidColor = QColor(a["color"].toString());
         if (!p.solidColor.isValid() || p.solidColor.alpha() != 255) {
@@ -487,6 +499,7 @@ namespace
                 if (!validId(d.driverId) || !validId(d.modelId) || d.instanceId.isEmpty()
                     || d.instanceId.size() > 256 || d.instanceId.contains(QChar::Null) || d.name.isEmpty()
                     || d.name.size() > 128 || deviceIds.contains(d.identity())
+                    || !QStringList { "average", "red", "green", "blue" }.contains(d.brightnessChannel)
                     || (!d.presetId.isEmpty() && preset == c.presets.end())) {
                     *error = QStringLiteral("Invalid device identity or incompatible device preset.");
                     return false;
@@ -515,6 +528,7 @@ std::optional<PresetCollection> loadPresets(const PresetCollection& fallback, QS
     }
     PresetCollection c;
     c.effects.clear();
+    QSet<QString> automaticPresets;
     if (o.contains("devices")) {
         if (!o["devices"].isArray() || o["devices"].toArray().size() > 32) {
             *error = QStringLiteral("Invalid device list.");
@@ -523,19 +537,22 @@ std::optional<PresetCollection> loadPresets(const PresetCollection& fallback, QS
         c.devices = QList<DeviceConfiguration>();
         for (const auto& item : o["devices"].toArray()) {
             const auto d = item.toObject();
-            if (!d["enabled"].isBool() || !d["followApplications"].isBool()
+            if (!d["enabled"].isBool()
                 || (!d["pauseOnBattery"].isUndefined() && !d["pauseOnBattery"].isBool())
                 || (!d["pauseOnLowBattery"].isUndefined() && !d["pauseOnLowBattery"].isBool())
                 || (!d["lightbarOffOnBattery"].isUndefined() && !d["lightbarOffOnBattery"].isBool())
-                || (!d["lightbarOffOnLowBattery"].isUndefined() && !d["lightbarOffOnLowBattery"].isBool())) {
+                || (!d["lightbarOffOnLowBattery"].isUndefined() && !d["lightbarOffOnLowBattery"].isBool())
+                || (!d["brightnessChannel"].isUndefined() && !d["brightnessChannel"].isString())) {
                 *error = QStringLiteral("Invalid device options.");
                 return std::nullopt;
             }
             c.devices->append({ d["driver"].toString(), d["instance"].toString(), d["model"].toString(),
                 d["name"].toString(), d["preset"].toString(), d["enabled"].toBool(),
-                d["followApplications"].toBool(), d["pauseOnBattery"].toBool(false),
-                d["pauseOnLowBattery"].toBool(false), d["lightbarOffOnBattery"].toBool(false),
-                d["lightbarOffOnLowBattery"].toBool(false) });
+                d["pauseOnBattery"].toBool(false), d["pauseOnLowBattery"].toBool(false),
+                d["lightbarOffOnBattery"].toBool(false), d["lightbarOffOnLowBattery"].toBool(false),
+                d["brightnessChannel"].toString("average") });
+            if (d["preset"].isString() && d["preset"].toString().isEmpty())
+                automaticPresets.insert(c.devices->last().identity());
         }
     }
     c.defaultId = o["defaultPreset"].toString();
@@ -567,6 +584,17 @@ std::optional<PresetCollection> loadPresets(const PresetCollection& fallback, QS
         c.rules.append({ r["name"].toString(), r["windowClass"].toString(), r["preset"].toString(),
             r["enabled"].toBool(true) });
     }
+    // Older files used an empty string for automatic selection; explicit None is now null.
+    if (c.devices)
+        for (auto& device : *c.devices)
+            if (automaticPresets.contains(device.identity()))
+                for (const auto& preset : c.presets)
+                    if (preset.keyboardDeviceId == device.modelId) {
+                        if (device.presetId.isEmpty() || preset.id == c.defaultId)
+                            device.presetId = preset.id;
+                        if (preset.id == c.defaultId)
+                            break;
+                    }
     return validCollection(c, error) ? std::optional(c) : std::nullopt;
 }
 bool savePresets(const PresetCollection& c, QString* error, const PresetCollection* expected,
@@ -603,11 +631,13 @@ bool savePresets(const PresetCollection& c, QString* error, const PresetCollecti
         QJsonArray devices;
         for (const auto& d : *c.devices)
             devices.append(QJsonObject { { "driver", d.driverId }, { "instance", d.instanceId },
-                { "model", d.modelId }, { "name", d.name }, { "preset", d.presetId },
-                { "enabled", d.enabled }, { "followApplications", d.followApplications },
-                { "pauseOnBattery", d.pauseOnBattery }, { "pauseOnLowBattery", d.pauseOnLowBattery },
+                { "model", d.modelId }, { "name", d.name },
+                { "preset", d.presetId.isEmpty() ? QJsonValue(QJsonValue::Null) : QJsonValue(d.presetId) },
+                { "enabled", d.enabled }, { "pauseOnBattery", d.pauseOnBattery },
+                { "pauseOnLowBattery", d.pauseOnLowBattery },
                 { "lightbarOffOnBattery", d.lightbarOffOnBattery },
-                { "lightbarOffOnLowBattery", d.lightbarOffOnLowBattery } });
+                { "lightbarOffOnLowBattery", d.lightbarOffOnLowBattery },
+                { "brightnessChannel", d.brightnessChannel } });
         index["devices"] = devices;
     }
     auto publish = [&](const QString& section, const auto& presets, auto serialize) {

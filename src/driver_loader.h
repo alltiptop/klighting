@@ -15,6 +15,8 @@ struct DiscoveredDevice {
     DeviceDriver* driver = nullptr;
     QString identity() const { return driverId + QLatin1Char(':') + instance.id; }
 };
+QStringList deviceClaims(const DiscoveredDevice& device);
+bool devicesConflict(const DiscoveredDevice& a, const DiscoveredDevice& b);
 // The selected entry is only an editor/probe convenience. Runtime uses every entry.
 class LoadedDriver
 {
@@ -22,6 +24,7 @@ public:
     explicit LoadedDriver(const DeviceEnvironment& environment = deviceEnvironment(),
         const QStringList& directories = driverDirectories());
     void refresh();
+    bool discoveryPending() const;
     bool hasDrivers() const { return !m_plugins.empty(); }
     const QList<DiscoveredDevice>& devices() const { return m_devices; }
     const DiscoveredDevice* find(const QString& identity) const;

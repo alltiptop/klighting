@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "driver_loader.h"
 #include "effect_names.h"
+#include "lighting_ipc.h"
 #include <QCommandLineParser>
 #include <QCoreApplication>
 #include <QDBusConnection>
+#include <QDBusConnectionInterface>
 #include <QDBusMessage>
 #include <QDBusReply>
 #include <QDBusVariant>
+#include <QElapsedTimer>
+#include <QEventLoop>
 #include <QTextStream>
 #include <QTimer>
 #include <cmath>
@@ -23,9 +27,11 @@ int main(int argc, char** argv)
         QStringLiteral("Read-only device discovery, or an explicit bounded lighting test."));
     parser.addHelpOption();
     parser.addOption({ QStringLiteral("test-colors"),
-        QStringLiteral("Run a 12-second uniform color test. Unload the ambient effect first.") });
+        QStringLiteral(
+            "Run a 12-second uniform color test. Stop klightingd and unload the ambient effect first.") });
     parser.addOption({ QStringLiteral("test-keys"),
-        QStringLiteral("Run a 12-second per-element color test. Unload the ambient effect first.") });
+        QStringLiteral("Run a 12-second per-element color test. Stop klightingd and unload the ambient "
+                       "effect first.") });
     parser.addOption({ QStringLiteral("device"), QStringLiteral("Select a driver:instance identity."),
         QStringLiteral("identity") });
     parser.process(app);
@@ -36,24 +42,54 @@ int main(int argc, char** argv)
     }
     const bool animate = parser.isSet(QStringLiteral("test-colors")) || testKeys;
     if (animate) {
-        std::signal(SIGINT, stopTest);
-        std::signal(SIGTERM, stopTest);
-        auto call = QDBusMessage::createMethodCall(
-            "org.kde.KWin", "/Effects", "org.freedesktop.DBus.Properties", "Get");
-        call << "org.kde.kwin.Effects" << "loadedEffects";
-        QDBusReply<QDBusVariant> reply = QDBusConnection::sessionBus().call(call, QDBus::Block, 1000);
-        if (!reply.isValid()) {
-            QTextStream(stderr) << "Cannot check loaded KWin effects; color test cancelled.\n";
+        auto* busInterface = QDBusConnection::sessionBus().interface();
+        if (!busInterface) {
+            QTextStream(stderr) << "Cannot check lighting ownership; color test cancelled.\n";
             return 1;
         }
-        for (const auto& name : qdbus_cast<QStringList>(reply.value().variant())) {
-            if (Ambient::isAmbientEffectName(name)) {
-                QTextStream(stderr) << "Unload " << name << " before the color test.\n";
+        const auto owner = busInterface->isServiceRegistered(Ambient::Ipc::Service);
+        if (!owner.isValid() || owner.value()) {
+            QTextStream(stderr) << "Stop klightingd before the color test.\n";
+            return 1;
+        }
+        std::signal(SIGINT, stopTest);
+        std::signal(SIGTERM, stopTest);
+        const auto kwin = busInterface->isServiceRegistered("org.kde.KWin");
+        if (!kwin.isValid()) {
+            QTextStream(stderr) << "Cannot check KWin ownership; color test cancelled.\n";
+            return 1;
+        }
+        if (kwin.value()) {
+            auto call = QDBusMessage::createMethodCall(
+                "org.kde.KWin", "/Effects", "org.freedesktop.DBus.Properties", "Get");
+            call << "org.kde.kwin.Effects" << "loadedEffects";
+            QDBusReply<QDBusVariant> reply = QDBusConnection::sessionBus().call(call, QDBus::Block, 1000);
+            if (!reply.isValid()) {
+                QTextStream(stderr) << "Cannot check loaded KWin effects; color test cancelled.\n";
                 return 1;
+            }
+            for (const auto& name : qdbus_cast<QStringList>(reply.value().variant())) {
+                if (Ambient::isAmbientEffectName(name)) {
+                    QTextStream(stderr) << "Unload " << name << " before the color test.\n";
+                    return 1;
+                }
             }
         }
     }
     Ambient::LoadedDriver driver;
+    // Cached discovery runs off-thread. Allow it to finish before a one-shot probe exits.
+    QElapsedTimer discoveryDeadline;
+    discoveryDeadline.start();
+    while (driver.discoveryPending() && discoveryDeadline.elapsed() < 2000) {
+        QEventLoop wait;
+        QTimer::singleShot(20, &wait, &QEventLoop::quit);
+        wait.exec();
+        driver.refresh();
+    }
+    if (driver.discoveryPending()) {
+        QTextStream(stderr) << "Device discovery timed out.\n";
+        return 1;
+    }
     if (!animate) {
         for (const auto& device : driver.devices())
             QTextStream(stdout) << device.identity() << ": " << device.instance.description.name << Qt::endl;
@@ -66,7 +102,8 @@ int main(int argc, char** argv)
     else if (driver.devices().size() != 1) {
         QTextStream(stderr) << "Select exactly one device with --device driver:instance.\n";
         return 1;
-    }
+    } else
+        driver.select(driver.devices().first().identity());
     if (!driver.driver()) {
         QTextStream(stderr) << driver.error() << Qt::endl;
         return 1;

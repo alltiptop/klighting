@@ -5,6 +5,8 @@ Solid Color, notification effects, key layers and application presets. Multiple
 devices run through native Qt driver plugins. The KDE settings entry is **Lighting**.
 
 Currently supported: [ASUS ROG Strix G16 G615LW](src/drivers/asus-g615lw/README.md).
+Experimental generic backends: [Linux LEDs](src/drivers/linux-leds/README.md) and
+[USB HID LampArray](src/drivers/hid-lamparray/README.md).
 
 ![Lighting preset editor with keyboard and lightbar preview](docs/screenshots/presets.png)
 
@@ -68,6 +70,7 @@ sudo dnf install gcc-c++ cmake ninja-build pkgconf-pkg-config gettext \
 
 </details>
 
+For the service without KWin or its settings UI, add `-DBUILD_KWIN_EFFECT=OFF`.
 See [Contributing](CONTRIBUTING.md#build-and-checks) for development checks.
 
 ```sh
@@ -85,7 +88,7 @@ sudo cmake --install build
 kcmshell6 kcm_ambientled
 ```
 
-Enable **Ambient LED effect** and Apply. The same editor is available in KDE System
+Apply starts `klightingd`; **Enable Ambient screen capture** adds screen colors. The same editor is available in KDE System
 Settings under **Appearance & Style → Lighting**. For updates, staging and D-Bus
 reload commands, see [installation](docs/install.md). Rebuild after KWin updates.
 

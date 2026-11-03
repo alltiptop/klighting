@@ -8,6 +8,8 @@
 namespace Ambient
 {
 QList<DeviceConfiguration> configuredDevices(const PresetCollection& collection, const LoadedDriver& drivers);
+QString conflictingDevice(const DeviceConfiguration& device, const QList<DeviceConfiguration>& configurations,
+    const LoadedDriver& drivers);
 class DeviceManager
 {
 public:
@@ -22,7 +24,8 @@ public:
     bool ready() const;
     QSet<QString> ambientEffects() const;
     QSet<QString> notificationEffects() const;
-    void submit(const QMap<QString, QColor>& palette, const QMap<QString, QColor>& pulses);
+    void submit(const QMap<QString, QColor>& palette, const QMap<QString, QColor>& pulses,
+        const QMap<QString, int>& brightness = { });
     QString status() const;
     quint64 completedFrames() const;
     qsizetype count() const { return m_outputs.size(); }
@@ -48,6 +51,7 @@ private:
     QVariantMap m_options;
     std::map<QString, Output> m_outputs;
     QString m_windowClass;
+    QStringList m_conflicts;
     ModifierState m_modifiers;
     bool m_enabled = false;
     int m_fps = DefaultLedFramesPerSecond;

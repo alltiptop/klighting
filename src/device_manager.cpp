@@ -4,16 +4,37 @@
 
 namespace Ambient
 {
+QString conflictingDevice(const DeviceConfiguration& device, const QList<DeviceConfiguration>& configurations,
+    const LoadedDriver& drivers)
+{
+    const auto* candidate = drivers.find(device.identity());
+    if (!candidate)
+        return { };
+    for (const auto& other : configurations) {
+        const auto* found = drivers.find(other.identity());
+        if (other.enabled && found && devicesConflict(*candidate, *found))
+            return other.name;
+    }
+    return { };
+}
 QList<DeviceConfiguration> configuredDevices(const PresetCollection& c, const LoadedDriver& drivers)
 {
     if (c.devices)
         return *c.devices;
     // Existing settings controlled one device. Do not silently add new hardware.
-    for (const auto& d : drivers.devices())
-        if (std::any_of(c.presets.begin(), c.presets.end(),
-                [&](const auto& p) { return p.keyboardDeviceId == d.instance.description.id; }))
-            return { { d.driverId, d.instance.id, d.instance.description.id, d.instance.description.name, { },
-                true, true } };
+    for (const auto& d : drivers.devices()) {
+        QString presetId;
+        for (const auto& p : c.presets)
+            if (p.keyboardDeviceId == d.instance.description.id) {
+                if (presetId.isEmpty() || p.id == c.defaultId)
+                    presetId = p.id;
+                if (p.id == c.defaultId)
+                    break;
+            }
+        if (!presetId.isEmpty())
+            return { { d.driverId, d.instance.id, d.instance.description.id, d.instance.description.name,
+                presetId, true } };
+    }
     return { };
 }
 DeviceManager::DeviceManager(const DeviceEnvironment& environment, const QStringList& directories)
@@ -50,12 +71,32 @@ bool DeviceManager::reconcile()
     }
     QSet<QString> wanted;
     bool changed = false;
-    for (const auto& config : configuredDevices(m_collection, m_drivers)) {
+    const auto configured = configuredDevices(m_collection, m_drivers);
+    m_conflicts.clear();
+    for (const auto& config : configured) {
         const auto* device = m_drivers.find(config.identity());
         if (!config.enabled || !device || device->instance.description.id != config.modelId
             || devicePreset(m_collection, config, m_windowClass) < 0)
             continue;
+        const auto conflict = conflictingDevice(config, configured, m_drivers);
+        if (!conflict.isEmpty()) {
+            m_conflicts.append(
+                QStringLiteral("%1 conflicts with %2; disable one device").arg(config.name, conflict));
+            continue;
+        }
         wanted.insert(config.identity());
+    }
+    // Stop previous owners before opening any replacement, regardless of list order.
+    for (auto it = m_outputs.begin(); it != m_outputs.end();)
+        if (!wanted.contains(it->first)) {
+            it = m_outputs.erase(it);
+            changed = true;
+        } else
+            ++it;
+    for (const auto& config : configured) {
+        if (!wanted.contains(config.identity()))
+            continue;
+        const auto* device = m_drivers.find(config.identity());
         auto found = m_outputs.find(config.identity());
         if (found != m_outputs.end() && found->second.instance.options == device->instance.options) {
             found->second.configuration = config;
@@ -79,18 +120,15 @@ bool DeviceManager::reconcile()
             config.identity(), Output { config, device->instance, std::move(backend), { }, { }, { }, { } });
         changed = true;
     }
-    for (auto it = m_outputs.begin(); it != m_outputs.end();)
-        if (!wanted.contains(it->first)) {
-            it = m_outputs.erase(it);
-            changed = true;
-        } else
-            ++it;
     return changed;
 }
 void DeviceManager::selectPresets(const QString& windowClass, const ModifierState& modifiers)
 {
+    const bool windowChanged = m_windowClass != windowClass;
     m_windowClass = windowClass;
     m_modifiers = modifiers;
+    if (windowChanged)
+        reconcile();
     for (auto& [id, output] : m_outputs) {
         const int index = devicePreset(m_collection, output.configuration, windowClass);
         if (index < 0)
@@ -157,7 +195,8 @@ QSet<QString> DeviceManager::ambientEffects() const
     return result;
 }
 QSet<QString> DeviceManager::notificationEffects() const { return ambientEffects(); }
-void DeviceManager::submit(const QMap<QString, QColor>& palette, const QMap<QString, QColor>& pulses)
+void DeviceManager::submit(const QMap<QString, QColor>& palette, const QMap<QString, QColor>& pulses,
+    const QMap<QString, int>& brightness)
 {
     if (!m_enabled)
         return;
@@ -175,14 +214,31 @@ void DeviceManager::submit(const QMap<QString, QColor>& palette, const QMap<QStr
                 for (auto it = palette.cbegin(); it != palette.cend(); ++it)
                     output.lastPalette.insert(it.key(), it.value());
             }
-            output.backend->submit(lightingColors(output.preset, output.styles, output.instance.description,
+            auto frame = lightingColors(output.preset, output.styles, output.instance.description,
                 paused ? output.lastPalette : palette, output.effects,
-                paused ? QMap<QString, QColor>() : pulses));
+                paused ? QMap<QString, QColor>() : pulses, brightness);
+            if (!output.instance.description.capabilities.testFlag(DeviceCapability::Color)) {
+                const auto& channel = output.configuration.brightnessChannel;
+                const auto grayscale = [&](const QColor& color) {
+                    const int value = channel == "red" ? color.red()
+                        : channel == "green"           ? color.green()
+                        : channel == "blue"            ? color.blue()
+                                                       : (color.red() + color.green() + color.blue() + 1) / 3;
+                    return QColor(value, value, value);
+                };
+                frame.uniform = grayscale(frame.uniform);
+                for (auto& color : frame.keys)
+                    color = grayscale(color);
+                for (auto& strip : frame.strips)
+                    for (auto& color : strip)
+                        color = grayscale(color);
+            }
+            output.backend->submit(frame);
         }
 }
 QString DeviceManager::status() const
 {
-    QStringList status;
+    QStringList status = m_conflicts;
     for (const auto& [id, output] : m_outputs)
         status.append(id + " [" + output.preset.name + "]: "
             + (powerPaused(output.configuration)

@@ -1,0 +1,5 @@
+{
+    "ApiVersion": 4,
+    "Id": "linux-leds",
+    "Name": "Linux LED class"
+}

@@ -8,15 +8,30 @@ Changes remain pending until **Apply**; **Reset** reloads saved settings, and
 
 ## Devices
 
-Add discovered devices individually. Each has an enable switch, a default preset
-and an option to follow application bindings for its model. Offline/disabled devices
+Add discovered devices individually. Each has an enable switch and a default preset.
+Matching application bindings for its model always take priority. Offline/disabled devices
 retain their settings; removing a device does not remove its presets. The G615LW
 keyboard and lightbar are parts of one physical device/backend.
 
-Enable **Ambient LED effect** here to run lighting. The host must remain enabled
-for static assignments and power policies too. The lightbar checkbox applies the
+System LED and USB LampArray backends can appear alongside a specialized driver.
+Adding a conflicting alternative leaves it disabled. **Enable this device** becomes
+available after the other owner is disabled; the hint names that owner. Apply the
+change to switch drivers. Manually enabling conflicting entries in JSON stops both
+outputs until the conflict is resolved. Independent devices remain unaffected.
+
+Apply starts or reloads the `klightingd` service. **Enable Ambient screen capture**
+controls only the screen source; static assignments, application rules and power
+policies keep working when it is disabled. The lightbar checkbox applies the
 supported driver's hardware power setting; screen colors are streamed separately.
 **Refresh** repeats discovery and reads lightbar settings without applying edits.
+
+The Ambient enable switch is hidden for monochrome devices with fewer than four
+nonzero brightness levels (Off is separate). Monochrome devices convert output
+using the selected RGB average or red/green/blue channel.
+
+Deleting a device's default preset asks for confirmation and clears that reference.
+**None** leaves it without a default; matching application bindings can still select
+a preset. It does not silently choose another preset for that device.
 
 Device-wide effect pauses and lightbar-off policies are independent, for battery
 power and low charge. Pausing Ambient holds its last color; paused notifications
@@ -75,6 +90,12 @@ only while the settings window is active; it is not a separate hardware test mod
 **Effects** contains individual saved effect presets, not a list of available types.
 Ambient and Notifications each have independent battery/low-charge pause settings.
 
+**Brightness** scales the result of earlier effects without changing its hue:
+100% leaves it unchanged; 0% turns it off. Place it after Solid Color or Ambient.
+It supports shared/local presets and assignment intensity, requires no screen
+capture, and stays applied while Ambient is paused. Hardware brightness still
+limits output; brightness-only devices use their available discrete levels.
+
 ![Ambient effect settings with brightness, smoothing and power-saving controls](screenshots/effects.png)
 
 - **Ambient:** screen sampling 1–20 FPS (default 3), LED transitions 1–60 FPS
@@ -87,7 +108,7 @@ Ambient and Notifications each have independent battery/low-charge pause setting
   application desktop ID/name, category, event ID and urgency metadata; notification
   bodies are not parsed. Missing metadata cannot establish a match. Multiple
   notification effects can target the same keys. **Show above all layers** places a
-  notification last in composition. Power connection/disconnection are also triggers.
+  notification last in composition. Power connection is also a trigger.
 
 Notifications use KDE's notification watcher API over D-Bus. Screen capture is
 needed only for unpaused, assigned Ambient effects. If none needs it, readback

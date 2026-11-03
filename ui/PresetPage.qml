@@ -65,8 +65,12 @@ KCMUtils.AbstractKCM {
                 Layout.alignment: Qt.AlignHCenter
                 Layout.fillWidth: true
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 36
-                text: qsTranslate("AmbientLed.PresetPage",
-                                  "Remove this preset? You can undo pending changes with Reset.")
+                text: (page.controller.preset.defaultDevices || []).length ? qsTranslate(
+                                                                                 "AmbientLed.PresetPage",
+                                                                                 "Remove this preset? Devices using it will have no default preset. You can undo pending changes with Reset.") :
+                                                                             qsTranslate(
+                                                                                 "AmbientLed.PresetPage",
+                                                                                 "Remove this preset? You can undo pending changes with Reset.")
                 type: Kirigami.MessageType.Warning
                 visible: page.removing
 

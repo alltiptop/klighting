@@ -30,6 +30,10 @@ Sharing a vendor name alone does not imply compatible lighting hardware. Metadat
 `Name` carries the full human-readable device name;
 keep `Id` stable because saved device configurations reference it.
 
+Standard-protocol adapters can instead span models: see [Linux LED class](../src/drivers/linux-leds/README.md)
+and [USB HID LampArray](../src/drivers/hid-lamparray/README.md). They use the same API;
+specialized drivers can continue to supply verified geometry and device behavior.
+
 This is a versioned C++/Qt interface, not a compiler-independent C ABI. Build
 against the same API and compatible Qt/compiler ABI. API 1/2/3 plugins are not loaded
 by API 4 hosts; rebuild external drivers against the current header. Never overwrite a mapped library in place.
@@ -37,6 +41,10 @@ by API 4 hosts; rebuild external drivers against the current header. Never overw
 `discover(DeviceEnvironment)` returns `QList<DeviceInstance>`. It must be bounded,
 read-only and must not claim interfaces, start workers or write hardware. The
 host supplies the DMI board name; additional discovery belongs to the driver.
+Plugins may maintain a read-only discovery cache on their own worker. An optional
+QObject property `bool discoveryPending` tells the settings host and probe to
+refresh that cache after asynchronous discovery. Keep it true until the next
+`discover()` returns the completed result. This does not change the API 4 ABI.
 A device instance contains:
 
 - `id`: stable identity **within the driver**, up to 256 characters, for example a
@@ -53,6 +61,20 @@ A device instance contains:
   remain compatible. Keyboard events come from the settings window, not a specific
   physical input device.
   Do not put credentials in identifiers or display names.
+
+`options.BrightnessSteps` is the number of nonzero hardware brightness levels,
+excluding Off. The Devices page offers the Ambient enable switch for RGB devices
+or monochrome devices with at least four steps. Unknown monochrome ranges do not
+advertise Ambient support. This optional field uses the existing API 4 container.
+
+`options.DeviceClaims` optionally lists shared physical resources, such as
+`usb:<canonical USB device sysfs path>` or `internal-keyboard`. Alternative drivers
+must use the same resource name. Devices remain discoverable; settings prevent
+simultaneous enablement across drivers, and the runtime rejects conflicting enabled
+entries. Independent zones from one driver can coexist. For existing API 4 plugins,
+an instance named `internal` with keyboard geometry implicitly claims
+`internal-keyboard`. Generic discovery uses the fixed/removable USB attribute and
+platform keyboard LEDs for this association; unknown wiring cannot be inferred.
 
 The host keys saved devices by `(driver ID, instance ID)`, independently of the
 model ID. One model may have many instances. Discovery is refreshed every two
@@ -139,7 +161,7 @@ pending controls per instance. Driver-specific flags and daemon behavior belong 
 
 ## Presets and layers
 
-Devices choose a default preset and can follow existing application bindings.
+Devices choose a default preset; matching application bindings always take priority.
 Only presets with a matching model ID are applied. Settings for unavailable
 devices and unknown element IDs are preserved.
 

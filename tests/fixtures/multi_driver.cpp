@@ -61,7 +61,15 @@ public:
                 Ambient::DeviceCapability::Color | Ambient::DeviceCapability::PerStripColor, { }, { },
                 { { Ambient::FirstStripId, "Strip", { { 7, "1", { } }, { 42, "2", { } }, { 1, "3", { } } } } }
             };
-            devices.append({ id, d, { } });
+            const auto steps = qApp->property(("test." + id + ".brightnessSteps").toUtf8());
+            if (steps.isValid()) {
+                d.capabilities = Ambient::DeviceCapability::Brightness;
+                d.keys = { { 7, "Keyboard", { 0, 0, 1, 1 } } };
+                d.strips.clear();
+            }
+            devices.append({ id, d,
+                { { "DeviceClaims", qApp->property(("test." + id + ".claims").toUtf8()) },
+                    { "BrightnessSteps", steps } } });
         }
         return devices;
     }

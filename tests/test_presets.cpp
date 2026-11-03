@@ -27,6 +27,94 @@ private Q_SLOTS:
         QVERIFY(!savePresets(c, &error));
         QVERIFY(!QFile::exists(presetDirectory() + "/settings-v2.json"));
     }
+    void brightnessPresetsRoundTripWithDefaultAndStrictRange()
+    {
+        EffectPreset effect;
+        effect.id = "dim";
+        effect.name = "Dim";
+        effect.type = "brightness";
+        effect.brightness = 35;
+        QString error;
+        auto json = effectPresetJson(effect);
+        auto parsed = parseEffectPreset(QJsonDocument(json).toJson(), &error);
+        QVERIFY2(parsed, qPrintable(error));
+        QCOMPARE(*parsed, effect);
+        json["options"] = QJsonObject();
+        parsed = parseEffectPreset(QJsonDocument(json).toJson(), &error);
+        QVERIFY(parsed);
+        QCOMPARE(parsed->brightness, 100);
+        for (const auto& bad : QJsonArray { -1, 101, 1.5, "35", true, QJsonValue::Null }) {
+            json["options"] = QJsonObject { { "brightness", bad } };
+            QVERIFY(!parseEffectPreset(QJsonDocument(json).toJson(), &error));
+        }
+        auto c = defaultCollection("fixture");
+        c.effects.append(effect);
+        c.presets[0].effects[DefaultAssignment] = { { DefaultEffectId }, { effect.id } };
+        auto local = effect;
+        local.id = "local-dim";
+        local.brightness = 60;
+        c.presets[0].localEffects.append(local);
+        c.presets[0].effects[9] = { { DefaultEffectId }, { local.id } };
+        QVERIFY2(savePresets(c, &error), qPrintable(error));
+        QCOMPARE(*loadPresets(defaultCollection("fixture"), &error), c);
+        QTemporaryDir dir;
+        QVERIFY(exportPreset(c.presets[0], c.effects, dir.filePath("preset.json"), &error));
+        const auto bundle = importPreset(dir.filePath("preset.json"), &error);
+        QVERIFY2(bundle, qPrintable(error));
+        QCOMPARE(bundle->keyboard, c.presets[0]);
+        QVERIFY(bundle->effects.contains(effect));
+        QVERIFY(exportEffectPreset(effect, dir.filePath("effect.json"), &error));
+        QCOMPARE(*importEffectPreset(dir.filePath("effect.json"), &error), effect);
+    }
+    void brightnessFiltersRespectOrderOpacityAndNotificationOverrides()
+    {
+        DeviceDescription d { "fixture", "Fixture",
+            DeviceCapability::Color | DeviceCapability::Brightness | DeviceCapability::PerKeyColor
+                | DeviceCapability::Lightbar | DeviceCapability::PerStripColor,
+            { { 1, "A", { 0, 0, 1, 1 } }, { 2, "B", { 1, 0, 1, 1 } } }, { } };
+        d.strips = { { FirstStripId, "Strip", { { 100, "1", { } }, { 101, "2", { } } } } };
+        auto c = defaultCollection(d.id);
+        auto& p = c.presets[0];
+        EffectPreset solid, dim;
+        solid.id = "color";
+        solid.type = "solid";
+        solid.solidColor = QColor(200, 100, 40);
+        dim.id = "dim";
+        dim.type = "brightness";
+        dim.brightness = 50;
+        p.effects[DefaultAssignment] = { { solid.id }, { dim.id } };
+        p.effects[2] = { { dim.id }, { solid.id } };
+        p.effects[100] = { { solid.id }, { dim.id, 50 } };
+        p.effects[101] = { };
+        EffectPalette palette;
+        palette.configure({ solid, dim }, { solid.id, dim.id });
+        QCOMPARE(palette.samplingFps(), 0);
+        QCOMPARE(palette.ledFps(), 0);
+        auto frame = [&] {
+            return lightingColors(p, deviceKeyStyles(p, d, { }), d, palette.colors(),
+                deviceEffects(p, d, { }), { { "notify", Qt::red } }, palette.brightnessFilters());
+        };
+        QCOMPARE(frame().keys, (QList<QColor> { QColor(100, 50, 20), solid.solidColor }));
+        QCOMPARE(frame().strips[FirstStripId], (QList<QColor> { QColor(150, 75, 30), Qt::black }));
+        p.effectOverrides[1] = { { "notify" } };
+        QCOMPARE(frame().keys[0], QColor(Qt::red));
+        p.effectOverrides.clear();
+        // Uniform/brightness-only devices use the same default list, without per-key selection.
+        d.capabilities = DeviceCapability::Brightness;
+        d.strips.clear();
+        QCOMPARE(frame().uniform, QColor(100, 50, 20));
+        dim.brightness = 0;
+        palette.configure({ solid, dim }, { solid.id, dim.id });
+        QCOMPARE(frame().uniform, QColor(Qt::black));
+        dim.brightness = 100;
+        palette.configure({ solid, dim }, { solid.id, dim.id });
+        QCOMPARE(frame().uniform, solid.solidColor);
+        // Static filters remain defined while battery policy freezes screen-derived colors.
+        palette.configure({ dim }, { }, { true, true, true });
+        QCOMPARE(palette.brightnessFilters().value(dim.id), 100);
+        QCOMPARE(palette.samplingFps(), 0);
+        QCOMPARE(palette.ledFps(), 0);
+    }
     void savedSnapshotIsCheckedDuringPublication()
     {
         const auto original = defaultCollection("test");
@@ -180,6 +268,61 @@ private Q_SLOTS:
         QVERIFY2(restored, qPrintable(error));
         QCOMPARE(*restored, p);
     }
+    void legacyAutomaticDevicePresetBecomesAnExplicitReference()
+    {
+        auto c = defaultCollection("fixture");
+        c.devices = QList<DeviceConfiguration> { { "driver", "instance", "fixture", "Device", { }, true } };
+        QString error;
+        QVERIFY2(savePresets(c, &error), qPrintable(error));
+        QFile file(presetDirectory() + "/settings-v2.json");
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        auto index = QJsonDocument::fromJson(file.readAll()).object();
+        file.close();
+        auto devices = index["devices"].toArray();
+        auto device = devices[0].toObject();
+        QVERIFY(device["preset"].isNull());
+        QCOMPARE(*loadPresets(defaultCollection("fixture"), &error), c);
+        device["preset"] = ""; // Previous automatic-selection format.
+        devices[0] = device;
+        index["devices"] = devices;
+        QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        file.write(QJsonDocument(index).toJson());
+        file.close();
+        auto loaded = loadPresets(defaultCollection("fixture"), &error);
+        QVERIFY2(loaded, qPrintable(error));
+        QCOMPARE(loaded->devices->first().presetId, c.defaultId);
+    }
+    void applicationBindingsAlwaysOverrideDeviceDefault()
+    {
+        auto c = defaultCollection("fixture");
+        auto application = c.presets.first();
+        application.id = "editor";
+        c.presets.append(application);
+        c.rules.append({ "Editor", "editor", application.id, true });
+        c.devices = QList<DeviceConfiguration> { { "driver", "instance", "fixture", "Device", c.defaultId } };
+        QString error;
+        QVERIFY2(savePresets(c, &error), qPrintable(error));
+        QFile file(presetDirectory() + "/settings-v2.json");
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        auto index = QJsonDocument::fromJson(file.readAll()).object();
+        file.close();
+        auto devices = index["devices"].toArray();
+        auto device = devices[0].toObject();
+        QVERIFY(!device.contains("followApplications"));
+        device["followApplications"] = false; // Retired option must not disable application rules.
+        devices[0] = device;
+        index["devices"] = devices;
+        QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        file.write(QJsonDocument(index).toJson());
+        file.close();
+        const auto loaded = loadPresets(defaultCollection("fixture"), &error);
+        QVERIFY2(loaded, qPrintable(error));
+        QCOMPARE(*loaded, c);
+        const auto& configured = loaded->devices->first();
+        QCOMPARE(devicePreset(*loaded, configured, "editor"), 1);
+        QCOMPARE(devicePreset(*loaded, configured, "other"), 0);
+        QCOMPARE(devicePreset(*loaded, configured, { }), 0);
+    }
     void deviceListRoundTripsAndPreservesExplicitEmpty()
     {
         auto c = defaultCollection("strip");
@@ -187,8 +330,8 @@ private Q_SLOTS:
         QVERIFY(savePresets(c, &error));
         QVERIFY(!loadPresets(defaultCollection(), &error)->devices.has_value());
         c.devices = QList<DeviceConfiguration> { { "driver", "serial:1", "strip", "External", "default", true,
-                                                     false, true, false, true, false },
-            { "driver", "serial:2", "strip", "Offline", "", false, true, false, true } };
+                                                     true, false, true, false },
+            { "driver", "serial:2", "strip", "Offline", "", false, false, true } };
         QVERIFY2(savePresets(c, &error), qPrintable(error));
         QCOMPARE(*loadPresets(defaultCollection(), &error), c);
         auto wrong = c;

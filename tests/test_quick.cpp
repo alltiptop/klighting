@@ -63,6 +63,43 @@ class QuickTest : public QObject
         return dir.isEmpty() || dialog.grab().save(dir + "/" + name + ".png");
     }
 private Q_SLOTS:
+    void brightnessEditorTracksSelectedPreset()
+    {
+        KCMultiDialog dialog;
+        QVERIFY(
+            dialog.addModule(KPluginMetaData(QString(CONFIG_SECTION_DIR) + "/kcm_ambientled_effects.so")));
+        dialog.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&dialog));
+        dialog.resize(1100, 850);
+        auto* host = dialog.findChild<QQuickWidget*>();
+        QVERIFY(host && host->rootObject());
+        auto* module
+            = qobject_cast<KQuickConfigModule*>(host->rootObject()->property("kcm").value<QObject*>());
+        QVERIFY(module);
+        QTRY_COMPARE(module->depth(), 2);
+        auto* settings = module->property("controller").value<QObject*>();
+        auto* add = module->mainUi()->findChild<QObject*>("AddBrightnessEffect");
+        QVERIFY(settings && add);
+        QVERIFY(QMetaObject::invokeMethod(add, "triggered"));
+        auto* editor = module->subPage(0);
+        QObject *slider = nullptr, *field = nullptr;
+        QTRY_VERIFY((slider = editor->findChild<QObject*>("BrightnessSlider")));
+        QTRY_VERIFY((field = editor->findChild<QObject*>("BrightnessValue")));
+        const int first = settings->property("selectedEffect").toInt();
+        QCOMPARE(slider->property("value").toInt(), 100);
+        slider->setProperty("value", 35);
+        QVERIFY(QMetaObject::invokeMethod(slider, "moved"));
+        QTRY_COMPARE(field->property("value").toInt(), 35);
+        QCOMPARE(settings->property("effectPreset").toMap()["brightness"].toInt(), 35);
+        QVERIFY(QMetaObject::invokeMethod(add, "triggered"));
+        QTRY_COMPARE(slider->property("value").toInt(), 100);
+        field->setProperty("value", 0);
+        QVERIFY(QMetaObject::invokeMethod(field, "valueModified"));
+        QTRY_COMPARE(slider->property("value").toInt(), 0);
+        settings->setProperty("selectedEffect", first);
+        QTRY_COMPARE(field->property("value").toInt(), 35);
+        QTRY_COMPARE(slider->property("value").toInt(), 35);
+    }
     void solidColorSwitching()
     {
         KCMultiDialog dialog;

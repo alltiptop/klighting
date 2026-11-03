@@ -132,7 +132,7 @@ KCMUtils.AbstractKCM {
     Kirigami.PlaceholderMessage {
         anchors.centerIn: parent
         explanation: qsTranslate("AmbientLed.EffectPage",
-                                 "Add a Solid Color, Ambient or Notifications preset, then assign it to keys or the lightbar.")
+                                 "Add an effect preset, then assign it to keys or the lightbar.")
         text: qsTranslate("AmbientLed.EffectPage", "No effect presets")
         visible: page.controller.selectedEffect < 0
         width: parent.width - Kirigami.Units.largeSpacing * 2
@@ -141,10 +141,23 @@ KCMUtils.AbstractKCM {
     Loader {
         active: page.controller.selectedEffect >= 0
         anchors.fill: parent
-        sourceComponent: page.controller.effectPreset.type === "notifications" ? notificationsEditor :
-                                                                                 page.controller.effectPreset.type
-                                                                                 === "solid" ? solidEditor :
-                                                                                               ambientEditor
+        sourceComponent: page.controller.effectPreset.type === "brightness" ? brightnessEditor :
+                                                                              page.controller.effectPreset.type
+                                                                              === "notifications"
+                                                                              ? notificationsEditor :
+                                                                                page.controller.effectPreset.type
+                                                                                === "solid" ? solidEditor :
+                                                                                              ambientEditor
+    }
+
+    Component {
+        id: brightnessEditor
+
+        BrightnessPage {
+            controller: page.controller
+            navigator: page.navigator
+            recorder: page.recorder
+        }
     }
 
     Component {

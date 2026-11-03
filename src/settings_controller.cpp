@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "settings_controller.h"
-#include "effect_names.h"
 #include <KApplicationTrader>
 #include <KConfigGroup>
 #include <KService>
@@ -9,9 +8,7 @@
 #include <QDBusMessage>
 #include <QDBusPendingCallWatcher>
 #include <QDBusPendingReply>
-#include <QDBusVariant>
 #include <QIcon>
-#include <QPointer>
 #include <QUuid>
 #include <algorithm>
 
@@ -21,8 +18,16 @@ SettingsController::SettingsController(QObject* parent)
     : QObject(parent)
     , m_config(KSharedConfig::openConfig("kwinrc"))
     , m_effect(new EffectControl(this))
+    , m_service(new ServiceControl(this))
 {
     connect(m_effect, &EffectControl::changed, this, &SettingsController::changed);
+    connect(m_service, &ServiceControl::changed, this, &SettingsController::changed);
+    connect(m_service, &ServiceControl::finished, this, [this] {
+        if (!m_service->error().isEmpty()) {
+            m_error = m_service->error();
+            Q_EMIT changed();
+        }
+    });
     connect(&m_layerKeys, &LayerKeyTracker::stateChanged, this, [this] {
         updatePreview();
         Q_EMIT pressedKeysChanged();
@@ -31,6 +36,10 @@ SettingsController::SettingsController(QObject* parent)
     connect(this, &SettingsController::contentChanged, this, [this] { updatePreview(true); });
     m_fallback = defaultCollection(m_driver.description().id);
     load();
+    m_discoveryTimer.setSingleShot(true);
+    connect(&m_discoveryTimer, &QTimer::timeout, this, &SettingsController::refreshDevices);
+    if (m_driver.discoveryPending())
+        m_discoveryTimer.start(50);
 }
 SettingsController::~SettingsController()
 {
@@ -85,12 +94,16 @@ QVariantList SettingsController::rules() const
 QVariantMap SettingsController::preset() const
 {
     const auto& p = current();
+    QStringList defaultDevices;
+    for (const auto& device : configured())
+        if (device.presetId == p.id)
+            defaultDevices.append(device.name);
     QVariantList layers;
     for (const auto& l : p.layers)
         layers << QVariantMap { { "name", l.name }, { "conditions", l.conditions },
             { "summary", layerLabel(l.conditions) } };
     return { { "id", p.id }, { "name", p.name }, { "deviceId", p.keyboardDeviceId }, { "layers", layers },
-        { "defaultEffectId", p.defaultEffectId } };
+        { "defaultEffectId", p.defaultEffectId }, { "defaultDevices", defaultDevices } };
 }
 QVariantList SettingsController::keys() const
 {
@@ -115,6 +128,11 @@ QVariantMap SettingsController::device() const
         { "bodyColor", d.bodyColor.isValid() ? d.bodyColor.name() : QString() },
         { "keyColor", d.keyColor.isValid() ? d.keyColor.name() : QString() },
         { "color", d.capabilities.testFlag(DeviceCapability::Color) },
+        { "brightness", d.capabilities.testFlag(DeviceCapability::Brightness) },
+        { "ambient",
+            d.capabilities.testFlag(DeviceCapability::Color)
+                || (d.capabilities.testFlag(DeviceCapability::Brightness)
+                    && m_driver.instance().options.value("BrightnessSteps").toInt() >= 4) },
         { "perKey", d.capabilities.testFlag(DeviceCapability::PerKeyColor) },
         { "lightbar", d.capabilities.testFlag(DeviceCapability::Lightbar) || !d.strips.isEmpty() },
         { "perStrip", d.capabilities.testFlag(DeviceCapability::PerStripColor) },
@@ -266,7 +284,7 @@ void SettingsController::save()
     m_error.clear();
     saveLightbar();
     m_effect->apply();
-    notifyEffects();
+    m_service->reload();
     Q_EMIT changed();
 }
 void SettingsController::defaults()
@@ -278,6 +296,7 @@ void SettingsController::defaults()
         setDevice("pauseOnLowBattery", false);
         setDevice("lightbarOffOnBattery", false);
         setDevice("lightbarOffOnLowBattery", false);
+        setDevice("brightnessChannel", "average");
     } else if (m_section == "effects") {
         if (m_selectedEffect >= 0) {
             auto& effect = m_collection.effects[m_selectedEffect];
@@ -286,6 +305,8 @@ void SettingsController::defaults()
                 effect.notification = NotificationOptions();
             else if (effect.type == "solid")
                 effect.solidColor = Qt::white;
+            else if (effect.type == "brightness")
+                effect.brightness = 100;
             else
                 effect.ambient = AmbientOptions();
         }
@@ -353,12 +374,10 @@ bool SettingsController::removePreset()
             Q_EMIT changed();
             return false;
         }
-    for (const auto& device : configured())
-        if (device.presetId == current().id) {
-            m_error = tr("Select another preset for device \"%1\" first.").arg(device.name);
-            Q_EMIT changed();
-            return false;
-        }
+    const auto removedId = current().id;
+    for (auto& device : editDevices())
+        if (device.presetId == removedId)
+            device.presetId.clear();
     const bool wasDefault = current().id == m_collection.defaultId;
     m_collection.presets.removeAt(m_selected);
     m_selected = 0;
@@ -558,14 +577,21 @@ QVariantList SettingsController::keyPreview(int layer) const
         const auto list = selectionEffects(layer, { id })["items"].toList();
         QString notificationId;
         bool above = false, ambient = false;
+        double brightness = 1.0;
         for (const auto& value : list) {
             const auto entry = value.toMap();
             if (entry["type"] == "notifications") {
                 notificationId = entry["id"].toString();
                 above |= entry["above"].toBool();
-            } else if (entry["type"] == "ambient")
+            } else if (entry["type"] == "brightness") {
+                const auto options = assignedEffectOptions(entry["id"].toString());
+                brightness *= 1.0
+                    - (100 - options.value("brightness", 100).toInt()) * entry["opacity"].toInt() / 10000.0;
+            } else if (entry["type"] == "ambient") {
                 ambient = true;
-            else if (entry["type"] == "solid") {
+                brightness = 1.0;
+            } else if (entry["type"] == "solid") {
+                brightness = 1.0;
                 auto color = entry["color"].toString();
                 for (const auto& effect : current().localEffects)
                     if (effect.id == entry["id"].toString())
@@ -583,7 +609,7 @@ QVariantList SettingsController::keyPreview(int layer) const
             { "notificationAbove", above }, { "mode", int(style.mode) },
             { "assignmentMode", inherited ? int(KeyMode::Inherit) : int(style.mode) },
             { "color", style.color.name() }, { "opacity", qRound(style.color.alphaF() * 100) },
-            { "effectId", style.effectId }, { "inherited", inherited } };
+            { "brightness", brightness }, { "effectId", style.effectId }, { "inherited", inherited } };
     };
     for (const auto& k : m_driver.description().keys)
         append(k.id, editableKeys());
@@ -790,43 +816,6 @@ void SettingsController::selectWindow(int index)
             }
         }
         Q_EMIT changed();
-    });
-}
-void SettingsController::notifyEffects()
-{
-    auto call = QDBusMessage::createMethodCall(
-        "org.kde.KWin", "/Effects", "org.freedesktop.DBus.Properties", "Get");
-    call << QStringLiteral("org.kde.kwin.Effects") << QStringLiteral("loadedEffects");
-    auto* watcher = new QDBusPendingCallWatcher(
-        QDBusConnection::sessionBus().asyncCall(call, 1500), QCoreApplication::instance());
-    const QPointer<SettingsController> self(this);
-    connect(watcher, &QDBusPendingCallWatcher::finished, watcher, [self](auto* watcher) {
-        const QDBusPendingReply<QDBusVariant> reply = *watcher;
-        watcher->deleteLater();
-        if (reply.isError()) {
-            if (self) {
-                self->m_error = tr("Settings saved, but KWin could not be reached.");
-                Q_EMIT self->changed();
-            }
-            return;
-        }
-        for (const auto& name : qdbus_cast<QStringList>(reply.value().variant())) {
-            if (!isAmbientEffectName(name))
-                continue;
-            auto call = QDBusMessage::createMethodCall(
-                "org.kde.KWin", "/Effects", "org.kde.kwin.Effects", "reconfigureEffect");
-            call << name;
-            auto* update = new QDBusPendingCallWatcher(
-                QDBusConnection::sessionBus().asyncCall(call, 1500), QCoreApplication::instance());
-            connect(update, &QDBusPendingCallWatcher::finished, update, [self](auto* update) {
-                const QDBusPendingReply<> reply = *update;
-                update->deleteLater();
-                if (reply.isError() && self) {
-                    self->m_error = tr("Settings saved, but could not be applied to the running effect.");
-                    Q_EMIT self->changed();
-                }
-            });
-        }
     });
 }
 }

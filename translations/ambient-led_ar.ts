@@ -22,26 +22,26 @@
         <translation>KWin غير متاح: %1</translation>
     </message>
     <message>
-        <location line="+11"/>
-        <source>Install the Ambient LED effect to enable lighting.</source>
-        <translation>ثبّت تأثير Ambient LED لتفعيل الإضاءة.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+12"/>
         <source>Multiple or outdated Ambient LED effects were found. Reload the installed effect first.</source>
         <translation>عُثر على تأثيرات Ambient LED متعددة أو قديمة. أعد تحميل التأثير المثبّت أولًا.</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="-1"/>
+        <source>Install the Ambient LED effect to enable screen capture.</source>
+        <translation>ثبّت تأثير Ambient LED لتفعيل التقاط الشاشة.</translation>
+    </message>
+    <message>
+        <location line="+17"/>
         <location line="+87"/>
-        <source>Ambient LED is running.</source>
-        <translation>Ambient LED يعمل.</translation>
+        <source>Ambient screen capture is running.</source>
+        <translation>التقاط الشاشة في Ambient قيد التشغيل.</translation>
     </message>
     <message>
         <location line="-87"/>
         <location line="+87"/>
-        <source>Ambient LED is stopped.</source>
-        <translation>Ambient LED متوقف.</translation>
+        <source>Ambient screen capture is stopped.</source>
+        <translation>التقاط الشاشة في Ambient متوقف.</translation>
     </message>
     <message>
         <location line="-85"/>
@@ -213,27 +213,50 @@
     </message>
 </context>
 <context>
+    <name>Ambient::ServiceControl</name>
+    <message>
+        <location filename="../src/service_control.cpp" line="+34"/>
+        <source>Lighting service is stopped. Apply settings to start it.</source>
+        <translation>خدمة الإضاءة متوقفة. طبّق الإعدادات لتشغيلها.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Lighting is paused: %1</source>
+        <translation>الإضاءة متوقفة مؤقتًا: %1</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Lighting service is running.</source>
+        <translation>خدمة الإضاءة قيد التشغيل.</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>Settings saved, but the lighting service could not apply them: %1</source>
+        <translation>حُفظت الإعدادات، لكن تعذّر على خدمة الإضاءة تطبيقها: %1</translation>
+    </message>
+</context>
+<context>
     <name>Ambient::SettingsController</name>
     <message>
         <location filename="../src/settings_effects.cpp" line="+231"/>
-        <location line="+301"/>
+        <location line="+303"/>
         <source>Solid Color</source>
         <translation>لون ثابت</translation>
     </message>
     <message>
-        <location line="-300"/>
+        <location line="-302"/>
         <source>Ambient</source>
         <translation>الإضاءة المحيطية</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <location line="+526"/>
+        <location line="+2"/>
+        <location line="+527"/>
         <source>Notifications</source>
         <translation>الإشعارات</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+337"/>
-        <location filename="../src/settings_effects.cpp" line="-480"/>
+        <location filename="../src/settings_controller.cpp" line="+358"/>
+        <location filename="../src/settings_effects.cpp" line="-481"/>
         <source>%1 copy</source>
         <translation>نسخة من %1</translation>
     </message>
@@ -248,7 +271,7 @@
         <translation>إعداد مسبق جديد للون ثابت</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>New Ambient preset</source>
         <translation>إعداد مسبق جديد للإضاءة المحيطية</translation>
     </message>
@@ -258,17 +281,17 @@
         <translation>يستخدم إعداد لوحة المفاتيح «%1» هذا التأثير. غيّر تعييناته أولًا.</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="-82"/>
+        <location filename="../src/settings_controller.cpp" line="-85"/>
         <source>Cannot save unreadable preset files. Repair them and reset.</source>
         <translation>لا يمكن حفظ ملفات إعدادات مسبقة غير مقروءة. أصلحها ثم أعد الضبط.</translation>
     </message>
     <message>
-        <location filename="../src/presets.cpp" line="+591"/>
+        <location filename="../src/presets.cpp" line="+619"/>
         <source>Presets changed on disk. Reset before saving to preserve those changes.</source>
         <translation>تغيّرت الإعدادات المسبقة على القرص. أعد الضبط قبل الحفظ للحفاظ على تلك التغييرات.</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+82"/>
+        <location filename="../src/settings_controller.cpp" line="+85"/>
         <source>New preset</source>
         <translation>إعداد مسبق جديد</translation>
     </message>
@@ -283,12 +306,7 @@
         <translation>أزل ارتباطات التطبيقات بهذا الإعداد المسبق أولًا.</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>Select another preset for device &quot;%1&quot; first.</source>
-        <translation>اختر إعدادًا مسبقًا آخر للجهاز «%1» أولًا.</translation>
-    </message>
-    <message>
-        <location line="+32"/>
+        <location line="+36"/>
         <source>Import would exceed the limit of 64 effect presets.</source>
         <translation>سيتجاوز الاستيراد حد 64 إعدادًا مسبقًا للتأثيرات.</translation>
     </message>
@@ -298,20 +316,20 @@
         <translation>الإضاءة المحيطية الافتراضية</translation>
     </message>
     <message>
-        <location line="-474"/>
+        <location line="-476"/>
         <location line="+165"/>
-        <location line="+356"/>
+        <location line="+358"/>
         <source>Use at most 32 effects per element and layer.</source>
         <translation>استخدم 32 تأثيرًا كحد أقصى لكل عنصر وطبقة.</translation>
     </message>
     <message>
-        <location line="-400"/>
+        <location line="-402"/>
         <location line="+38"/>
         <source>Use at most 128 local effects per preset.</source>
         <translation>استخدم 128 تأثيرًا محليًا كحد أقصى لكل إعداد مسبق.</translation>
     </message>
     <message>
-        <location line="+533"/>
+        <location line="+535"/>
         <source>This keyboard does not expose F9-F12 lighting zones.</source>
         <translation>لا توفر لوحة المفاتيح مناطق إضاءة F9–F12.</translation>
     </message>
@@ -331,7 +349,7 @@
         <translation>توجد طبقة بهذه المجموعة من المفاتيح بالفعل.</translation>
     </message>
     <message>
-        <location line="+163"/>
+        <location line="+170"/>
         <source>All keys</source>
         <translation>كل المفاتيح</translation>
     </message>
@@ -361,7 +379,7 @@
         <translation>هذه النافذة ليس لها فئة تطبيق.</translation>
     </message>
     <message>
-        <location filename="../src/settings_devices.cpp" line="+229"/>
+        <location filename="../src/settings_devices.cpp" line="+245"/>
         <source>Reading lightbar settings…</source>
         <translation>جارٍ قراءة إعدادات شريط الإضاءة…</translation>
     </message>
@@ -381,14 +399,14 @@
         <translation>تعذّر حفظ إعداد الشريط: %1</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+28"/>
-        <source>Settings saved, but KWin could not be reached.</source>
-        <translation>حُفظت الإعدادات، لكن تعذّر الاتصال بـKWin.</translation>
+        <location filename="../src/settings_effects.cpp" line="-520"/>
+        <source>Brightness</source>
+        <translation>السطوع</translation>
     </message>
     <message>
-        <location line="+17"/>
-        <source>Settings saved, but could not be applied to the running effect.</source>
-        <translation>حُفظت الإعدادات، لكن تعذّر تطبيقها على التأثير الجاري.</translation>
+        <location line="+50"/>
+        <source>New Brightness preset</source>
+        <translation>إعداد سطوع مسبق جديد</translation>
     </message>
 </context>
 <context>
@@ -584,7 +602,7 @@
         <translation>لون ثابت</translation>
     </message>
     <message>
-        <location line="+60"/>
+        <location line="+77"/>
         <source>Intensity:</source>
         <translation>الشدة:</translation>
     </message>
@@ -614,7 +632,7 @@
         <translation>الإعدادات المسبقة المحفوظة</translation>
     </message>
     <message>
-        <location line="+47"/>
+        <location line="+51"/>
         <source>New Solid Color</source>
         <translation>لون ثابت جديد</translation>
     </message>
@@ -642,6 +660,36 @@
         <location line="+9"/>
         <source>These notifications override every layer, including unlit keys.</source>
         <translation>تتجاوز هذه الإشعارات جميع الطبقات، بما فيها المفاتيح غير المضاءة.</translation>
+    </message>
+    <message>
+        <location line="-57"/>
+        <source>New Brightness</source>
+        <translation>سطوع جديد</translation>
+    </message>
+</context>
+<context>
+    <name>AmbientLed.BrightnessForm</name>
+    <message>
+        <location filename="../ui/BrightnessForm.qml" line="+18"/>
+        <location filename="../ui/BrightnessPage.qml" line="+8"/>
+        <location filename="../ui/EffectsPage.qml" line="+49"/>
+        <source>Brightness</source>
+        <translation>السطوع</translation>
+    </message>
+    <message>
+        <location line="-3"/>
+        <source>Brightness:</source>
+        <translation>السطوع:</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Brightness in percent</source>
+        <translation>السطوع بالنسبة المئوية</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Scales colors from earlier effects in the list. 100% keeps their brightness.</source>
+        <translation>يضبط ألوان التأثيرات السابقة في القائمة. تحافظ نسبة 100% على سطوعها.</translation>
     </message>
 </context>
 <context>
@@ -717,8 +765,8 @@
     </message>
     <message>
         <location line="-2"/>
-        <source>Add a Solid Color, Ambient or Notifications preset, then assign it to keys or the lightbar.</source>
-        <translation>أضف إعدادًا مسبقًا للون ثابت أو الإضاءة المحيطية أو الإشعارات، ثم عيّنه للمفاتيح أو الشريط.</translation>
+        <source>Add an effect preset, then assign it to keys or the lightbar.</source>
+        <translation>أضف إعداد تأثير مسبقًا، ثم عيّنه للمفاتيح أو شريط الإضاءة.</translation>
     </message>
     <message>
         <location line="-65"/>
@@ -767,12 +815,12 @@
 <context>
     <name>AmbientLed.EffectsPage</name>
     <message>
-        <location filename="../ui/EffectsPage.qml" line="+29"/>
+        <location filename="../ui/EffectsPage.qml" line="-20"/>
         <source>Effects</source>
         <translation>التأثيرات</translation>
     </message>
     <message>
-        <location line="+125"/>
+        <location line="+136"/>
         <source>Import Effect Preset</source>
         <translation>استيراد إعداد مسبق للتأثير</translation>
     </message>
@@ -792,12 +840,12 @@
         <translation>تصفية التأثيرات</translation>
     </message>
     <message>
-        <location line="-60"/>
+        <location line="-71"/>
         <source>Add…</source>
         <translation>إضافة…</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+24"/>
         <source>Solid Color</source>
         <translation>لون ثابت</translation>
     </message>
@@ -912,7 +960,7 @@
 <context>
     <name>AmbientLed.KeyboardView</name>
     <message>
-        <location filename="../ui/KeyboardView.qml" line="+55"/>
+        <location filename="../ui/KeyboardView.qml" line="+56"/>
         <source>Keyboard layout</source>
         <translation>تخطيط لوحة المفاتيح</translation>
     </message>
@@ -989,7 +1037,12 @@
 <context>
     <name>AmbientLed.LightingPage</name>
     <message>
-        <location filename="../ui/LightingPage.qml" line="+22"/>
+        <location filename="../ui/LightingPage.qml" line="+85"/>
+        <source>Disable %1 to use this device.</source>
+        <translation>عطّل %1 لاستخدام هذا الجهاز.</translation>
+    </message>
+    <message>
+        <location line="-63"/>
         <source>Devices</source>
         <translation>الأجهزة</translation>
     </message>
@@ -999,22 +1052,17 @@
         <translation>إضافة جهاز إضاءة</translation>
     </message>
     <message>
-        <location line="+19"/>
-        <source>Enable Ambient LED effect</source>
-        <translation>تفعيل تأثير Ambient LED</translation>
-    </message>
-    <message>
-        <location line="+14"/>
+        <location line="+39"/>
         <source>Lighting will resume when this device reconnects.</source>
         <translation>ستُستأنف الإضاءة عند إعادة توصيل الجهاز.</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>Enable this device</source>
         <translation>تفعيل هذا الجهاز</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+13"/>
         <source>Name:</source>
         <translation>الاسم:</translation>
     </message>
@@ -1025,16 +1073,11 @@
     </message>
     <message>
         <location line="+10"/>
-        <source>Default for this device</source>
-        <translation>الافتراضي لهذا الجهاز</translation>
+        <source>None</source>
+        <translation>بلا</translation>
     </message>
     <message>
-        <location line="+16"/>
-        <source>Follow application bindings</source>
-        <translation>اتباع ارتباطات التطبيقات</translation>
-    </message>
-    <message>
-        <location line="+10"/>
+        <location line="+50"/>
         <source>Enable lightbar</source>
         <translation>تفعيل شريط الإضاءة</translation>
     </message>
@@ -1092,6 +1135,36 @@
         <location line="+5"/>
         <source>Add a device to configure its lighting.</source>
         <translation>أضف جهازًا لضبط إضاءته.</translation>
+    </message>
+    <message>
+        <location line="-132"/>
+        <source>Brightness source:</source>
+        <translation>مصدر السطوع:</translation>
+    </message>
+    <message>
+        <location line="-74"/>
+        <source>Enable Ambient screen capture</source>
+        <translation>تفعيل التقاط الشاشة في Ambient</translation>
+    </message>
+    <message>
+        <location line="+82"/>
+        <source>RGB average</source>
+        <translation>متوسط RGB</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Red channel</source>
+        <translation>القناة الحمراء</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Green channel</source>
+        <translation>القناة الخضراء</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Blue channel</source>
+        <translation>القناة الزرقاء</translation>
     </message>
 </context>
 <context>
@@ -1259,7 +1332,7 @@
     </message>
     <message>
         <location line="+7"/>
-        <location line="+23"/>
+        <location line="+27"/>
         <source>Remove</source>
         <translation>إزالة</translation>
     </message>
@@ -1274,12 +1347,12 @@
         <translation>إعدادات الإضاءة المسبقة (*.json)</translation>
     </message>
     <message>
-        <location line="-56"/>
+        <location line="-57"/>
         <source>Remove this preset? You can undo pending changes with Reset.</source>
         <translation>إزالة هذا الإعداد المسبق؟ يمكنك التراجع عن التغييرات المعلقة باستخدام إعادة الضبط.</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+18"/>
         <source>Cancel</source>
         <translation>إلغاء</translation>
     </message>
@@ -1287,6 +1360,11 @@
         <location line="+15"/>
         <source>Name:</source>
         <translation>الاسم:</translation>
+    </message>
+    <message>
+        <location line="-36"/>
+        <source>Remove this preset? Devices using it will have no default preset. You can undo pending changes with Reset.</source>
+        <translation>هل تريد إزالة هذا الإعداد المسبق؟ لن يكون للأجهزة التي تستخدمه إعداد مسبق افتراضي. يمكنك التراجع عن التغييرات المعلقة باستخدام إعادة الضبط.</translation>
     </message>
 </context>
 <context>

@@ -71,9 +71,10 @@ void EffectControl::refresh()
                     loaded << name;
             if (installed.size() != 1 || loaded.size() > 1) {
                 m_available = m_loaded = false;
-                m_status = installed.isEmpty() ? tr("Install the Ambient LED effect to enable lighting.")
-                                               : tr("Multiple or outdated Ambient LED effects were found. "
-                                                    "Reload the installed effect first.");
+                m_status = installed.isEmpty()
+                    ? tr("Install the Ambient LED effect to enable screen capture.")
+                    : tr("Multiple or outdated Ambient LED effects were found. "
+                         "Reload the installed effect first.");
             } else {
                 const auto name = installed.first();
                 if (name != m_name)
@@ -88,7 +89,8 @@ void EffectControl::refresh()
                     m_saved = saved;
                     m_enabled = m_loaded;
                 }
-                m_status = m_loaded ? tr("Ambient LED is running.") : tr("Ambient LED is stopped.");
+                m_status = m_loaded ? tr("Ambient screen capture is running.")
+                                    : tr("Ambient screen capture is stopped.");
                 if (!m_pending && saved != m_loaded)
                     m_status += tr(" The saved setting differs from the running state. Toggle the checkbox "
                                    "and apply to synchronize it.");
@@ -175,8 +177,9 @@ void EffectControl::complete(const QString& error)
     m_busy = false;
     m_error = error;
     m_pending = !error.isEmpty();
-    m_status = error.isEmpty() ? (m_loaded ? tr("Ambient LED is running.") : tr("Ambient LED is stopped."))
-                               : error;
+    m_status = error.isEmpty()
+        ? (m_loaded ? tr("Ambient screen capture is running.") : tr("Ambient screen capture is stopped."))
+        : error;
     Q_EMIT changed();
     Q_EMIT finished();
 }

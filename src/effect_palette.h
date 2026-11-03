@@ -19,6 +19,7 @@ public:
     int samplingFps() const;
     int ledFps() const;
     QMap<QString, QColor> colors() const;
+    const QMap<QString, int>& brightnessFilters() const { return m_brightness; }
 
 private:
     struct State {
@@ -30,6 +31,7 @@ private:
     };
     QMap<QString, State> m_states;
     QMap<QString, QColor> m_solids;
+    QMap<QString, int> m_brightness;
     double m_time = 0;
 };
 QSet<QString> activeEffects(const LightingPreset& preset, const KeyboardStyles& styles,
@@ -37,5 +39,6 @@ QSet<QString> activeEffects(const LightingPreset& preset, const KeyboardStyles& 
 using LightingColors = DeviceFrame;
 LightingColors lightingColors(const LightingPreset& preset, const KeyboardStyles& styles,
     const DeviceDescription& device, const QMap<QString, QColor>& palette,
-    const EffectAssignments& assignments = { }, const QMap<QString, QColor>& pulses = { });
+    const EffectAssignments& assignments = { }, const QMap<QString, QColor>& pulses = { },
+    const QMap<QString, int>& brightness = { });
 }

@@ -11,6 +11,25 @@
 
 namespace Ambient
 {
+QStringList deviceClaims(const DiscoveredDevice& device)
+{
+    auto claims = device.instance.options.value("DeviceClaims").toStringList();
+    // API 4's original built-in drivers used this stable instance convention.
+    // Keep their binaries and device-specific metadata unchanged.
+    if (claims.isEmpty() && device.instance.id == "internal" && !device.instance.description.keys.isEmpty())
+        claims.append(QStringLiteral("internal-keyboard"));
+    return claims;
+}
+bool devicesConflict(const DiscoveredDevice& a, const DiscoveredDevice& b)
+{
+    if (a.identity() == b.identity())
+        return false;
+    // Separate LED-class zones are independently addressable by the same driver.
+    if (a.driverId == b.driverId)
+        return false;
+    const auto left = deviceClaims(a), right = deviceClaims(b);
+    return std::any_of(left.begin(), left.end(), [&](const auto& claim) { return right.contains(claim); });
+}
 DeviceEnvironment deviceEnvironment()
 {
     QFile board(QStringLiteral("/sys/class/dmi/id/board_name"));
@@ -172,6 +191,11 @@ const DiscoveredDevice* LoadedDriver::find(const QString& identity) const
         if (device.identity() == identity)
             return &device;
     return nullptr;
+}
+bool LoadedDriver::discoveryPending() const
+{
+    return std::any_of(m_plugins.begin(), m_plugins.end(),
+        [](const auto& plugin) { return plugin.loader->instance()->property("discoveryPending").toBool(); });
 }
 DeviceDriver* LoadedDriver::driver() const
 {

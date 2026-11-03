@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=org.klighting.Service
+Exec=@CMAKE_INSTALL_FULL_BINDIR@/klightingd
+SystemdService=klightingd.service

@@ -105,7 +105,7 @@ namespace
         const auto& a = p.ambient;
         return { { "id", p.id }, { "name", p.name }, { "type", p.type }, { "fps", a.fps },
             { "ledFps", a.ledFps }, { "smoothing", a.smoothing }, { "minimum", a.minimum },
-            { "maximum", a.maximum }, { "temperature", a.temperature },
+            { "maximum", a.maximum }, { "temperature", a.temperature }, { "brightness", p.brightness },
             { "notificationColor", p.notification.color.name() }, { "solidColor", p.solidColor.name() },
             { "pattern", p.notification.pattern }, { "period", p.notification.period },
             { "cycles", p.notification.cycles }, { "urgency", p.notification.urgency },
@@ -211,7 +211,7 @@ QString SettingsController::localizeEffect(
 QString SettingsController::addLocalEffect(int layer, const QVariantList& ids, const QString& type)
 {
     if (layer < -1 || layer >= current().layers.size() || effectIds(ids).isEmpty()
-        || !QStringList { "solid", "ambient", "notifications" }.contains(type))
+        || !QStringList { "solid", "ambient", "notifications", "brightness" }.contains(type))
         return { };
     pruneLocalEffects();
     if (current().localEffects.size() >= 128) {
@@ -230,6 +230,7 @@ QString SettingsController::addLocalEffect(int layer, const QVariantList& ids, c
     effect.type = type;
     effect.name = type == "solid" ? tr("Solid Color")
         : type == "ambient"       ? tr("Ambient")
+        : type == "brightness"    ? tr("Brightness")
                                   : tr("Notifications");
     current().localEffects.append(effect);
     addAssignedEffect(layer, ids, effect.id);
@@ -269,7 +270,7 @@ void SettingsController::setEffectName(const QString& name)
 bool SettingsController::addEffect(const QString& type, bool duplicate)
 {
     if ((type != QLatin1String("ambient") && type != QLatin1String("notifications")
-            && type != QLatin1String("solid"))
+            && type != QLatin1String("solid") && type != QLatin1String("brightness"))
         || m_collection.effects.size() >= 64 || (duplicate && m_selectedEffect < 0))
         return false;
     auto p = duplicate ? m_collection.effects[m_selectedEffect] : EffectPreset();
@@ -279,6 +280,7 @@ bool SettingsController::addEffect(const QString& type, bool duplicate)
     p.name = duplicate            ? tr("%1 copy").arg(p.name)
         : type == "notifications" ? tr("New Notifications preset")
         : type == "solid"         ? tr("New Solid Color preset")
+        : type == "brightness"    ? tr("New Brightness preset")
                                   : tr("New Ambient preset");
     m_collection.effects << p;
     m_selectedEffect = m_collection.effects.size() - 1;
@@ -760,6 +762,14 @@ void SettingsController::addNotificationLayout(const QString& effectId)
         id = m_collection.effects[m_selectedEffect].id;
     }
     addAssignedEffect(-1, ids, id, true);
+}
+void SettingsController::setBrightness(int value, const QString& localId)
+{
+    auto* effect = editableEffect(localId);
+    if (!effect || effect->type != "brightness")
+        return;
+    effect->brightness = std::clamp(value, 0, 100);
+    touch();
 }
 void SettingsController::setAmbient(const QString& key, int value, const QString& localId)
 {

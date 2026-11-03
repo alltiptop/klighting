@@ -374,8 +374,25 @@ ColumnLayout {
                             Loader {
                                 Layout.fillWidth: true
                                 active: row.expanded && !!row.options.id && row.modelData.type !== "solid"
-                                sourceComponent: row.modelData.type === "notifications" ? notificationsForm :
-                                                                                          ambientForm
+                                sourceComponent: row.modelData.type === "brightness" ? brightnessForm :
+                                                                                       row.modelData.type
+                                                                                       === "notifications"
+                                                                                       ? notificationsForm :
+                                                                                         ambientForm
+
+                                Component {
+                                    id: brightnessForm
+
+                                    BrightnessForm {
+                                        options: row.options
+
+                                        onEdited: value => {
+                                            const id = row.editId();
+                                            if (id)
+                                                root.controller.setBrightness(value, id);
+                                        }
+                                    }
+                                }
 
                                 Component {
                                     id: ambientForm
@@ -531,6 +548,10 @@ ColumnLayout {
 
                 Instantiator {
                     model: [
+                        {
+                            type: "brightness",
+                            name: qsTranslate("AmbientLed.AssignedEffects", "New Brightness")
+                        },
                         {
                             type: "solid",
                             name: qsTranslate("AmbientLed.AssignedEffects", "New Solid Color")

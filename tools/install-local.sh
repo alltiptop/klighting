@@ -12,6 +12,7 @@ if [[ $EUID -ne 0 ]]; then
 fi
 source_dir=$(realpath -- "$1")
 plugins=/usr/lib/qt6/plugins/kwin/effects/plugins
+integration=/usr/lib/qt6/plugins/kwin/plugins
 configs=/usr/lib/qt6/plugins/plasma/kcms/systemsettings
 legacy_configs=/usr/lib/qt6/plugins/kwin/effects/configs
 drivers=/usr/lib/qt6/plugins/ambient-led/drivers/v4
@@ -23,6 +24,14 @@ driver_target="$drivers/asus_g615lw.so"
 config_target="$configs/kcm_ambientled.so"
 files=(ambientled.so asus_g615lw.so kcm_ambientled.so kcm_ambientled.desktop org.ambientled.Lighting.desktop settings-ambientled.desktop)
 targets=("$target" "$driver_target" "$config_target" "$apps/kcm_ambientled.desktop" "$apps/org.ambientled.Lighting.desktop" "$categories/settings-ambientled.desktop")
+files+=(klightingd klighting_integration.so org.klighting.Service.service klightingd.service klightingd.desktop)
+targets+=(/usr/bin/klightingd "$integration/klighting_integration.so"
+    /usr/share/dbus-1/services/org.klighting.Service.service
+    /usr/lib/systemd/user/klightingd.service /etc/xdg/autostart/klightingd.desktop)
+for driver in linux_leds hid_lamparray; do
+    files+=("$driver.so")
+    targets+=("$drivers/$driver.so")
+done
 for section in devices presets effects applications; do
     files+=("kcm_ambientled_$section.so" "kcm_ambientled_$section.desktop")
     targets+=("$configs/kcm_ambientled_$section.so" "$apps/kcm_ambientled_$section.desktop")
@@ -43,7 +52,8 @@ if [[ -e "$target" ]]; then
     fi
 fi
 backup_root=/var/lib/kwin-effect-ambient-led/backups
-install -d -m 755 -- "$backup_root" "$drivers"
+install -d -m 755 -- "$backup_root" "$drivers" "$integration" \
+    /usr/share/dbus-1/services /usr/lib/systemd/user /etc/xdg/autostart
 backup=$(mktemp -d "$backup_root/install.XXXXXXXX")
 echo "Backup: $backup"
 for destination in "${targets[@]}"; do
@@ -59,7 +69,7 @@ for i in "${!files[@]}"; do
     temporary=$(mktemp "${targets[$i]%/*}/.ambientled-install.XXXXXXXX")
     staged+=("$temporary")
     mode=644
-    [[ "${files[$i]}" == *.so ]] && mode=755
+    [[ "${files[$i]}" == *.so || "${files[$i]}" == klightingd ]] && mode=755
     install -m "$mode" -- "$source_dir/${files[$i]}" "$temporary"
 done
 for i in "${!files[@]}"; do
@@ -86,7 +96,7 @@ done
 if [[ -f "$legacy_configs/kwin_ambientled_config.so" ]]; then
     mv -- "$legacy_configs/kwin_ambientled_config.so" "$backup/kwin_ambientled_config.so"
 fi
-echo "Installed ambientled.so, its driver and the Lighting settings module."
+echo "Installed klightingd, KWin integration, Ambient capture, drivers and Lighting settings."
 echo "Older plugins were moved to the backup; asusd and user settings were not changed."
 echo "Close and reopen System Settings. Lighting is under Appearance & Style, with Devices, Presets, Effects and Applications sections."
 echo "Standalone settings: kcmshell6 kcm_ambientled"
@@ -97,5 +107,11 @@ echo "  qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect ambientle
 echo "Reload the stable effect:"
 echo "  qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect ambientled"
 echo "  qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.loadEffect ambientled"
-echo "D-Bus loading is temporary. Use Enable Ambient LED effect and Apply to save the startup setting."
+echo "Load the separate desktop integration, then restart the lighting service:"
+echo "  qdbus6 org.kde.KWin /Plugins org.kde.KWin.Plugins.LoadPlugin klighting_integration"
+echo "  systemctl --user daemon-reload"
+echo "  systemctl --user restart klightingd.service"
+echo "  klightingd --status"
+echo "D-Bus effect loading is temporary. Use Enable Ambient screen capture and Apply to save its startup setting."
+echo "Lighting does not require Ambient capture. If the old effect remains loaded, the service pauses output."
 echo "Qt may retain the old library after a reload. Log out and back in to ensure updated native code is used."

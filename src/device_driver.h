@@ -69,6 +69,10 @@ struct DeviceInstance {
     DeviceDescription description;
     // Optional InputKeyCodes: decimal key ID -> Linux evdev code for input preview.
     // Omitted entries have no input indicator; no key-label guessing in the UI.
+    // Optional DeviceClaims: shared physical resource names. Alternative drivers
+    // for the same resource can be listed together, but cannot be enabled together.
+    // Optional BrightnessSteps: number of nonzero brightness levels, excluding Off.
+    // Used to offer Ambient on monochrome devices with at least four steps.
     QVariantMap options;
 };
 struct DeviceEnvironment {

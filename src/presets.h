@@ -72,6 +72,7 @@ struct EffectPreset {
     AmbientOptions ambient;
     NotificationOptions notification;
     QColor solidColor = Qt::white;
+    int brightness = 100;
     bool pauseOnBattery = false, pauseOnLowBattery = false;
     bool operator==(const EffectPreset&) const = default;
 };
@@ -99,9 +100,10 @@ struct ApplicationRule {
 };
 struct DeviceConfiguration {
     QString driverId, instanceId, modelId, name, presetId;
-    bool enabled = true, followApplications = true;
+    bool enabled = true;
     bool pauseOnBattery = false, pauseOnLowBattery = false;
     bool lightbarOffOnBattery = false, lightbarOffOnLowBattery = false;
+    QString brightnessChannel = QStringLiteral("average");
     QString identity() const { return driverId + QLatin1Char(':') + instanceId; }
     bool operator==(const DeviceConfiguration&) const = default;
 };

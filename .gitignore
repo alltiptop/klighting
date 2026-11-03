@@ -7,3 +7,7 @@ CMakeUserPresets.json
 *.user
 
 .directory
+
+# IDE
+.kdev4
+klighting.kdev4

@@ -22,26 +22,26 @@
         <translation>KWin ist nicht verfügbar: %1</translation>
     </message>
     <message>
-        <location line="+11"/>
-        <source>Install the Ambient LED effect to enable lighting.</source>
-        <translation>Installieren Sie den Ambient-LED-Effekt, um die Beleuchtung zu aktivieren.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+12"/>
         <source>Multiple or outdated Ambient LED effects were found. Reload the installed effect first.</source>
         <translation>Mehrere oder veraltete Ambient-LED-Effekte gefunden. Zuerst den installierten Effekt neu laden.</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="-1"/>
+        <source>Install the Ambient LED effect to enable screen capture.</source>
+        <translation>Installieren Sie den Effekt Ambient LED, um die Bildschirmaufnahme zu aktivieren.</translation>
+    </message>
+    <message>
+        <location line="+17"/>
         <location line="+87"/>
-        <source>Ambient LED is running.</source>
-        <translation>Ambient LED läuft.</translation>
+        <source>Ambient screen capture is running.</source>
+        <translation>Die Ambient-Bildschirmaufnahme läuft.</translation>
     </message>
     <message>
         <location line="-87"/>
         <location line="+87"/>
-        <source>Ambient LED is stopped.</source>
-        <translation>Ambient LED ist angehalten.</translation>
+        <source>Ambient screen capture is stopped.</source>
+        <translation>Die Ambient-Bildschirmaufnahme ist angehalten.</translation>
     </message>
     <message>
         <location line="-85"/>
@@ -213,27 +213,50 @@
     </message>
 </context>
 <context>
+    <name>Ambient::ServiceControl</name>
+    <message>
+        <location filename="../src/service_control.cpp" line="+34"/>
+        <source>Lighting service is stopped. Apply settings to start it.</source>
+        <translation>Der Beleuchtungsdienst ist gestoppt. Wenden Sie die Einstellungen an, um ihn zu starten.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Lighting is paused: %1</source>
+        <translation>Beleuchtung pausiert: %1</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Lighting service is running.</source>
+        <translation>Der Beleuchtungsdienst läuft.</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>Settings saved, but the lighting service could not apply them: %1</source>
+        <translation>Die Einstellungen wurden gespeichert, aber der Beleuchtungsdienst konnte sie nicht anwenden: %1</translation>
+    </message>
+</context>
+<context>
     <name>Ambient::SettingsController</name>
     <message>
         <location filename="../src/settings_effects.cpp" line="+231"/>
-        <location line="+301"/>
+        <location line="+303"/>
         <source>Solid Color</source>
         <translation>Einfarbig</translation>
     </message>
     <message>
-        <location line="-300"/>
+        <location line="-302"/>
         <source>Ambient</source>
         <translation>Ambient</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <location line="+526"/>
+        <location line="+2"/>
+        <location line="+527"/>
         <source>Notifications</source>
         <translation>Benachrichtigungen</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+337"/>
-        <location filename="../src/settings_effects.cpp" line="-480"/>
+        <location filename="../src/settings_controller.cpp" line="+358"/>
+        <location filename="../src/settings_effects.cpp" line="-481"/>
         <source>%1 copy</source>
         <translation>%1 – Kopie</translation>
     </message>
@@ -248,7 +271,7 @@
         <translation>Neue Farb-Voreinstellung</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>New Ambient preset</source>
         <translation>Neue Ambient-Voreinstellung</translation>
     </message>
@@ -258,17 +281,17 @@
         <translation>Dieser Effekt wird von Tastaturvoreinstellung „%1“ verwendet. Zuerst die Zuordnungen ändern.</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="-82"/>
+        <location filename="../src/settings_controller.cpp" line="-85"/>
         <source>Cannot save unreadable preset files. Repair them and reset.</source>
         <translation>Unlesbare Voreinstellungsdateien können nicht gespeichert werden. Reparieren und zurücksetzen.</translation>
     </message>
     <message>
-        <location filename="../src/presets.cpp" line="+591"/>
+        <location filename="../src/presets.cpp" line="+619"/>
         <source>Presets changed on disk. Reset before saving to preserve those changes.</source>
         <translation>Voreinstellungen wurden auf dem Datenträger geändert. Vor dem Speichern zurücksetzen, um diese Änderungen zu erhalten.</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+82"/>
+        <location filename="../src/settings_controller.cpp" line="+85"/>
         <source>New preset</source>
         <translation>Neue Voreinstellung</translation>
     </message>
@@ -283,12 +306,7 @@
         <translation>Zuerst die Anwendungszuordnungen dieser Voreinstellung entfernen.</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>Select another preset for device &quot;%1&quot; first.</source>
-        <translation>Zuerst eine andere Voreinstellung für Gerät „%1“ auswählen.</translation>
-    </message>
-    <message>
-        <location line="+32"/>
+        <location line="+36"/>
         <source>Import would exceed the limit of 64 effect presets.</source>
         <translation>Der Import würde das Limit von 64 Effektvoreinstellungen überschreiten.</translation>
     </message>
@@ -298,20 +316,20 @@
         <translation>Standard-Ambient</translation>
     </message>
     <message>
-        <location line="-474"/>
+        <location line="-476"/>
         <location line="+165"/>
-        <location line="+356"/>
+        <location line="+358"/>
         <source>Use at most 32 effects per element and layer.</source>
         <translation>Höchstens 32 Effekte pro Element und Ebene.</translation>
     </message>
     <message>
-        <location line="-400"/>
+        <location line="-402"/>
         <location line="+38"/>
         <source>Use at most 128 local effects per preset.</source>
         <translation>Verwenden Sie höchstens 128 lokale Effekte pro Voreinstellung.</translation>
     </message>
     <message>
-        <location line="+533"/>
+        <location line="+535"/>
         <source>This keyboard does not expose F9-F12 lighting zones.</source>
         <translation>Diese Tastatur stellt keine Beleuchtungszonen für F9–F12 bereit.</translation>
     </message>
@@ -331,7 +349,7 @@
         <translation>Eine Ebene mit dieser Tastenkombination ist bereits vorhanden.</translation>
     </message>
     <message>
-        <location line="+163"/>
+        <location line="+170"/>
         <source>All keys</source>
         <translation>Alle Tasten</translation>
     </message>
@@ -361,7 +379,7 @@
         <translation>Dieses Fenster hat keine Anwendungsklasse.</translation>
     </message>
     <message>
-        <location filename="../src/settings_devices.cpp" line="+229"/>
+        <location filename="../src/settings_devices.cpp" line="+245"/>
         <source>Reading lightbar settings…</source>
         <translation>Lichtleisteneinstellungen werden gelesen…</translation>
     </message>
@@ -381,14 +399,14 @@
         <translation>Lichtleisteneinstellung konnte nicht gespeichert werden: %1</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+28"/>
-        <source>Settings saved, but KWin could not be reached.</source>
-        <translation>Einstellungen gespeichert, aber KWin ist nicht erreichbar.</translation>
+        <location filename="../src/settings_effects.cpp" line="-520"/>
+        <source>Brightness</source>
+        <translation>Helligkeit</translation>
     </message>
     <message>
-        <location line="+17"/>
-        <source>Settings saved, but could not be applied to the running effect.</source>
-        <translation>Einstellungen gespeichert, aber nicht auf den laufenden Effekt angewendet.</translation>
+        <location line="+50"/>
+        <source>New Brightness preset</source>
+        <translation>Neue Helligkeitsvorlage</translation>
     </message>
 </context>
 <context>
@@ -584,7 +602,7 @@
         <translation>Einfarbig</translation>
     </message>
     <message>
-        <location line="+60"/>
+        <location line="+77"/>
         <source>Intensity:</source>
         <translation>Intensität:</translation>
     </message>
@@ -614,7 +632,7 @@
         <translation>Gespeicherte Voreinstellungen</translation>
     </message>
     <message>
-        <location line="+47"/>
+        <location line="+51"/>
         <source>New Solid Color</source>
         <translation>Neue Einzelfarbe</translation>
     </message>
@@ -642,6 +660,36 @@
         <location line="+9"/>
         <source>These notifications override every layer, including unlit keys.</source>
         <translation>Diese Benachrichtigungen überlagern jede Ebene, auch unbeleuchtete Tasten.</translation>
+    </message>
+    <message>
+        <location line="-57"/>
+        <source>New Brightness</source>
+        <translation>Neue Helligkeit</translation>
+    </message>
+</context>
+<context>
+    <name>AmbientLed.BrightnessForm</name>
+    <message>
+        <location filename="../ui/BrightnessForm.qml" line="+18"/>
+        <location filename="../ui/BrightnessPage.qml" line="+8"/>
+        <location filename="../ui/EffectsPage.qml" line="+49"/>
+        <source>Brightness</source>
+        <translation>Helligkeit</translation>
+    </message>
+    <message>
+        <location line="-3"/>
+        <source>Brightness:</source>
+        <translation>Helligkeit:</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Brightness in percent</source>
+        <translation>Helligkeit in Prozent</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Scales colors from earlier effects in the list. 100% keeps their brightness.</source>
+        <translation>Skaliert die Farben vorheriger Effekte in der Liste. 100% behält deren Helligkeit bei.</translation>
     </message>
 </context>
 <context>
@@ -717,8 +765,8 @@
     </message>
     <message>
         <location line="-2"/>
-        <source>Add a Solid Color, Ambient or Notifications preset, then assign it to keys or the lightbar.</source>
-        <translation>Fügen Sie eine Farb-, Ambient- oder Benachrichtigungsvoreinstellung hinzu und weisen Sie sie Tasten oder der Lichtleiste zu.</translation>
+        <source>Add an effect preset, then assign it to keys or the lightbar.</source>
+        <translation>Fügen Sie eine Effektvorlage hinzu und weisen Sie sie Tasten oder der Lichtleiste zu.</translation>
     </message>
     <message>
         <location line="-65"/>
@@ -767,12 +815,12 @@
 <context>
     <name>AmbientLed.EffectsPage</name>
     <message>
-        <location filename="../ui/EffectsPage.qml" line="+29"/>
+        <location filename="../ui/EffectsPage.qml" line="-20"/>
         <source>Effects</source>
         <translation>Effekte</translation>
     </message>
     <message>
-        <location line="+125"/>
+        <location line="+136"/>
         <source>Import Effect Preset</source>
         <translation>Effektvoreinstellung importieren</translation>
     </message>
@@ -792,12 +840,12 @@
         <translation>Effekte filtern</translation>
     </message>
     <message>
-        <location line="-60"/>
+        <location line="-71"/>
         <source>Add…</source>
         <translation>Hinzufügen…</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+24"/>
         <source>Solid Color</source>
         <translation>Einfarbig</translation>
     </message>
@@ -912,7 +960,7 @@
 <context>
     <name>AmbientLed.KeyboardView</name>
     <message>
-        <location filename="../ui/KeyboardView.qml" line="+55"/>
+        <location filename="../ui/KeyboardView.qml" line="+56"/>
         <source>Keyboard layout</source>
         <translation>Tastaturbelegung</translation>
     </message>
@@ -989,7 +1037,12 @@
 <context>
     <name>AmbientLed.LightingPage</name>
     <message>
-        <location filename="../ui/LightingPage.qml" line="+22"/>
+        <location filename="../ui/LightingPage.qml" line="+85"/>
+        <source>Disable %1 to use this device.</source>
+        <translation>Deaktivieren Sie %1, um dieses Gerät zu verwenden.</translation>
+    </message>
+    <message>
+        <location line="-63"/>
         <source>Devices</source>
         <translation>Geräte</translation>
     </message>
@@ -999,22 +1052,17 @@
         <translation>Beleuchtungsgerät hinzufügen</translation>
     </message>
     <message>
-        <location line="+19"/>
-        <source>Enable Ambient LED effect</source>
-        <translation>Ambient-LED-Effekt aktivieren</translation>
-    </message>
-    <message>
-        <location line="+14"/>
+        <location line="+39"/>
         <source>Lighting will resume when this device reconnects.</source>
         <translation>Die Beleuchtung wird beim erneuten Verbinden fortgesetzt.</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>Enable this device</source>
         <translation>Dieses Gerät aktivieren</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+13"/>
         <source>Name:</source>
         <translation>Name:</translation>
     </message>
@@ -1025,16 +1073,11 @@
     </message>
     <message>
         <location line="+10"/>
-        <source>Default for this device</source>
-        <translation>Standard für dieses Gerät</translation>
+        <source>None</source>
+        <translation>Keine</translation>
     </message>
     <message>
-        <location line="+16"/>
-        <source>Follow application bindings</source>
-        <translation>Anwendungszuordnungen verwenden</translation>
-    </message>
-    <message>
-        <location line="+10"/>
+        <location line="+50"/>
         <source>Enable lightbar</source>
         <translation>Lichtleiste aktivieren</translation>
     </message>
@@ -1092,6 +1135,36 @@
         <location line="+5"/>
         <source>Add a device to configure its lighting.</source>
         <translation>Fügen Sie ein Gerät hinzu, um dessen Beleuchtung einzurichten.</translation>
+    </message>
+    <message>
+        <location line="-132"/>
+        <source>Brightness source:</source>
+        <translation>Helligkeitsquelle:</translation>
+    </message>
+    <message>
+        <location line="-74"/>
+        <source>Enable Ambient screen capture</source>
+        <translation>Ambient-Bildschirmaufnahme aktivieren</translation>
+    </message>
+    <message>
+        <location line="+82"/>
+        <source>RGB average</source>
+        <translation>RGB-Mittelwert</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Red channel</source>
+        <translation>Roter Kanal</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Green channel</source>
+        <translation>Grüner Kanal</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Blue channel</source>
+        <translation>Blauer Kanal</translation>
     </message>
 </context>
 <context>
@@ -1259,7 +1332,7 @@
     </message>
     <message>
         <location line="+7"/>
-        <location line="+23"/>
+        <location line="+27"/>
         <source>Remove</source>
         <translation>Entfernen</translation>
     </message>
@@ -1274,12 +1347,12 @@
         <translation>Beleuchtungsvoreinstellungen (*.json)</translation>
     </message>
     <message>
-        <location line="-56"/>
+        <location line="-57"/>
         <source>Remove this preset? You can undo pending changes with Reset.</source>
         <translation>Diese Voreinstellung entfernen? Zurücksetzen verwirft ungespeicherte Änderungen.</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+18"/>
         <source>Cancel</source>
         <translation>Abbrechen</translation>
     </message>
@@ -1287,6 +1360,11 @@
         <location line="+15"/>
         <source>Name:</source>
         <translation>Name:</translation>
+    </message>
+    <message>
+        <location line="-36"/>
+        <source>Remove this preset? Devices using it will have no default preset. You can undo pending changes with Reset.</source>
+        <translation>Diese Vorlage entfernen? Geräte, die sie verwenden, haben danach keine Standardvorlage. Ausstehende Änderungen können mit Zurücksetzen rückgängig gemacht werden.</translation>
     </message>
 </context>
 <context>

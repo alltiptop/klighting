@@ -2,7 +2,7 @@
 
 ## Install
 
-Preview the paths, then install with permission to write to the configured prefix:
+Preview paths, then install with permission to write to the configured prefix:
 
 ```sh
 DESTDIR="$PWD/stage" cmake --install build
@@ -11,43 +11,75 @@ sudo cmake --install build
 
 Do not overwrite a library currently loaded in KWin. Log out before replacing a
 running installation, or use the atomic [local installer](../tools/install-local.sh)
-for an existing verified artifact bundle on its supported `/usr/lib/qt6` layout.
-That installer preserves backups and prints reload commands; it does not reload
-KWin or change user settings itself.
+for a verified artifact bundle on its supported `/usr/lib/qt6` layout. Include the
+built `klightingd`, `klighting_integration.so`, generated D-Bus/systemd/autostart
+files and existing effect/driver/KCM artifacts in that bundle's `SHA256SUMS`.
+The installer preserves backups and prints activation commands; it does not restart
+processes or change user settings itself.
 
-Reopen **Lighting**, check **Enable Ambient LED effect**, and **Apply**. This saves
-the startup flag and loads the effect. KDE's Desktop Effects checkbox also remains
-available. The installed effect ID is `ambientled`; the settings menu stays **Lighting**.
-The old `kwin-effect-ambient-led` configuration path is retained.
+Reopen **Lighting** and **Apply** to start/reload `klightingd`. The service starts
+automatically at graphical login. It owns colors, presets, notifications and power
+policy. **Enable Ambient screen capture** separately enables the optional KWin
+screen source; KDE's Desktop Effects checkbox controls the same source. The effect
+ID `ambientled`, menu **Lighting** and old configuration path remain stable.
 
-Temporary reload commands, in the graphical session's user terminal:
+## Reload without logging out
+
+Run in the graphical session's user terminal, without sudo:
+
+```sh
+systemctl --user daemon-reload
+systemctl --user restart klightingd.service
+klightingd --status
+```
+
+This reloads the lighting core and drivers. To reload Ambient capture:
 
 ```sh
 qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect ambientled
 qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.loadEffect ambientled
 ```
 
-For older development installations, list loaded effects and unload the exact old
-`ambientled_devN` alias before loading `ambientled`:
+The separate desktop integration supplies active windows, modifiers and lock state
+whether Ambient is enabled or not. It loads by default; to load it after installation
+into an already-running session:
+
+```sh
+qdbus6 org.kde.KWin /Plugins org.kde.KWin.Plugins.LoadPlugin klighting_integration
+```
+
+For an older installation, list loaded effects and unload each exact old
+`ambientled_devN` alias as well:
 
 ```sh
 qdbus6 org.kde.KWin /Effects org.freedesktop.DBus.Properties.Get org.kde.kwin.Effects loadedEffects
 ```
 
-Reloading does not save the enabled flag or guarantee Qt has released an old native
-library. Logging out and back in ensures the new code is loaded. Native KWin ABI
-compatibility is not stable: rebuild after KWin updates.
+The service pauses hardware output while a legacy Ambient module still owns it.
+Qt may retain old native code after effect reload. Logging out and back in ensures
+updated KWin plugins are loaded; this does not apply to restarting `klightingd`.
+Rebuild native KWin plugins after KWin updates. D-Bus loading does not save the
+Ambient startup flag; use its checkbox and Apply for that.
 
 ## Diagnostics and limitations
 
 ```sh
+klightingd --status
 qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.debug ambientled ""
-journalctl --user -b -g 'ambientled'
+journalctl --user -b -u klightingd.service
 ./build/ambient_probe
 ```
 
-Debug output reports capture/sample/frame counters, selected preset, device status,
-locks and GPU failures. A completed USB transfer does not prove physical light output.
+`klightingd --status` does not start the service. To run a development build in the
+foreground after stopping an installed service, use `./build/klightingd`; Ctrl+C
+releases devices. The core-only build (`-DBUILD_KWIN_EFFECT=OFF`) also builds this
+executable. Without KWin, device defaults work; automatic application bindings,
+modifier layers and lock tracking need a desktop provider. Only KWin is implemented
+currently. Notification input currently requires Plasma's watcher API. Qt and KF6
+Config libraries are still required, independently of the desktop session.
+
+Service status reports devices, output and input sources; effect debug reports only
+screen capture. A completed USB transfer does not prove physical light output.
 Remove private application names and device identities before sharing logs.
 
 Screen capture prevents direct scanout while needed, which can increase GPU use in
@@ -55,4 +87,3 @@ fullscreen applications. Fractional scaling, rotation, HDR and multiple monitors
 need hardware testing. Ambient currently selects one screen color per effect, not
 spatially mapped colors per key. See [G615LW driver notes](../src/drivers/asus-g615lw/README.md)
 for USB access, brightness, restoration and controller conflicts.
-

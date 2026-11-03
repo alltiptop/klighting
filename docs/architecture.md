@@ -1,6 +1,7 @@
 # Architecture
 
-klighting is a native KWin effect with a shared Qt Quick/Kirigami settings editor.
+klighting runs lighting in the user-session service `klightingd`, with optional KWin
+integrations and a shared Qt Quick/Kirigami settings editor.
 Effects stay built into the host; device drivers are independently loadable Qt plugins.
 
 | Area | Entry points | Responsibility |
@@ -11,7 +12,10 @@ Effects stay built into the host; device drivers are independently loadable Qt p
 | Preset evaluation | `preset_runtime.cpp`, `keyboard_profile.*` | Key conditions, one active layer, assignment expansion and shared/local references |
 | Effects | `effect_palette.*`, `color.*`, `notification_effect.*` | Dominant color, smoothing, brightness/temperature, static colors and pulses |
 | Platform inputs | `notification_source.*`, `power_source.*` | Asynchronous D-Bus input; authenticate notification sender and track power changes |
-| KWin adapter | `ambient_effect.*`, `frame_sampler.*` | Window/input/output changes, lock state, scheduling and small asynchronous GPU captures |
+| Runtime/service | `lighting_runtime.*`, `lighting_service.*`, `daemon_main.cpp` | Own drivers, presets, composition and timers; reload settings over session D-Bus |
+| Desktop input contract | `desktop_source.h` | Window class, configured key conditions and lock state, without compositor types |
+| KWin desktop integration | `kwin_integration.cpp`, `kwin_desktop_source.*` | The sole current desktop provider; independent of Ambient |
+| Ambient capture | `ambient_effect.*`, `frame_sampler.*`, `capture_channel.*`, `kwin_capture_source.*` | Optional small asynchronous GPU captures; no drivers or preset evaluation |
 | Settings facade | `settings_controller.*` | Pending collection, presets, layers, application rules, load/save and preview |
 | Effect editing | `settings_effects.cpp` | Shared/local effects, ordered assignments and retained legacy gradients |
 | Device settings | `settings_devices.cpp` | Selection/discovery and asynchronous lightbar controls |
@@ -34,7 +38,31 @@ Continuous effect states are shared across devices using the same effect. One sm
 zero-timeout polling; it never waits for GPU completion on KWin's thread. Expensive
 capture stops when no unpaused assignment requires it. Static output has no continuous
 animation timer. Drivers coalesce and deduplicate frames and perform USB work off the
-compositor thread. Shutdown must stop workers before releasing driver objects.
+service event thread. Shutdown must stop workers before releasing driver objects.
+
+## Process boundaries
+
+`klightingd` owns `org.klighting.Service` on the session bus. Apply calls `Reload`;
+`Status` reports runtime health. Only one daemon can own the name. Closing settings
+or disabling the `ambientled` effect does not stop device control. Without a capture
+source, Ambient holds its last color (initially its configured minimum); static
+colors, brightness filters, power policy and notification animation keep working.
+
+The native `klighting_integration` plugin publishes active window class, lock state,
+modifiers and only the key codes referenced by layer conditions. `DesktopSource`
+is the neutral input boundary: rule matching and layer selection live in the core.
+KWin is currently the only implementation. Outside KWin, device defaults remain
+active; automatic application/layer switching and lock tracking need a future
+provider. Notification input currently uses Plasma's watcher API; power uses UPower.
+No additional Wayland/X11 adapters are implemented. The service needs Qt and KF6
+Config libraries, but no KWin library or running KDE desktop.
+
+Capture and desktop IPC use versioned objects at `/org/klighting/Capture` and
+`/org/klighting/Desktop`. Both send targeted signals only to the daemon's current
+unique bus owner. They accept configuration only from that owner; the daemon checks
+the current KWin owner and payload bounds. Capture stops on service disconnect.
+The daemon waits for its initial desktop/lock lookup and refuses hardware output
+while a legacy lighting-owning Ambient effect is loaded, preventing two controllers.
 
 ## Persistence and UI
 

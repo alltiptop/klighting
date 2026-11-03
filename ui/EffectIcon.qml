@@ -25,7 +25,8 @@ Item {
 
     Kirigami.Icon {
         anchors.fill: parent
-        source: root.type === "notifications" ? "notifications" : "video-display"
+        source: root.type === "notifications" ? "notifications" : root.type === "brightness"
+                                                ? "brightness-high" : "video-display"
         visible: root.type !== "solid"
     }
 }

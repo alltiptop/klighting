@@ -10,6 +10,72 @@ class DriversTest : public QObject
 {
     Q_OBJECT
 private Q_SLOTS:
+    void monochromeChannelSelectionAndApplicationOnlyPreset()
+    {
+        const auto oldDevices = qApp->property("test.devices");
+        const auto restore = qScopeGuard([&] {
+            qApp->setProperty("test.devices", oldDevices);
+            qApp->setProperty("test.mono.brightnessSteps", QVariant());
+        });
+        qApp->setProperty("test.devices", QStringList { "mono" });
+        qApp->setProperty("test.mono.brightnessSteps", 4);
+        auto c = defaultCollection("test-strip");
+        c.devices
+            = QList<DeviceConfiguration> { { "test-strips", "mono", "test-strip", "Mono", "default", true } };
+        DeviceManager runtime({ }, { MULTI_DRIVER_DIR });
+        runtime.setEnabled(true);
+        for (const auto& channel : QStringList { "average", "red", "green", "blue" }) {
+            c.devices->first().brightnessChannel = channel;
+            runtime.configure(c);
+            runtime.submit({ { DefaultEffectId, QColor(210, 90, 30) } }, { });
+            const QString expected = channel == "average" ? "#6e6e6e"
+                : channel == "red"                        ? "#d2d2d2"
+                : channel == "green"                      ? "#5a5a5a"
+                                                          : "#1e1e1e";
+            QCOMPARE(qApp->property("test.mono.uniform").toString(), expected);
+        }
+        c.devices->first().presetId.clear();
+        c.rules = { { "Editor", "editor", "default", true } };
+        runtime.configure(c);
+        QCOMPARE(runtime.count(), 0);
+        runtime.selectPresets("editor", { });
+        QCOMPARE(runtime.count(), 1);
+        runtime.selectPresets("other", { });
+        QCOMPARE(runtime.count(), 0);
+    }
+    void alternativeDriversRemainVisibleButCannotRunTogether()
+    {
+        qApp->setProperty("test.devices", QStringList { "conflict" });
+        qApp->setProperty("test.conflict.claims", QStringList { "test:shared" });
+        qApp->setProperty("test.conflict.destroyed", 0);
+        qApp->setProperty("test.alternative.started", 0);
+        auto collection = defaultCollection("test-strip");
+        collection.devices = QList<DeviceConfiguration> { { "test-alternative", "alternative", "test-strip",
+                                                              "Alternative", "default", false },
+            { "test-strips", "conflict", "test-strip", "Primary", "default", true } };
+        DeviceManager runtime({ }, { MULTI_DRIVER_DIR, ALTERNATIVE_DRIVER_DIR });
+        QCOMPARE(runtime.drivers().devices().size(), 2);
+        runtime.setEnabled(true);
+        runtime.configure(collection);
+        QCOMPARE(runtime.count(), 1);
+        (*collection.devices)[0].enabled = true;
+        runtime.configure(collection);
+        QCOMPARE(runtime.count(), 0); // Hand-edited conflicting settings fail closed.
+        QVERIFY(runtime.status().contains("conflicts"));
+        QCOMPARE(qApp->property("test.alternative.started").toInt(), 0);
+        (*collection.devices)[0].enabled = false;
+        runtime.configure(collection);
+        QCOMPARE(runtime.count(), 1);
+        qApp->setProperty("test.conflict.destroyed", 0);
+        (*collection.devices)[0].enabled = true;
+        (*collection.devices)[1].enabled = false;
+        runtime.configure(collection);
+        QCOMPARE(runtime.count(), 1);
+        QVERIFY(qApp->property("test.alternative.previousStopped").toBool());
+        QCOMPARE(runtime.drivers().devices().size(), 2);
+        qApp->setProperty("test.devices", QVariant());
+        qApp->setProperty("test.conflict.claims", QVariant());
+    }
     void realPluginDescribesHardwareWithoutStartingIt()
     {
         LoadedDriver loaded({ "G615LW" }, { ASUS_DRIVER_DIR });
@@ -122,9 +188,9 @@ private Q_SLOTS:
         other.base[7] = { KeyMode::Static, Qt::green };
         c.presets[0].base[7] = { KeyMode::Static, Qt::red };
         c.presets.append(other);
-        c.devices = QList<DeviceConfiguration> { { "test-strips", "one", "test-strip", "First", "default",
-                                                     true, false },
-            { "test-strips", "two", "test-strip", "Second", "second", true, true } };
+        c.devices
+            = QList<DeviceConfiguration> { { "test-strips", "one", "test-strip", "First", "default", true },
+                  { "test-strips", "two", "test-strip", "Second", "second", true } };
         c.rules.append({ "App", "editor", "default", true });
         DeviceManager runtime({ }, { MULTI_DRIVER_DIR });
         QCOMPARE(runtime.drivers().devices().size(), 2);
@@ -172,8 +238,8 @@ private Q_SLOTS:
         qApp->setProperty("test.devices", QStringList { "one", "two" });
         auto c = defaultCollection("test-strip");
         c.devices = QList<DeviceConfiguration> { { "test-strips", "one", "test-strip", "First", "default",
-                                                     true, false, true, false, false, true },
-            { "test-strips", "two", "test-strip", "Second", "default", true, false } };
+                                                     true, true, false, false, true },
+            { "test-strips", "two", "test-strip", "Second", "default", true } };
         DeviceManager runtime({ }, { MULTI_DRIVER_DIR });
         runtime.configure(c);
         runtime.setEnabled(true);
@@ -218,7 +284,7 @@ private Q_SLOTS:
         qApp->setProperty("test.devices", QStringList { "one" });
         auto c = defaultCollection("test-strip");
         c.devices = QList<DeviceConfiguration> { { "test-strips", "one", "test-strip", "First", "default",
-            true, false, true, false } };
+            true, true, false } };
         DeviceManager runtime({ }, { MULTI_DRIVER_DIR });
         runtime.setPowerState({ true, true, false });
         runtime.configure(c);

@@ -378,7 +378,7 @@ int devicePreset(const PresetCollection& c, const DeviceConfiguration& device, c
                 return i;
         return -1;
     };
-    if (device.followApplications && !windowClass.isEmpty())
+    if (!windowClass.isEmpty())
         for (const auto& rule : c.rules)
             if (rule.enabled && !rule.windowClass.trimmed().isEmpty()
                 && rule.windowClass.trimmed().compare(windowClass, Qt::CaseInsensitive) == 0) {
@@ -386,11 +386,6 @@ int devicePreset(const PresetCollection& c, const DeviceConfiguration& device, c
                 if (i >= 0)
                     return i;
             }
-    if (const int i = find(device.presetId.isEmpty() ? c.defaultId : device.presetId); i >= 0)
-        return i;
-    for (int i = 0; i < c.presets.size(); ++i)
-        if (c.presets[i].keyboardDeviceId == device.modelId)
-            return i;
-    return -1;
+    return find(device.presetId);
 }
 }

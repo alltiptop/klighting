@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=klighting
+Comment=Start the device lighting service
+Exec=@CMAKE_INSTALL_FULL_BINDIR@/klightingd --activate
+NoDisplay=true
+X-KDE-autostart-phase=1

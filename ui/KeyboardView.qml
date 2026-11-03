@@ -28,7 +28,8 @@ Item {
             return offColor;
         const color = style && (style.mode === 1 || style.opacity > 0) ? style.color :
                                                                          Kirigami.Theme.linkColor;
-        return Qt.colorEqual(color, "#000000") ? offColor : color;
+        const dimmed = Qt.tint(color, Qt.rgba(0, 0, 0, 1 - (style?.brightness ?? 1)));
+        return Qt.colorEqual(dimmed, "#000000") ? offColor : dimmed;
     }
 
     function refreshPreview() {

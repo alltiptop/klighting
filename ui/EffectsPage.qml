@@ -44,6 +44,17 @@ SidebarPage {
                 id: addEffectMenu
 
                 QQC2.MenuItem {
+                    icon.name: "brightness-high"
+                    objectName: "AddBrightnessEffect"
+                    text: qsTranslate("AmbientLed.BrightnessForm", "Brightness")
+
+                    onTriggered: {
+                        if (page.controller.addEffect("brightness", false))
+                            page.showEditor();
+                    }
+                }
+
+                QQC2.MenuItem {
                     icon.name: "preferences-desktop-color"
                     objectName: "AddSolidEffect"
                     text: qsTranslate("AmbientLed.EffectsPage", "Solid Color")

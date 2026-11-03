@@ -42,17 +42,23 @@ SettingsPage {
         Kirigami.FormLayout {
             Layout.fillWidth: true
 
+            FormHint {
+                text: page.controller.service.status
+            }
+
             QQC2.CheckBox {
                 checked: page.controller.effect.enabled
                 enabled: page.controller.effect.available && !page.controller.effect.busy
                 objectName: "EnableEffect"
-                text: qsTranslate("AmbientLed.LightingPage", "Enable Ambient LED effect")
+                text: qsTranslate("AmbientLed.LightingPage", "Enable Ambient screen capture")
+                visible: page.controller.device.ambient ?? false
 
                 onToggled: page.controller.effect.enabled = checked
             }
 
             FormHint {
                 text: page.controller.effect.status
+                visible: page.controller.device.ambient ?? false
             }
 
             Item {
@@ -67,11 +73,18 @@ SettingsPage {
 
             QQC2.CheckBox {
                 checked: page.controller.deviceSettings.enabled ?? false
+                enabled: checked || !page.controller.deviceSettings.enableBlockedBy
                 objectName: "EnableDevice"
                 text: qsTranslate("AmbientLed.LightingPage", "Enable this device")
                 visible: page.controller.selectedDevice >= 0
 
                 onToggled: page.controller.setDevice("enabled", checked)
+            }
+
+            FormHint {
+                text: qsTranslate("AmbientLed.LightingPage", "Disable %1 to use this device.").arg(
+                          page.controller.deviceSettings.enableBlockedBy || "")
+                visible: !!page.controller.deviceSettings.enableBlockedBy
             }
 
             QQC2.TextField {
@@ -97,7 +110,7 @@ SettingsPage {
                 model: [
                     {
                         "id": "",
-                        "name": qsTranslate("AmbientLed.LightingPage", "Default for this device")
+                        "name": qsTranslate("AmbientLed.LightingPage", "None")
                     }
                 ].concat(page.controller.presets.filter(p => {
                     return p.deviceId === page.controller.deviceSettings.model;
@@ -110,13 +123,37 @@ SettingsPage {
                 onActivated: page.controller.setDevice("presetId", currentValue)
             }
 
-            QQC2.CheckBox {
-                checked: page.controller.deviceSettings.followApplications ?? false
-                objectName: "DeviceApplications"
-                text: qsTranslate("AmbientLed.LightingPage", "Follow application bindings")
-                visible: page.controller.selectedDevice >= 0
+            QQC2.ComboBox {
+                Kirigami.FormData.label: qsTranslate("AmbientLed.LightingPage", "Brightness source:")
+                Layout.fillWidth: true
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 20
+                currentIndex: model.findIndex(p => p.id === (page.controller.deviceSettings.brightnessChannel
+                                                             || "average"))
+                model: [
+                    {
+                        id: "average",
+                        name: qsTranslate("AmbientLed.LightingPage", "RGB average")
+                    },
+                    {
+                        id: "red",
+                        name: qsTranslate("AmbientLed.LightingPage", "Red channel")
+                    },
+                    {
+                        id: "green",
+                        name: qsTranslate("AmbientLed.LightingPage", "Green channel")
+                    },
+                    {
+                        id: "blue",
+                        name: qsTranslate("AmbientLed.LightingPage", "Blue channel")
+                    }
+                ]
+                objectName: "BrightnessChannel"
+                textRole: "name"
+                valueRole: "id"
+                visible: page.controller.selectedDevice >= 0 && page.controller.device.brightness &&
+                         !page.controller.device.color
 
-                onToggled: page.controller.setDevice("followApplications", checked)
+                onActivated: page.controller.setDevice("brightnessChannel", currentValue)
             }
 
             QQC2.CheckBox {
