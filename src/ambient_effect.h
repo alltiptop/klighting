@@ -29,6 +29,7 @@ private:
     void selectScreen();
     void resetCapture();
     void discardSampler();
+    void failCapture(const QString& error);
     void tick();
     CaptureChannel m_channel;
     std::unique_ptr<FrameSampler> m_sampler;

@@ -37,6 +37,7 @@ private:
     bool m_enabled = false, m_saved = false, m_loaded = false, m_available = false;
     bool m_busy = false, m_reading = false, m_pending = false;
     void complete(const QString& error);
+    bool saveEnabled(bool enabled);
     void changeRunningState(const QString& name, bool requested, bool enableAfterUnload = false);
     void verify(const QString& name, bool requested, bool enableAfterUnload);
 };

@@ -119,17 +119,30 @@ void EffectControl::apply()
     m_status = tr("Applying the effect setting…");
     Q_EMIT changed();
     const bool requested = m_enabled;
-    // Persist the same flag as Desktop Effects. Direct D-Bus loading alone is temporary.
-    group.writeEntry(m_name + "Enabled", requested, KConfig::Notify);
-    if (!group.sync()) {
-        complete(tr("Could not save the KWin effect setting."));
+    // Disarm startup before touching native code, even if it was previously
+    // enabled. Re-arm only after KWin confirms a successful load.
+    if (!saveEnabled(false))
         return;
-    }
-    m_saved = requested;
     if (!m_loadedName.isEmpty() && (!requested || m_loadedName != m_name))
         changeRunningState(m_loadedName, false, requested);
     else
         changeRunningState(m_name, requested);
+}
+bool EffectControl::saveEnabled(bool enabled)
+{
+    m_config->reparseConfiguration();
+    KConfigGroup group(m_config, "Plugins");
+    if (group.readEntry(m_name + "Enabled", false) != m_saved) {
+        complete(tr("The effect setting changed elsewhere. Reset before applying."));
+        return false;
+    }
+    group.writeEntry(m_name + "Enabled", enabled, KConfig::Notify);
+    if (!group.sync()) {
+        complete(tr("Could not save the KWin effect setting."));
+        return false;
+    }
+    m_saved = enabled;
+    return true;
 }
 void EffectControl::changeRunningState(const QString& name, bool requested, bool enableAfterUnload)
 {
@@ -167,6 +180,8 @@ void EffectControl::verify(const QString& name, bool requested, bool enableAfter
                 changeRunningState(m_name, true);
                 return;
             }
+            if (m_loaded && requested && !saveEnabled(true))
+                return;
             complete(m_loaded == requested ? QString()
                                            : tr("KWin could not change the effect state. Check that the "
                                                 "effect supports this session."));

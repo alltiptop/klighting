@@ -35,7 +35,7 @@ AmbientEffect::AmbientEffect()
 AmbientEffect::~AmbientEffect() { discardSampler(); }
 bool AmbientEffect::supported()
 {
-    if (!effects->isOpenGLCompositing())
+    if (!effects || !effects->isOpenGLCompositing())
         return false;
     const auto* context = effects->openglContext();
     return context && context->hasMapBufferRange() && context->haveSyncFences()
@@ -139,22 +139,31 @@ void AmbientEffect::tick()
 {
     if (!isActive())
         return;
-    if (m_sampler && m_sampler->pending() && effects->makeOpenGLContextCurrent()) {
+    if (m_sampler && m_sampler->pending()) {
+        if (!effects->makeOpenGLContextCurrent()) {
+            failCapture(QStringLiteral("OpenGL context lost; reload Ambient capture to retry"));
+            return;
+        }
         if (const auto pixels = m_sampler->poll()) {
             ++m_samples;
             m_channel.sendSample(*pixels);
         }
     }
     if (m_sampler && m_sampler->failed()) {
-        m_failed = true;
-        m_channel.setError(QStringLiteral("GPU readback failed; reload Ambient capture to retry"));
-        m_timer.stop();
-        discardSampler();
+        failCapture(QStringLiteral("GPU readback failed; reload Ambient capture to retry"));
         return;
     }
     if ((!m_sampler || !m_sampler->pending())
         && (!m_captureTime.isValid() || m_captureTime.elapsed() >= m_captureInterval))
         effects->addRepaint(m_screen->geometry());
+}
+void AmbientEffect::failCapture(const QString& error)
+{
+    m_failed = true;
+    m_channel.setError(error);
+    m_timer.stop();
+    discardSampler();
+    qCWarning(ambientEffectLog).noquote() << error;
 }
 QString AmbientEffect::debug(const QString&) const
 {

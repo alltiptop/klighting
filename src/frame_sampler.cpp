@@ -108,6 +108,10 @@ bool FrameSampler::capture(
 {
     if (pending() || m_failed || !target.framebuffer() || area.isEmpty())
         return false;
+    if (!KWin::EglContext::currentContext()) {
+        m_failed = true;
+        return false;
+    }
     StateGuard state;
     if (!initialize()) {
         m_failed = true;
@@ -123,8 +127,13 @@ bool FrameSampler::capture(
     }
     {
         FramebufferGuard converted(m_srgbFbo.get());
-        auto* shader = KWin::ShaderManager::instance()->shader(
-            KWin::ShaderTrait::MapTexture | KWin::ShaderTrait::TransformColorspace);
+        auto* manager = KWin::ShaderManager::instance();
+        if (!manager) {
+            m_failed = true;
+            return false;
+        }
+        auto* shader
+            = manager->shader(KWin::ShaderTrait::MapTexture | KWin::ShaderTrait::TransformColorspace);
         if (!shader) {
             m_failed = true;
             return false;
@@ -152,6 +161,10 @@ std::optional<QByteArray> FrameSampler::poll()
 {
     if (!m_fence || m_failed)
         return std::nullopt;
+    if (!KWin::EglContext::currentContext()) {
+        m_failed = true;
+        return std::nullopt;
+    }
     const auto result = glClientWaitSync(m_fence, 0, 0); // Never wait for the GPU on KWin's thread.
     if (result == GL_WAIT_FAILED || (result == GL_TIMEOUT_EXPIRED && m_pendingSince.elapsed() > 1000)) {
         m_failed = true;

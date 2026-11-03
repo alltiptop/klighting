@@ -2,11 +2,16 @@
 # Atomically install tested artifacts under stable plugin names.
 set -euo pipefail
 
+check_only=false
+if [[ ${1:-} == --check ]]; then
+    check_only=true
+    shift
+fi
 if [[ $# -ne 1 ]]; then
-    echo "Usage: sudo $0 dist/kwin-6.7.5" >&2
+    echo "Usage: $0 --check dist/kwin-6.7.5 | sudo $0 dist/kwin-6.7.5" >&2
     exit 2
 fi
-if [[ $EUID -ne 0 ]]; then
+if [[ $check_only == false && $EUID -ne 0 ]]; then
     echo "This installer writes to /usr. Run it yourself with sudo." >&2
     exit 1
 fi
@@ -36,11 +41,29 @@ for section in devices presets effects applications; do
     files+=("kcm_ambientled_$section.so" "kcm_ambientled_$section.desktop")
     targets+=("$configs/kcm_ambientled_$section.so" "$apps/kcm_ambientled_$section.desktop")
 done
-for file in "${files[@]}" SHA256SUMS; do
+for file in "${files[@]}" klighting-plugin-check SHA256SUMS; do
     [[ -f "$source_dir/$file" ]] || { echo "Missing artifact: $source_dir/$file" >&2; exit 1; }
 done
-[[ -d "$plugins" && -d "$configs" && -d "$apps" && -d "$categories" ]] || { echo "Unexpected KDE plugin layout" >&2; exit 1; }
 (cd "$source_dir" && sha256sum --check SHA256SUMS)
+check_as=()
+if [[ $EUID -eq 0 ]]; then
+    if [[ -z ${SUDO_USER:-} || $SUDO_USER == root ]]; then
+        echo "Run this installer with sudo from a regular user account; plugin checks must not run as root." >&2
+        exit 1
+    fi
+    check_as=(runuser -u "$SUDO_USER" --)
+fi
+plugin_files=()
+for file in "${files[@]}"; do
+    [[ $file == *.so ]] && plugin_files+=("$source_dir/$file")
+done
+# Check native code in disposable processes before changing any installed files.
+"${check_as[@]}" "$source_dir/klighting-plugin-check" "${plugin_files[@]}"
+if [[ $check_only == true ]]; then
+    echo "Bundle checks passed. No files installed."
+    exit 0
+fi
+[[ -d "$plugins" && -d "$configs" && -d "$apps" && -d "$categories" ]] || { echo "Unexpected KDE plugin layout" >&2; exit 1; }
 if [[ -e "$target" ]]; then
     identical=true
     for i in "${!files[@]}"; do
