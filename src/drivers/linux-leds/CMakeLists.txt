@@ -1,6 +1,6 @@
 qt_add_library(ambient_linux_leds STATIC linux_leds.cpp)
 target_include_directories(ambient_linux_leds PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-target_link_libraries(ambient_linux_leds PUBLIC ambient_generic_driver)
+target_link_libraries(ambient_linux_leds PUBLIC ambient_generic_driver PRIVATE Qt6::DBus)
 target_compile_options(ambient_linux_leds PRIVATE -Wall -Wextra -Wpedantic)
 qt_add_plugin(linux_leds SHARED CLASS_NAME LinuxLedsDriver)
 target_sources(linux_leds PRIVATE linux_leds_driver.cpp)

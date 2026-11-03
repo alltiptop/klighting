@@ -1,7 +1,8 @@
 # Linux LED class
 
 Generic support for keyboard backlights exposed through `/sys/class/leds` and
-RGB entries with `multi_index` / `multi_intensity`. Discovery reads files only.
+RGB entries (including subsets such as red/blue) with `multi_index` /
+`multi_intensity`. Discovery reads files only.
 The kernel driver must already support the hardware. Caps Lock and other monochrome
 status indicators are excluded. Zoned keyboard entries appear individually.
 
@@ -9,14 +10,17 @@ status indicators are excluded. Zoned keyboard entries appear individually.
   schematic and no per-key selection. This is not a detected physical layout.
 - RGB: channel order and optional `multi_max_intensity` come from sysfs. Colors
   change through `multi_intensity`; KDE's hardware brightness stays independent.
-- Monochrome output scales the last externally selected brightness. Nonzero output
-  retains at least one hardware step; external Off remains Off. Sysfs does not
+- Monochrome output maps 0–100% to the full `max_brightness` range, rounded to the
+  nearest level; external Off remains Off. Sysfs does not
   identify writers: an external change equal to our last value is indistinguishable.
 - Disabling restores session-owned values and the previous LED trigger, preserving
   detected external changes. I/O runs on a worker and pending frames are coalesced.
 
-The user needs write access to the chosen LED attributes. The plugin does not
-install permissions, elevate privileges or modify the system service configuration.
+If direct brightness writes are denied, the driver uses logind's session
+`SetBrightness("leds", name, level)` API. Logind checks the active session's access;
+errors remain visible in the service status. RGB intensity and trigger attributes
+still need direct write access. The plugin does not install permissions, elevate
+privileges or modify the system service configuration.
 Software tests use temporary sysfs fixtures; physical devices have not been validated.
 
 Alternative drivers remain visible in **Devices**. Disable the current owner before

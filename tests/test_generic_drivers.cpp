@@ -120,7 +120,7 @@ private Q_SLOTS:
         LinuxLeds::Session session(root.path());
         QVERIFY(session.open().isEmpty());
         QVERIFY(session.write({ QColor(1, 1, 1), { }, { } }).isEmpty());
-        QCOMPARE(Generic::readFile(root.path() + "/brightness"), QByteArray("1"));
+        QCOMPARE(Generic::readFile(root.path() + "/brightness"), QByteArray("0"));
         session.close();
         QCOMPARE(Generic::readFile(root.path() + "/brightness"), QByteArray("3"));
         LinuxLeds::Session second(root.path());
@@ -132,6 +132,90 @@ private Q_SLOTS:
         QCOMPARE(Generic::readFile(root.path() + "/brightness"), QByteArray("0"));
         second.close();
         QCOMPARE(Generic::readFile(root.path() + "/brightness"), QByteArray("0"));
+    }
+    void sysfsBrightnessUsesTheWholeRangeAndCanLeaveItsOwnOff()
+    {
+        QTemporaryDir root;
+        put(root.path() + "/max_brightness", "3");
+        put(root.path() + "/brightness", "1");
+        LinuxLeds::Session session(root.path());
+        QVERIFY(session.open().isEmpty());
+        const QList<int> percentages { 0, 33, 67, 100, 67, 33, 0, 100 };
+        const QList<int> levels { 0, 1, 2, 3, 2, 1, 0, 3 };
+        for (int i = 0; i < percentages.size(); ++i) {
+            const auto v = percentages[i] / 100.0;
+            QVERIFY(session.write({ QColor::fromRgbF(v, v, v), { }, { } }).isEmpty());
+            QCOMPARE(Generic::readFile(root.path() + "/brightness"), QByteArray::number(levels[i]));
+        }
+        session.close();
+        QCOMPARE(Generic::readFile(root.path() + "/brightness"), QByteArray("1"));
+    }
+    void deniedBrightnessUsesSessionWriterAndRestoresOwnedValues()
+    {
+        QTemporaryDir root;
+        const auto path = root.path() + "/brightness";
+        put(root.path() + "/max_brightness", "3");
+        put(path, "1");
+        QVERIFY(QFile::setPermissions(path, QFileDevice::ReadOwner));
+        QList<uint> writes;
+        LinuxLeds::Session session(root.path(), [&](const QString& device, uint value) {
+            if (device != root.path())
+                return QStringLiteral("Wrong device");
+            writes.append(value);
+            QFile::setPermissions(path, QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+            put(path, QByteArray::number(value));
+            QFile::setPermissions(path, QFileDevice::ReadOwner);
+            return QString();
+        });
+        QVERIFY(session.open().isEmpty());
+        QVERIFY(session.write({ Qt::white, { }, { } }).isEmpty());
+        QCOMPARE(writes, QList<uint> { 3 });
+        QCOMPARE(Generic::readFile(path), QByteArray("3"));
+        QVERIFY(session.write({ Qt::white, { }, { } }).isEmpty());
+        QCOMPARE(writes.size(), 1); // No redundant D-Bus requests.
+        session.close();
+        QCOMPARE(writes, (QList<uint> { 3, 1 }));
+        QCOMPARE(Generic::readFile(path), QByteArray("1"));
+    }
+    void sessionWriterErrorsAreReportedWithoutClaimingTheWrite()
+    {
+        QTemporaryDir root;
+        const auto path = root.path() + "/brightness";
+        put(root.path() + "/max_brightness", "3");
+        put(path, "1");
+        QVERIFY(QFile::setPermissions(path, QFileDevice::ReadOwner));
+        int writes = 0;
+        LinuxLeds::Session session(root.path(), [&](const QString&, uint) {
+            ++writes;
+            return QStringLiteral("Session is not active");
+        });
+        QVERIFY(session.open().isEmpty());
+        const auto error = session.write({ Qt::white, { }, { } });
+        QVERIFY2(error.contains("logind: Session is not active"), qPrintable(error));
+        session.close();
+        QCOMPARE(writes, 1);
+        QCOMPARE(Generic::readFile(path), QByteArray("1"));
+    }
+    void multicolorDiscoversPartialRgbAndChannelResolution()
+    {
+        QTemporaryDir root;
+        const auto path = root.path() + "/mock:multi:strip";
+        put(path + "/max_brightness", "255");
+        put(path + "/brightness", "100");
+        put(path + "/multi_index", "blue red");
+        put(path + "/multi_intensity", "2 3");
+        put(path + "/multi_max_intensity", "7 15");
+        const auto devices = LinuxLeds::discover(root.path(), { });
+        QCOMPARE(devices.size(), 1);
+        QVERIFY(devices[0].description.capabilities.testFlag(DeviceCapability::Color));
+        QCOMPARE(devices[0].options["ColorLevels"].toMap(), (QVariantMap { { "blue", 7 }, { "red", 15 } }));
+        LinuxLeds::Session session(path);
+        QVERIFY(session.open().isEmpty());
+        QVERIFY(session.write({ QColor(128, 255, 64), { }, { } }).isEmpty());
+        QCOMPARE(Generic::readFile(path + "/multi_intensity"), QByteArray("2 8"));
+        QCOMPARE(Generic::readFile(path + "/brightness"), QByteArray("100"));
+        session.close();
+        QCOMPARE(Generic::readFile(path + "/multi_intensity"), QByteArray("2 3"));
     }
     void multicolorUsesReportedChannelOrderAndLeavesBrightnessAlone()
     {

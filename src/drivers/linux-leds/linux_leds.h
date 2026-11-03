@@ -9,7 +9,8 @@ QList<DeviceInstance> discover(const QString& root, const QString& boardName);
 class Session final : public Generic::Session
 {
 public:
-    explicit Session(QString path);
+    using BrightnessWriter = std::function<QString(const QString& path, uint value)>;
+    explicit Session(QString path, BrightnessWriter brightnessWriter = { });
     ~Session() override;
     QString open() override;
     QString write(const DeviceFrame& frame) override;
@@ -18,6 +19,7 @@ public:
 private:
     QString put(const QString& attribute, const QByteArray& value);
     QString m_path;
+    BrightnessWriter m_brightnessWriter;
     std::unique_ptr<QLockFile> m_lock;
     QStringList m_channels;
     QList<int> m_limits;

@@ -1,22 +1,45 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "linux_leds.h"
+#include <QDBusConnection>
+#include <QDBusMessage>
 #include <QDir>
 #include <QFile>
 #include <QStandardPaths>
 #include <algorithm>
+#include <cerrno>
 
 namespace Ambient::LinuxLeds
 {
 namespace
 {
+    QString logindBrightness(const QString& path, uint value)
+    {
+        const auto name = QFileInfo(path).fileName();
+        // Only pass a discovered system LED to logind, never a layout override
+        // or an unrelated path that happens to have the same basename.
+        if (QFileInfo("/sys/class/leds/" + name).canonicalFilePath() != QFileInfo(path).canonicalFilePath())
+            return QStringLiteral("Not a system LED device");
+        auto call = QDBusMessage::createMethodCall("org.freedesktop.login1",
+            "/org/freedesktop/login1/session/auto", "org.freedesktop.login1.Session", "SetBrightness");
+        call.setAutoStartService(false);
+        call.setInteractiveAuthorizationAllowed(false);
+        call << QStringLiteral("leds") << name << value;
+        // Session runs on the driver's worker; keep failure and shutdown bounded.
+        const auto reply = QDBusConnection::systemBus().call(call, QDBus::Block, 1500);
+        return reply.type() == QDBusMessage::ErrorMessage ? reply.errorName() + ": " + reply.errorMessage()
+                                                          : QString();
+    }
     QStringList words(const QByteArray& value)
     {
         return QString::fromLatin1(value.simplified()).split(' ', Qt::SkipEmptyParts);
     }
     bool rgb(const QStringList& channels)
     {
-        return channels.size() == 3 && channels.contains("red") && channels.contains("green")
-            && channels.contains("blue");
+        return !channels.isEmpty() && channels.size() <= 3
+            && QSet<QString>(channels.cbegin(), channels.cend()).size() == channels.size()
+            && std::all_of(channels.cbegin(), channels.cend(), [](const auto& channel) {
+                   return channel == "red" || channel == "green" || channel == "blue";
+               });
     }
     QByteArray activeTrigger(const QByteArray& text)
     {
@@ -70,13 +93,30 @@ QList<DeviceInstance> discover(const QString& root, const QString& boardName)
             const auto serial = Generic::readFile(usb + "/serial");
             identity = (serial.isEmpty() ? usb : QString::fromUtf8(serial)) + ':' + model;
         }
-        devices.append({ Generic::digest(identity.toUtf8()), d,
-            { { "SysfsPath", path }, { "DeviceClaims", claims }, { "BrightnessSteps", maximum } } });
+        QVariantMap options { { "SysfsPath", path }, { "DeviceClaims", claims },
+            { "BrightnessSteps", maximum } };
+        if (color) {
+            const auto limits = words(Generic::readFile(path + "/multi_max_intensity"));
+            QVariantMap levels;
+            for (qsizetype i = 0; i < channels.size(); ++i) {
+                const int limit = limits.isEmpty() ? maximum : limits.value(i).toInt();
+                if (limit < 1 || limit > 65535 || (!limits.isEmpty() && limits.size() != channels.size())) {
+                    levels.clear();
+                    break;
+                }
+                levels.insert(channels[i], limit);
+            }
+            if (levels.isEmpty())
+                continue;
+            options.insert("ColorLevels", levels);
+        }
+        devices.append({ Generic::digest(identity.toUtf8()), d, options });
     }
     return devices;
 }
-Session::Session(QString path)
+Session::Session(QString path, BrightnessWriter brightnessWriter)
     : m_path(std::move(path))
+    , m_brightnessWriter(brightnessWriter ? std::move(brightnessWriter) : logindBrightness)
 {
 }
 Session::~Session() { close(); }
@@ -124,8 +164,15 @@ QString Session::open()
 QString Session::put(const QString& attribute, const QByteArray& value)
 {
     QFile file(m_path + '/' + attribute);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        return QStringLiteral("Cannot write %1: %2").arg(file.fileName(), file.errorString());
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        const bool denied
+            = file.error() == QFileDevice::PermissionsError || errno == EACCES || errno == EPERM;
+        const auto error = QStringLiteral("Cannot write %1: %2").arg(file.fileName(), file.errorString());
+        if (attribute != "brightness" || !denied)
+            return error;
+        const auto fallback = m_brightnessWriter(m_path, value.toUInt());
+        return fallback.isEmpty() ? QString() : error + QStringLiteral("; logind: ") + fallback;
+    }
     const auto line = value + '\n';
     if (file.write(line) != line.size() || !file.flush())
         return QStringLiteral("Cannot update %1: %2").arg(file.fileName(), file.errorString());
@@ -150,9 +197,9 @@ QString Session::write(const DeviceFrame& frame)
     if (!color.isValid())
         return QStringLiteral("Invalid LED color");
     if (m_channels.isEmpty()) {
-        // Keep a nonzero request visible even on keyboards with only 2–3 levels.
-        const int value
-            = m_base == 0 || color.value() == 0 ? 0 : std::max(1, qRound(m_base * color.valueF()));
+        // Percentages span the hardware range, independent of its initial level.
+        // An external Off still wins; our own zero can be raised by the next frame.
+        const int value = m_base == 0 ? 0 : qRound(m_maximum * color.valueF());
         if (current == value) {
             m_lastBrightness = value;
             return { };
