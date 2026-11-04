@@ -1,0 +1,6 @@
+/src/
+/pkg/
+/klighting/
+/*.pkg.tar.*
+/*.log
+/*.log.[0-9]*

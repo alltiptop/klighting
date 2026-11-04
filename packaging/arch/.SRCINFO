@@ -1,0 +1,38 @@
+pkgbase = klighting-git
+	pkgdesc = Keyboard lighting and ambient screen colors for KDE Plasma
+	pkgver = 0.27.0.r17.g7dde9ad
+	pkgrel = 1
+	url = https://github.com/alltiptop/klighting
+	arch = x86_64
+	license = GPL-3.0-or-later
+	checkdepends = dbus
+	checkdepends = python
+	makedepends = cmake>=3.25
+	makedepends = extra-cmake-modules>=6.26
+	makedepends = ninja
+	makedepends = git
+	makedepends = qt6-tools
+	makedepends = vulkan-headers
+	depends = glibc
+	depends = libgcc
+	depends = libstdc++
+	depends = qt6-base>=6.10
+	depends = qt6-declarative>=6.10
+	depends = kconfig
+	depends = kcoreaddons
+	depends = kguiaddons
+	depends = kservice
+	depends = kcmutils
+	depends = ki18n
+	depends = kirigami
+	depends = libusb
+	depends = libepoxy
+	depends = kwin>=6.7
+	optdepends = asusctl: ASUS device discovery and hardware controls
+	optdepends = qqc2-desktop-style: native KDE styling for the settings editor
+	provides = klighting=0.27.0.r17.g7dde9ad
+	conflicts = klighting
+	source = klighting::git+https://github.com/alltiptop/klighting.git#branch=main
+	sha256sums = SKIP
+
+pkgname = klighting-git

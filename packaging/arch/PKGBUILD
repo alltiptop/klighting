@@ -1,0 +1,92 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+pkgname=klighting-git
+pkgver=0.27.0.r17.g7dde9ad
+pkgrel=1
+pkgdesc='Keyboard lighting and ambient screen colors for KDE Plasma'
+arch=('x86_64')
+url='https://github.com/alltiptop/klighting'
+license=('GPL-3.0-or-later')
+depends=(
+  'glibc' 'libgcc' 'libstdc++'
+  'qt6-base>=6.10' 'qt6-declarative>=6.10'
+  'kconfig' 'kcoreaddons' 'kguiaddons' 'kservice'
+  'kcmutils' 'ki18n' 'kirigami'
+  'libusb' 'libepoxy' 'kwin>=6.7'
+)
+makedepends=(
+  'cmake>=3.25' 'extra-cmake-modules>=6.26'
+  'ninja' 'git' 'qt6-tools' 'vulkan-headers'
+)
+checkdepends=('dbus' 'python')
+optdepends=(
+  'asusctl: ASUS device discovery and hardware controls'
+  'qqc2-desktop-style: native KDE styling for the settings editor'
+)
+provides=("klighting=$pkgver")
+conflicts=('klighting')
+source=('klighting::git+https://github.com/alltiptop/klighting.git#branch=main')
+sha256sums=('SKIP')
+
+pkgver() {
+  cd "$srcdir/klighting"
+  local version
+  version=$(sed -n 's/^project(klighting VERSION \([^ ]*\) LANGUAGES CXX)$/\1/p' CMakeLists.txt)
+  [[ -n "$version" ]] || return 1
+  printf '%s.r%s.g%s' "$version" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+}
+
+build() {
+  rm -f "$srcdir/build/kwin-version" "$srcdir/build/qt-version"
+  cmake -S "$srcdir/klighting" -B "$srcdir/build" -G Ninja \
+    -DCMAKE_BUILD_TYPE=None \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DKDE_INSTALL_LIBDIR=lib \
+    -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
+    -DBUILD_KWIN_EFFECT=ON \
+    -DBUILD_TESTING=ON
+
+  local kwin_dir kwin_version
+  kwin_dir=$(sed -n 's/^KWin_DIR:PATH=//p' "$srcdir/build/CMakeCache.txt")
+  kwin_version=$(sed -n 's/^set(PACKAGE_VERSION "\([0-9.]*\)")$/\1/p' "$kwin_dir/KWinConfigVersion.cmake")
+  if [[ ! "$kwin_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    error 'Cannot determine the KWin version used for this build.'
+    return 1
+  fi
+  cmake --build "$srcdir/build" || return
+
+  local qt_version
+  qt_version=$(LC_ALL=C readelf --wide --dyn-syms "$srcdir/build/klightingd" |
+    sed -nE 's/.* qt_version_tag@Qt_([0-9]+\.[0-9]+) .*/\1/p')
+  if [[ ! "$qt_version" =~ ^[0-9]+\.[0-9]+$ ]]; then
+    error 'Cannot determine the Qt version required by the binary.'
+    return 1
+  fi
+  # Save dependency versions only after a successful build for --repackage.
+  printf '%s\n' "$kwin_version" > "$srcdir/build/kwin-version"
+  printf '%s\n' "$qt_version" > "$srcdir/build/qt-version"
+}
+
+check() {
+  ctest --test-dir "$srcdir/build" --output-on-failure
+}
+
+_set_runtime_dependencies() {
+  # Keep this helper outside package() so .SRCINFO retains the source build minima.
+  local kwin_version qt_version
+  kwin_version=$(< "$srcdir/build/kwin-version") || return
+  qt_version=$(< "$srcdir/build/qt-version") || return
+  if [[ ! "$kwin_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ || ! "$qt_version" =~ ^[0-9]+\.[0-9]+$ ]]; then
+    error 'Invalid dependency versions; rebuild the package.'
+    return 1
+  fi
+  depends=("${depends[@]/kwin>=6.7/kwin=$kwin_version}")
+  depends=("${depends[@]/qt6-base>=6.10/qt6-base>=$qt_version}")
+}
+
+package() {
+  _set_runtime_dependencies
+  DESTDIR="$pkgdir" cmake --install "$srcdir/build"
+  install -Dm755 "$srcdir/build/ambient_probe" "$pkgdir/usr/bin/klighting-probe"
+  install -Dm644 "$srcdir/klighting/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
