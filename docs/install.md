@@ -133,7 +133,7 @@ currently. Notification input currently requires Plasma's watcher API. Qt and KF
 Config libraries are still required, independently of the desktop session.
 
 Service status reports devices, output and input sources; effect debug reports only
-screen capture. A completed USB transfer does not prove physical light output.
+screen capture. A completed frame does not confirm physical light output.
 Remove private application names and device identities before sharing logs.
 
 Status includes build IDs, IPC capabilities and provider instance IDs. Lighting settings

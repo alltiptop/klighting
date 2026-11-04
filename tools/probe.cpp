@@ -160,7 +160,7 @@ int main(int argc, char** argv)
             colorTimer.stop();
             client.setEnabled(false);
             QTimer::singleShot(3000, &app, [&] {
-                QTextStream(stdout) << "Completed USB frames: " << client.completedFrames() << "; "
+                QTextStream(stdout) << "Completed frames: " << client.completedFrames() << "; "
                                     << client.status() << Qt::endl;
                 app.exit(!interrupted && client.completedFrames() > 0 ? 0 : 1);
             });

@@ -167,9 +167,19 @@ continuous color preview, with no borders between elements.
 ## Frames and hardware controls
 
 `createBackend(instance)` creates one independently owned runtime object. All
-calls run on the owning Qt thread; hardware I/O must not block the compositor.
-`start(options)` receives instance options (including any retained legacy options). `setEnabled(false)` pauses output and restores normal operation.
-Destruction stops workers and releases hardware. Backends should coalesce frames and avoid reinitializing hardware between colors.
+calls run on the owning Qt thread. During normal operation, hardware I/O must be
+asynchronous or run off that thread. `start(options)` receives instance options
+(including any retained legacy options). `setEnabled(false)` stops new output and
+requests driver-specific restoration.
+
+Destruction must stop output and release locally claimed hardware before returning,
+even if `setEnabled(false)` was not called. The host may immediately start another
+backend for the same resource. Teardown must not depend on subsequent callbacks on
+the owning thread: at service shutdown, the event loop has already stopped.
+Attempt restoration when applicable before returning, using bounded timeouts for
+remote requests. Restoration is best effort; remote completion depends on the driver.
+Coalesce frames and avoid reinitializing hardware between colors.
+
 Use `readinessChanged` for availability or external control changes that require
 fresh output, not frame completion: the host may resubmit its current frame.
 Recover failed static output without relying on continuous animation or discovery
@@ -229,7 +239,7 @@ A typical Qt 6 installation uses
 `/usr/lib/qt6/plugins/ambient-led/drivers/v4/`. Incompatible metadata, invalid layouts
 or duplicate driver IDs are reported; unrelated valid drivers still work. Repeated
 references to the same canonical library are ignored. Qt pins plugin code for
-pending callbacks/metatypes; destroying a backend still releases hardware. The
+pending callbacks/metatypes. The
 [local installer](../tools/install-local.sh) replaces its supported modules atomically;
 see the bundled driver's notes for its migration behavior.
 
