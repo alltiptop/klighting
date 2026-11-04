@@ -737,13 +737,8 @@ QVariantList SettingsController::groups() const
         all << k.id;
     add(tr("All keys"), all, false);
     if (editableLightbar()) {
-        for (const auto& strip : editingDescription().strips) {
+        for (const auto& strip : editingDescription().strips)
             add(strip.name, { strip.id }, false);
-            QList<int> ids;
-            for (const auto& element : strip.elements)
-                ids.append(element.id);
-            add(tr("%1 elements").arg(strip.name), ids, false);
-        }
         if (editingDescription().strips.isEmpty())
             add(tr("Lightbar"), { LightbarId }, false);
     }
