@@ -55,8 +55,8 @@ physical mapping or firmware behavior.
 
 ## Continuous integration
 
-The build workflow uses a pinned Arch image and the 2026-09-17 package archive,
-with clang-format 23 and Qt tools 6.11. Checks, the full KWin build and CTest run
+The build workflow uses a pinned Arch image and the 2026-10-01 package archive,
+with clang-format 23.1.1, Qt 6.11.2 and KWin 6.7.5. Checks, the full KWin build and CTest run
 as an unprivileged user. Package versions and failure logs are retained as artifacts.
 Update the archive date and tool baseline together after validating the new stack.
 

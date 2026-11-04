@@ -9,14 +9,15 @@ fi
 
 mkdir -p build-ci/artifacts
 pacman -Q > build-ci/artifacts/packages.txt
-clang-format --version > build-ci/artifacts/formatters.txt
-/usr/lib/qt6/bin/qtpaths --qt-version >> build-ci/artifacts/formatters.txt
-if ! clang-format --version | grep -Eq 'version 23\.'; then
-    echo 'The formatting baseline requires clang-format 23.' >&2
+clang_version=$(clang-format --version)
+qt_version=$(/usr/lib/qt6/bin/qtpaths --qt-version)
+printf '%s\n' "$clang_version" "Qt tools $qt_version" | tee build-ci/artifacts/formatters.txt
+if [[ ! $clang_version =~ version\ 23\. ]]; then
+    echo "The formatting baseline requires clang-format 23; found: $clang_version." >&2
     exit 1
 fi
-if [[ $(/usr/lib/qt6/bin/qtpaths --qt-version) != 6.11.* ]]; then
-    echo 'The formatting baseline requires Qt tools 6.11.' >&2
+if [[ $qt_version != 6.11.* ]]; then
+    echo "The formatting baseline requires Qt tools 6.11; found: $qt_version." >&2
     exit 1
 fi
 

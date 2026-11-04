@@ -29,7 +29,7 @@ jobs:
       - name: Install the fixed Arch snapshot
         run: |
           set -euo pipefail
-          printf '%s\n' 'Server = https://archive.archlinux.org/repos/2026/09/17/$repo/os/$arch' > /etc/pacman.d/mirrorlist
+          printf '%s\n' 'Server = https://archive.archlinux.org/repos/2026/10/01/$repo/os/$arch' > /etc/pacman.d/mirrorlist
           pacman -Syyuu --noconfirm --needed base-devel cmake ninja pkgconf clang python \
             extra-cmake-modules qt6-base qt6-declarative qt6-tools kwin kcoreaddons \
             kconfig kcmutils kguiaddons ki18n kservice kwindowsystem kirigami \
