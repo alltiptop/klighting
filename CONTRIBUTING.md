@@ -82,6 +82,28 @@ The wrapper's synthetic directory tests run without Git or network access:
 python3 -m unittest discover -s .github/tests -p 'test_*.py'
 ```
 
+The **Source file policy** workflow checks the complete proposed tree (not its
+history), using the base revision's checker for PRs. It allows UTF-8 text without
+binary control bytes and static PNGs only; archives, LFS pointers, submodules and
+symlinks are rejected. Only root `.git` is skipped, never proposed ignore rules.
+Bootstrap this policy on the default branch before requiring its status check.
+Make **Source file policy** a required check in the branch rules to block merges.
+
+PNG checks cover chunk order/length/CRC, bounded decompression, scanline sizes and
+filters, and reject trailing data, animation, embedded profiles and arbitrary
+metadata. Image chunks, transparency, `sRGB`/`gAMA`/`cHRM` and pixel density are
+allowed. Limits are 16 MiB per file, 16384 pixels per dimension
+and 64 MiB decoded per PNG. This does not detect data hidden in pixel values.
+Clean text/EXIF/timestamp metadata with Python alone, preserving image data and
+color information byte for byte; unsupported chunks or corruption fail unchanged:
+
+```sh
+python3 tools/clean_png.py docs/screenshots/presets.png
+python3 tools/clean_png.py docs/screenshots  # PNGs directly inside, no recursion
+# Check a clean checkout/export, before generating build files:
+python3 -I -B tools/check_source_files.py /path/to/clean-source
+```
+
 ## Runtime measurements
 
 `./build/runtime_benchmark` emits JSON for six isolated lighting scenarios (three runs

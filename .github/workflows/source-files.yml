@@ -1,0 +1,35 @@
+name: Source file policy
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-files:
+    name: Source file policy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Read the trusted source policy
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          path: policy
+          persist-credentials: false
+      - name: Read the proposed source as data only
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: source
+          persist-credentials: false
+          lfs: false
+          submodules: false
+      - name: Test the trusted policy and PNG cleaner
+        run: python3 -I -B -m unittest discover -s policy/.github/tests -p 'test_source_files.py'
+      - name: Reject binary artifacts and unclean PNGs
+        run: python3 -I -B policy/tools/check_source_files.py source
