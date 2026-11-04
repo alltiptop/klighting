@@ -12,6 +12,7 @@ namespace
 {
     constexpr auto Service = "org.freedesktop.UPower";
     constexpr auto Properties = "org.freedesktop.DBus.Properties";
+    constexpr int InitialRetryMs = 1000, MaximumRetryMs = 30000;
     const std::array<QString, 2> Paths { QStringLiteral("/org/freedesktop/UPower"),
         QStringLiteral("/org/freedesktop/UPower/devices/DisplayDevice") };
     const std::array<QString, 2> Interfaces { QStringLiteral("org.freedesktop.UPower"),
@@ -23,6 +24,10 @@ PowerSource::PowerSource(const QDBusConnection& bus, QObject* parent)
     , m_watcher(QString::fromLatin1(Service), bus, QDBusServiceWatcher::WatchForOwnerChange)
     , m_configWatcher(KConfigWatcher::create(KSharedConfig::openConfig("powerdevilrc")))
 {
+    for (int i = 0; i < 2; ++i) {
+        m_retry[i].setSingleShot(true);
+        connect(&m_retry[i], &QTimer::timeout, this, [this, i] { refresh(i); });
+    }
     connect(m_configWatcher.data(), &KConfigWatcher::configChanged, this, [this] { reloadThreshold(); });
     reloadThreshold();
     connect(&m_watcher, &QDBusServiceWatcher::serviceOwnerChanged, this,
@@ -59,6 +64,9 @@ void PowerSource::ownerChanged(const QString& owner)
     m_properties = { };
     m_pending = { };
     m_revision = { };
+    for (auto& retry : m_retry)
+        retry.stop();
+    m_retryDelay.fill(InitialRetryMs);
     m_seenPower = false;
     // Retain the last policy during a service outage. Discovery/reconnection
     // establishes a baseline and must never flash the LEDs as a plug-in event.
@@ -76,6 +84,7 @@ void PowerSource::refresh(int index)
 {
     if (m_owner.isEmpty() || m_pending[index])
         return;
+    m_retry[index].stop();
     m_pending[index] = true;
     const int generation = m_generation, revision = m_revision[index];
     auto call = QDBusMessage::createMethodCall(m_owner, Paths[index], Properties, "GetAll");
@@ -94,8 +103,11 @@ void PowerSource::refresh(int index)
         }
         if (reply.isError()) {
             m_status = QStringLiteral("UPower read failed: %1").arg(reply.error().name());
+            m_retry[index].start(m_retryDelay[index]);
+            m_retryDelay[index] = std::min(m_retryDelay[index] * 2, MaximumRetryMs);
             return;
         }
+        m_retryDelay[index] = InitialRetryMs;
         m_properties[index] = reply.value();
         publish();
     });
@@ -114,7 +126,7 @@ void PowerSource::propertiesChanged(const QString& interface, const QVariantMap&
     for (const auto& key : invalidated)
         m_properties[index].remove(key);
     publish();
-    if (!invalidated.isEmpty())
+    if (!invalidated.isEmpty() || m_retry[index].isActive())
         refresh(index);
 }
 void PowerSource::publish()

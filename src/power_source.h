@@ -6,6 +6,7 @@
 #include <QDBusMessage>
 #include <QDBusServiceWatcher>
 #include <QObject>
+#include <QTimer>
 #include <QVariantMap>
 #include <array>
 
@@ -39,6 +40,8 @@ private:
     std::array<QVariantMap, 2> m_properties;
     std::array<int, 2> m_revision { };
     std::array<bool, 2> m_pending { };
+    std::array<QTimer, 2> m_retry;
+    std::array<int, 2> m_retryDelay { };
     PowerState m_state;
     int m_generation = 0, m_lowThreshold = 10;
     bool m_seenPower = false;

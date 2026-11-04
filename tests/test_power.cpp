@@ -9,14 +9,18 @@ using namespace Ambient;
 class PowerServer : public QDBusVirtualObject
 {
 public:
-    QDBusConnection bus = QDBusConnection::connectToBus(QDBusConnection::SessionBus, "power-server-test");
+    QDBusConnection bus;
+    QString connectionName;
     QVariantMap root { { "OnBattery", false } };
     QVariantMap display { { "IsPresent", true }, { "Percentage", 50.0 }, { "WarningLevel", 1u } };
     bool deferRoot = false;
     QDBusMessage deferred;
     QVariantMap oldRoot;
-    int unexpected = 0, rootReads = 0;
-    PowerServer()
+    int unexpected = 0, rootReads = 0, displayReads = 0;
+    int rootFailures = 0, displayFailures = 0;
+    explicit PowerServer(QString connection = "power-server-test")
+        : bus(QDBusConnection::connectToBus(QDBusConnection::SessionBus, connection))
+        , connectionName(std::move(connection))
     {
         if (!bus.registerService("org.freedesktop.UPower")
             || !bus.registerVirtualObject("/org/freedesktop/UPower", this, QDBusConnection::SubPath))
@@ -26,7 +30,7 @@ public:
     {
         bus.unregisterService("org.freedesktop.UPower");
         bus.unregisterObject("/org/freedesktop/UPower", QDBusConnection::UnregisterTree);
-        QDBusConnection::disconnectFromBus("power-server-test");
+        QDBusConnection::disconnectFromBus(connectionName);
     }
     QString introspect(const QString&) const override { return { }; }
     bool handleMessage(const QDBusMessage& message, const QDBusConnection& connection) override
@@ -37,14 +41,22 @@ public:
         } else if (message.path() == "/org/freedesktop/UPower"
             && message.arguments() == QVariantList { "org.freedesktop.UPower" }) {
             ++rootReads;
-            if (deferRoot) {
+            if (rootFailures > 0) {
+                --rootFailures;
+                connection.send(message.createErrorReply(QDBusError::Failed, "Temporary root failure"));
+            } else if (deferRoot) {
                 deferred = message;
                 oldRoot = root;
             } else
                 connection.send(message.createReply(root));
         } else if (message.path() == "/org/freedesktop/UPower/devices/DisplayDevice"
             && message.arguments() == QVariantList { "org.freedesktop.UPower.Device" }) {
-            connection.send(message.createReply(display));
+            ++displayReads;
+            if (displayFailures > 0) {
+                --displayFailures;
+                connection.send(message.createErrorReply(QDBusError::Failed, "Temporary display failure"));
+            } else
+                connection.send(message.createReply(display));
         } else {
             ++unexpected;
             connection.send(message.createErrorReply(QDBusError::UnknownObject, "Unexpected power object"));
@@ -73,6 +85,71 @@ private Q_SLOTS:
         auto config = KSharedConfig::openConfig("powerdevilrc");
         KConfigGroup(config, "BatteryManagement").writeEntry("BatteryLowLevel", 30);
         QVERIFY(config->sync());
+    }
+    void initialFailureRecoversWithoutSignals_data()
+    {
+        QTest::addColumn<bool>("rootFailure");
+        QTest::newRow("root") << true;
+        QTest::newRow("display") << false;
+    }
+    void initialFailureRecoversWithoutSignals()
+    {
+        QFETCH(bool, rootFailure);
+        PowerServer server;
+        server.root["OnBattery"] = true;
+        server.display["Percentage"] = 10.0;
+        (rootFailure ? server.rootFailures : server.displayFailures) = 1;
+        PowerSource source(QDBusConnection::sessionBus());
+        QSignalSpy plugged(&source, &PowerSource::powerConnected);
+        QTRY_VERIFY_WITH_TIMEOUT(source.state().lowBattery, 4000);
+        QVERIFY(source.state().known && source.state().onBattery);
+        QCOMPARE(server.rootReads, rootFailure ? 2 : 1);
+        QCOMPARE(server.displayReads, rootFailure ? 1 : 2);
+        QCOMPARE(plugged.size(), 0);
+        QCOMPARE(server.unexpected, 0);
+    }
+    void reconnectCancelsScheduledRetry()
+    {
+        PowerServer server;
+        server.rootFailures = 1;
+        PowerSource source(QDBusConnection::sessionBus());
+        QTRY_VERIFY(source.status().contains("read failed"));
+        QVERIFY(server.bus.unregisterService("org.freedesktop.UPower"));
+        QTRY_VERIFY(source.status().contains("unavailable"));
+        PowerServer replacement("replacement-power-server-test");
+        QVERIFY(replacement.bus.baseService() != server.bus.baseService());
+        QTRY_VERIFY(source.state().known);
+        QTest::qWait(1200);
+        QCOMPARE(server.rootReads, 1);
+        QCOMPARE(replacement.rootReads, 1); // The old owner's retry must not run later.
+    }
+    void oldOwnerReplyCannotReplaceNewState_data()
+    {
+        QTest::addColumn<bool>("failure");
+        QTest::newRow("late-state") << false;
+        QTest::newRow("late-error") << true;
+    }
+    void oldOwnerReplyCannotReplaceNewState()
+    {
+        QFETCH(bool, failure);
+        PowerServer server;
+        server.deferRoot = true;
+        PowerSource source(QDBusConnection::sessionBus());
+        QTRY_COMPARE(server.rootReads, 1);
+        const auto pending = server.deferred;
+        QVERIFY(server.bus.unregisterService("org.freedesktop.UPower"));
+        QTRY_VERIFY(source.status().contains("unavailable"));
+        PowerServer replacement("replacement-power-server-test");
+        replacement.root["OnBattery"] = true;
+        replacement.display["Percentage"] = 10.0;
+        QTRY_VERIFY(source.state().lowBattery);
+        server.bus.send(failure ? pending.createErrorReply(QDBusError::Failed, "Old failure")
+                                : pending.createReply(server.oldRoot));
+        QTest::qWait(1200);
+        QVERIFY(source.state().onBattery && source.state().lowBattery);
+        QCOMPARE(server.rootReads, 1);
+        QCOMPARE(replacement.rootReads, 1);
+        QVERIFY(!source.status().contains("failed"));
     }
     void transitionsThresholdAndReconnect()
     {
