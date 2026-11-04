@@ -1161,6 +1161,101 @@ private Q_SLOTS:
         QApplication::sendEvent(dialog.windowHandle(), &letterRelease);
         QVERIFY(!first->property("previewPressed").toBool());
     }
+    void microphoneEditorAndLocalAssignments()
+    {
+        QStringList errors;
+        KCMultiDialog dialog;
+        QVERIFY(dialog.addModule(KPluginMetaData(CONFIG_PLUGIN_PATH)));
+        dialog.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&dialog));
+        dialog.resize(1240, 950);
+        auto* host = dialog.findChild<QQuickWidget*>();
+        QVERIFY(host && host->rootObject());
+        auto* module
+            = qobject_cast<KQuickConfigModule*>(host->rootObject()->property("kcm").value<QObject*>());
+        QVERIFY(module);
+        QTRY_COMPARE(module->depth(), 3);
+        connect(module->engine().get(), &QQmlEngine::warnings, this, [&](const QList<QQmlError>& warnings) {
+            for (const auto& error : warnings)
+                errors << error.toString();
+        });
+        auto* root = module->mainUi();
+        auto* settings = module->property("controller").value<QObject*>();
+        QVERIFY(root && settings);
+        QVERIFY(QMetaObject::invokeMethod(root, "selectSection", Q_ARG(QVariant, 2)));
+        QTRY_COMPARE(module->depth(), 3);
+        auto* add = editorChild<QObject*>(module->subPage(0), "AddMicrophoneEffect");
+        QVERIFY(add);
+        QVERIFY(QMetaObject::invokeMethod(add, "triggered"));
+        auto* editor = module->subPage(1);
+        auto* microphoneEditor = editorChild<QObject*>(editor, "MicrophoneEditor");
+        QVERIFY(microphoneEditor);
+        auto* status = editorChild<QObject*>(microphoneEditor, "MicrophoneStatus");
+        QVERIFY(status);
+        QCOMPARE(status->property("text").toString(), QString("Microphone status unavailable"));
+        auto* color = editorChild<QObject*>(microphoneEditor, "MicrophoneColor");
+        QVERIFY(color);
+        QCOMPARE(color->property("text").toString(), QString("#ff0000"));
+        color->setProperty("text", "#123456");
+        QVERIFY(QMetaObject::invokeMethod(color, "textEdited"));
+        QCOMPARE(
+            settings->property("effectPreset").toMap()["microphoneColor"].toString(), QString("#123456"));
+        auto* power = editorChild<QObject*>(microphoneEditor, "EffectPauseOnBattery");
+        QVERIFY(power);
+        power->setProperty("checked", true);
+        QVERIFY(QMetaObject::invokeMethod(power, "toggled"));
+        QVERIFY(settings->property("effectPreset").toMap()["pauseOnBattery"].toBool());
+        QVERIFY(module->needsSave());
+        const bool capturePreview = !qEnvironmentVariable("AMBIENT_QUICK_PREVIEW").isEmpty();
+        if (capturePreview)
+            QVERIFY(snapshot(dialog, "microphone-wide"));
+        dialog.resize(500, 950);
+        QTRY_VERIFY(inView(editor, host));
+        if (capturePreview)
+            QVERIFY(snapshot(dialog, "microphone-narrow"));
+        dialog.resize(1240, 950);
+        QVERIFY(QMetaObject::invokeMethod(root, "selectSection", Q_ARG(QVariant, 1)));
+        QTRY_COMPARE(module->depth(), 3);
+        QTRY_VERIFY(module->subPage(1) && module->subPage(1)->objectName() == "PresetEditor");
+        editor = module->subPage(1);
+        auto* keyboard = editorChild<QObject*>(editor, "KeyboardView");
+        auto* assignments = editorChild<QObject*>(editor, "AssignedEffectsEditor");
+        QVERIFY(keyboard && assignments);
+        keyboard->setProperty("selection", QVariantList { 14 });
+        auto* local = editorChild<QObject*>(editor, "AddLocalEffect:microphone");
+        QVERIFY(local);
+        QVERIFY(QMetaObject::invokeMethod(local, "triggered"));
+        const auto id = assignments->property("expandedEffect").toString();
+        QVERIFY(!id.isEmpty());
+        QQuickItem* row = nullptr;
+        QTRY_VERIFY((row = itemNamed(editor, "AssignedEffect:" + id)));
+        QObject* localColor = nullptr;
+        QTRY_VERIFY((localColor = row->findChild<QObject*>("MicrophoneColor")));
+        localColor->setProperty("text", "#abcdef");
+        QVERIFY(QMetaObject::invokeMethod(localColor, "textEdited"));
+        QVariantMap options;
+        QVERIFY(QMetaObject::invokeMethod(
+            settings, "localEffectOptions", Q_RETURN_ARG(QVariantMap, options), Q_ARG(QString, id)));
+        QCOMPARE(options["microphoneColor"].toString(), QString("#abcdef"));
+        auto* above = row->findChild<QObject*>("AssignedEffectAboveLayers");
+        QVERIFY(above && above->property("visible").toBool());
+        above->setProperty("checked", true);
+        QVERIFY(QMetaObject::invokeMethod(above, "toggled"));
+        QVariantList preview;
+        QVERIFY(QMetaObject::invokeMethod(
+            settings, "keyPreview", Q_RETURN_ARG(QVariantList, preview), Q_ARG(int, -1)));
+        QCOMPARE(preview[14].toMap()["microphoneId"].toString(), id);
+        QVERIFY(preview[14].toMap()["microphoneAbove"].toBool());
+        auto* flick = editor->property("flickable").value<QObject*>();
+        QVERIFY(flick);
+        flick->setProperty(
+            "contentY", flick->property("contentHeight").toReal() - flick->property("height").toReal());
+        if (capturePreview)
+            QVERIFY(snapshot(dialog, "microphone-assignment"));
+        module->load();
+        QVERIFY(!module->needsSave());
+        QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
+    }
     void notificationsEditorAndAssignments()
     {
         QStringList errors;

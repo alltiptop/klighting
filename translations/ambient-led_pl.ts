@@ -469,6 +469,14 @@
         <source>New Brightness preset</source>
         <translation>Nowe ustawienie jasności</translation>
     </message>
+    <message>
+        <source>Microphone</source>
+        <translation>Mikrofon</translation>
+    </message>
+    <message>
+        <source>New Microphone preset</source>
+        <translation>Nowe ustawienie mikrofonu</translation>
+    </message>
 </context>
 <context>
     <name>AmbientLed.AmbientForm</name>
@@ -618,8 +626,8 @@
     </message>
     <message>
         <location line="+3"/>
-        <source>Effects blend from top to bottom. Inactive notifications are transparent.</source>
-        <translation>Efekty nakładają się od góry do dołu. Nieaktywne powiadomienia są przezroczyste.</translation>
+        <source>Effects blend from top to bottom. Inactive indicators are transparent.</source>
+        <translation>Efekty są mieszane od góry do dołu. Nieaktywne wskaźniki są przezroczyste.</translation>
     </message>
     <message>
         <location line="+74"/>
@@ -719,13 +727,17 @@
     </message>
     <message>
         <location line="+9"/>
-        <source>These notifications override every layer, including unlit keys.</source>
-        <translation>Te powiadomienia zastępują każdą warstwę, także zgaszone klawisze.</translation>
+        <source>These effects override every layer in this device profile, including unlit keys.</source>
+        <translation>Te efekty są wyświetlane nad wszystkimi warstwami tego profilu urządzenia, także nad niepodświetlonymi klawiszami.</translation>
     </message>
     <message>
         <location line="-58"/>
         <source>New Brightness</source>
         <translation>Nowa jasność</translation>
+    </message>
+    <message>
+        <source>New Microphone</source>
+        <translation>Nowy mikrofon</translation>
     </message>
 </context>
 <context>
@@ -925,6 +937,10 @@
         <source>Import Effect Preset…</source>
         <translation>Importuj ustawienie wstępne efektu…</translation>
     </message>
+    <message>
+        <source>Microphone</source>
+        <translation>Mikrofon</translation>
+    </message>
 </context>
 <context>
     <name>AmbientLed.HexColor</name>
@@ -1045,6 +1061,14 @@
         <source>; Notifications</source>
         <translation>; powiadomienia</translation>
     </message>
+    <message>
+        <source>; Microphone</source>
+        <translation>; Mikrofon</translation>
+    </message>
+    <message>
+        <source>; Microphone above all layers</source>
+        <translation>; Mikrofon nad wszystkimi warstwami</translation>
+    </message>
 </context>
 <context>
     <name>AmbientLed.LayerEditor</name>
@@ -1163,8 +1187,8 @@
     </message>
     <message>
         <location line="+7"/>
-        <source>Pausing freezes colors and stops capture and notifications. Lightbar rules are independent. Low battery uses KDE’s threshold.</source>
-        <translation>Pauza utrzymuje kolory i zatrzymuje przechwytywanie oraz powiadomienia. Reguły paska są niezależne. Próg niskiego poziomu baterii pochodzi z KDE.</translation>
+        <source>Pausing freezes base colors, stops capture and hides indicators. Lightbar rules are independent. Low battery uses KDE’s threshold.</source>
+        <translation>Wstrzymanie zamraża kolory bazowe, zatrzymuje przechwytywanie i ukrywa wskaźniki. Reguły listwy świetlnej są niezależne. Niski poziom baterii używa progu KDE.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -1224,6 +1248,49 @@
     <message>
         <source>Retry desktop integration</source>
         <translation>Ponów integrację z pulpitem</translation>
+    </message>
+</context>
+<context>
+    <name>AmbientLed.MicrophoneForm</name>
+    <message>
+        <source>Backend: %1</source>
+        <translation>Backend: %1</translation>
+    </message>
+    <message>
+        <source>Color:</source>
+        <translation>Kolor:</translation>
+    </message>
+    <message>
+        <source>Default input: %1</source>
+        <translation>Domyślne wejście: %1</translation>
+    </message>
+    <message>
+        <source>Microphone color</source>
+        <translation>Kolor mikrofonu</translation>
+    </message>
+    <message>
+        <source>Microphone indication does not require Ambient screen capture.</source>
+        <translation>Wskazanie stanu mikrofonu nie wymaga przechwytywania ekranu Ambient.</translation>
+    </message>
+    <message>
+        <source>Microphone mute state unknown</source>
+        <translation>Stan wyciszenia mikrofonu nieznany</translation>
+    </message>
+    <message>
+        <source>Microphone muted</source>
+        <translation>Mikrofon wyciszony</translation>
+    </message>
+    <message>
+        <source>Microphone status unavailable</source>
+        <translation>Stan mikrofonu niedostępny</translation>
+    </message>
+    <message>
+        <source>Microphone unmuted</source>
+        <translation>Mikrofon niewyciszony</translation>
+    </message>
+    <message>
+        <source>Shows this color when the system default input is unmuted, even when no application records. Muted or unknown state is transparent; this is not a privacy guarantee.</source>
+        <translation>Pokazuje ten kolor, gdy domyślne wejście systemowe nie jest wyciszone, nawet jeśli żadna aplikacja nie nagrywa. Przy wyciszeniu lub nieznanym stanie efekt jest przezroczysty; nie gwarantuje to prywatności.</translation>
     </message>
 </context>
 <context>

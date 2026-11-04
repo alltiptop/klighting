@@ -10,10 +10,11 @@ Effects stay built into the host; device drivers are independently loadable Qt p
 | Device management | `driver_loader.*`, `device_manager.*` | Validate modules/layouts, preserve per-instance settings, own backends and apply power policy |
 | Preset data/storage | `presets.h`, `presets.cpp` | Bounded JSON validation, references, import/export and atomic file publication |
 | Preset evaluation | `preset_runtime.cpp`, `keyboard_profile.*` | Key conditions, one active layer, assignment expansion and shared/local references |
-| Effects | `effect_palette.*`, `color.*`, `notification_effect.*` | Dominant color, smoothing, brightness/temperature, static colors and pulses |
+| Effects | `effect_palette.*`, `color.*`, `notification_effect.*`, `microphone_effect.*` | Dominant color, smoothing, brightness/temperature, static colors, pulses and mute indicators |
 | Platform inputs | `notification_source.*`, `power_source.*` | Asynchronous D-Bus input; authenticate notification sender and track power changes |
 | Runtime/service | `lighting_runtime.*`, `lighting_service.*`, `daemon_main.cpp` | Own drivers, presets, composition and timers; reload settings over session D-Bus |
-| Source contracts | `desktop_source.h`, `capture_source.h`, `integration_sources.h` | Independent desktop/capture states and an optional hardware ownership guard, without compositor types |
+| Source contracts | `desktop_source.h`, `capture_source.h`, `microphone_source.h`, `integration_sources.h` | Independent desktop/capture/microphone states and an optional hardware ownership guard, without platform library types |
+| Audio observation | `audio_sources.*`, `pulse_microphone_source.*` | Read-only default-input mute observation over the PulseAudio protocol; private static target linked only into the daemon |
 | KWin desktop integration | `kwin_integration.cpp`, `kwin_desktop_source.*` | The sole current desktop provider; independent of Ambient |
 | Ambient capture | `ambient_effect.*`, `frame_sampler.*`, `capture_channel.*`, `kwin_capture_source.*` | Optional small asynchronous GPU captures; no drivers or preset evaluation |
 | Settings facade | `settings_controller.*` | Pending collection, presets, layers, application rules, load/save and preview |
@@ -32,15 +33,16 @@ A device chooses a matching application preset or the shared Default, then selec
 by driver and instance identity. A preset can contain up to 32 independent device
 profiles, including several instances of the same model. Base is always the
 underlay; at most one matching keyboard layer is selected. The combination with the
-most conditions wins, with the last row breaking ties. Effects blend in list order;
-above-layer notifications compose last. Local effect IDs are scoped by device profile at runtime.
+most conditions wins, with the last row breaking ties. Effects blend in list order,
+including the [above-layer group](settings.md#effect-presets).
+Local effect IDs are scoped by device profile at runtime.
 
 Device management retains each resolved profile/layer, its styles, assignments and used
 effect IDs. Observed window/key state is always updated; unchanged selection reuses that
 result. Configuration and power changes invalidate it, and discovery replaces a backend
-when its options or description change. Ambient and notification scheduling share one
-required-effect set. Readiness changes can resend the current frame without resolving
-the profile again.
+when its options or description change. Ambient, notification and microphone evaluation
+share one required-effect set. Microphone input is event-driven and needs no animation
+timer. Readiness changes can resend the current frame without resolving the profile again.
 
 Continuous effect states are shared across devices using the same effect. One small
 32×18 GPU sample feeds the active Ambient calculations. Readback uses a fence/PBO and

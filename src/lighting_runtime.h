@@ -2,6 +2,7 @@
 #pragma once
 #include "device_manager.h"
 #include "effect_palette.h"
+#include "microphone_effect.h"
 #include "notification_effect.h"
 #include <QElapsedTimer>
 #include <QObject>
@@ -22,11 +23,13 @@ public:
     void setLocked(bool locked);
     void setDesktop(const QString& windowClass, const ModifierState& modifiers);
     void setPowerState(const PowerState& state);
+    void setMicrophoneState(const MicrophoneState& state);
     void setCaptureAvailable(bool available);
     void sample(QByteArrayView rgba, double brightness = 1.0, double saturation = 1.0);
     void notify(const NotificationEvent& event);
     int captureFps() const;
     bool notificationsEnabled() const;
+    bool microphoneEnabled() const;
     bool running() const { return m_enabled && !m_locked; }
     QVariantMap status() const;
     const LoadedDriver& drivers() const { return m_devices.drivers(); }
@@ -45,6 +48,8 @@ private:
     PresetCollection m_collection;
     EffectPalette m_palette;
     NotificationEffects m_notifications;
+    MicrophoneState m_microphoneState;
+    QMap<QString, QColor> m_microphoneEffects, m_lastMicrophoneColors;
     DominantColorPicker m_picker;
     PowerState m_power;
     QString m_windowClass;

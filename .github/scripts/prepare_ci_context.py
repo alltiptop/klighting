@@ -15,7 +15,7 @@ def read_source(root, path):
     return path.read_bytes()
 
 
-def prepare_context(root, destination):
+def prepare_context(root, destination, audio_server='pulseaudio'):
     root = root.resolve()
     image = root / '.github' / 'ci'
     manifests = [image / 'packages.arch', *sorted((root / 'src' / 'drivers').glob('*/dependencies.arch'))]
@@ -25,6 +25,11 @@ def prepare_context(root, destination):
         if not lines or any(not PACKAGE_NAME.fullmatch(line) for line in lines):
             raise ValueError(f'Invalid package manifest: {path.relative_to(root)}')
         packages.update(lines)
+    if audio_server not in ('pulseaudio', 'pipewire-pulse'):
+        raise ValueError(f'Invalid audio test server: {audio_server}')
+    if audio_server == 'pipewire-pulse':
+        packages.discard('pulseaudio')
+        packages.add('pipewire-pulse')
     contents = {name: read_source(root, image / name) for name in ('Dockerfile', 'install.sh')}
     contents['packages.arch'] = ('\n'.join(sorted(packages)) + '\n').encode('utf-8')
     # A new directory prevents unrelated files or credentials entering the context.
@@ -39,9 +44,10 @@ def prepare_context(root, destination):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('destination', type=Path, help='new directory for the image context')
+    parser.add_argument('--audio-server', choices=('pulseaudio', 'pipewire-pulse'), default='pulseaudio')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[2]
-    print(prepare_context(root, args.destination))
+    print(prepare_context(root, args.destination, args.audio_server))
 
 
 if __name__ == '__main__':

@@ -469,6 +469,14 @@
         <source>New Brightness preset</source>
         <translation>新建亮度预设</translation>
     </message>
+    <message>
+        <source>Microphone</source>
+        <translation>麦克风</translation>
+    </message>
+    <message>
+        <source>New Microphone preset</source>
+        <translation>新建麦克风预设</translation>
+    </message>
 </context>
 <context>
     <name>AmbientLed.AmbientForm</name>
@@ -618,8 +626,8 @@
     </message>
     <message>
         <location line="+3"/>
-        <source>Effects blend from top to bottom. Inactive notifications are transparent.</source>
-        <translation>效果从上到下依次叠加。未激活的通知为透明。</translation>
+        <source>Effects blend from top to bottom. Inactive indicators are transparent.</source>
+        <translation>效果从上到下混合。未激活的指示效果为透明。</translation>
     </message>
     <message>
         <location line="+74"/>
@@ -719,13 +727,17 @@
     </message>
     <message>
         <location line="+9"/>
-        <source>These notifications override every layer, including unlit keys.</source>
-        <translation>这些通知会覆盖所有层，包括未亮起的按键。</translation>
+        <source>These effects override every layer in this device profile, including unlit keys.</source>
+        <translation>这些效果覆盖此设备配置中的所有图层，包括未亮起的按键。</translation>
     </message>
     <message>
         <location line="-58"/>
         <source>New Brightness</source>
         <translation>新建亮度</translation>
+    </message>
+    <message>
+        <source>New Microphone</source>
+        <translation>新建麦克风</translation>
     </message>
 </context>
 <context>
@@ -925,6 +937,10 @@
         <source>Import Effect Preset…</source>
         <translation>导入效果预设…</translation>
     </message>
+    <message>
+        <source>Microphone</source>
+        <translation>麦克风</translation>
+    </message>
 </context>
 <context>
     <name>AmbientLed.HexColor</name>
@@ -1045,6 +1061,14 @@
         <source>; Notifications</source>
         <translation>；通知</translation>
     </message>
+    <message>
+        <source>; Microphone</source>
+        <translation>；麦克风</translation>
+    </message>
+    <message>
+        <source>; Microphone above all layers</source>
+        <translation>；麦克风位于所有图层之上</translation>
+    </message>
 </context>
 <context>
     <name>AmbientLed.LayerEditor</name>
@@ -1163,8 +1187,8 @@
     </message>
     <message>
         <location line="+7"/>
-        <source>Pausing freezes colors and stops capture and notifications. Lightbar rules are independent. Low battery uses KDE’s threshold.</source>
-        <translation>暂停会保持颜色，并停止屏幕捕获和通知。灯带规则独立生效。低电量使用 KDE 的阈值。</translation>
+        <source>Pausing freezes base colors, stops capture and hides indicators. Lightbar rules are independent. Low battery uses KDE’s threshold.</source>
+        <translation>暂停会冻结基础颜色、停止屏幕捕获并隐藏指示效果。灯条规则独立生效。低电量使用 KDE 的阈值。</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -1224,6 +1248,49 @@
     <message>
         <source>Retry desktop integration</source>
         <translation>重试桌面集成</translation>
+    </message>
+</context>
+<context>
+    <name>AmbientLed.MicrophoneForm</name>
+    <message>
+        <source>Backend: %1</source>
+        <translation>后端：%1</translation>
+    </message>
+    <message>
+        <source>Color:</source>
+        <translation>颜色：</translation>
+    </message>
+    <message>
+        <source>Default input: %1</source>
+        <translation>默认输入：%1</translation>
+    </message>
+    <message>
+        <source>Microphone color</source>
+        <translation>麦克风颜色</translation>
+    </message>
+    <message>
+        <source>Microphone indication does not require Ambient screen capture.</source>
+        <translation>麦克风状态指示不需要 Ambient 屏幕捕获。</translation>
+    </message>
+    <message>
+        <source>Microphone mute state unknown</source>
+        <translation>麦克风静音状态未知</translation>
+    </message>
+    <message>
+        <source>Microphone muted</source>
+        <translation>麦克风已静音</translation>
+    </message>
+    <message>
+        <source>Microphone status unavailable</source>
+        <translation>麦克风状态不可用</translation>
+    </message>
+    <message>
+        <source>Microphone unmuted</source>
+        <translation>麦克风未静音</translation>
+    </message>
+    <message>
+        <source>Shows this color when the system default input is unmuted, even when no application records. Muted or unknown state is transparent; this is not a privacy guarantee.</source>
+        <translation>系统默认输入未静音时显示此颜色，即使没有应用正在录音。静音或状态未知时效果为透明；这并不保证隐私安全。</translation>
     </message>
 </context>
 <context>

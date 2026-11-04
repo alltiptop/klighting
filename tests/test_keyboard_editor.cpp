@@ -32,7 +32,8 @@ public:
         QVariantList result;
         for (const auto& key : keys)
             result << QVariantMap { { "id", key.toMap()["id"] }, { "mode", keyMode },
-                { "color", keyLighting }, { "inherited", false }, { "notificationId", "test-notify" } };
+                { "color", keyLighting }, { "inherited", false }, { "notificationId", "test-notify" },
+                { "microphoneId", "test-microphone" } };
         return result + stripPreview;
     }
 Q_SIGNALS:
@@ -147,6 +148,11 @@ private Q_SLOTS:
         QVERIFY(icon->property("isMask").toBool());
         QCOMPARE(icon->property("color").value<QColor>(), QColor("#ff9900"));
         QCOMPARE(icon->opacity(), 0.65);
+        auto* microphone = itemNamed(keyboard, "KeyMicrophoneIcon");
+        QVERIFY(microphone && microphone->isVisible());
+        QVERIFY(microphone->property("isMask").toBool());
+        QCOMPARE(microphone->property("source").toString(), QString("audio-input-microphone"));
+        QCOMPARE(microphone->property("color").value<QColor>(), QColor("#ff9900"));
         for (int i = 0; i < 3; ++i) {
             auto* number = itemNamed(keyboard, "StripElementLabel" + QString::number(i));
             QVERIFY(number && number->isVisible());

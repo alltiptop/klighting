@@ -154,6 +154,16 @@ int LightingRuntime::captureFps() const
     return running() && m_devices.ready() ? m_palette.samplingFps() : 0;
 }
 bool LightingRuntime::notificationsEnabled() const { return running() && !m_notifications.empty(); }
+bool LightingRuntime::microphoneEnabled() const { return running() && !m_microphoneEffects.isEmpty(); }
+void LightingRuntime::setMicrophoneState(const MicrophoneState& state)
+{
+    const auto next = microphoneEnabled() ? state : MicrophoneState();
+    if (m_microphoneState == next)
+        return;
+    m_microphoneState = next;
+    // Mute changes do not wait for a notification or screen-output deadline.
+    tick();
+}
 void LightingRuntime::refresh()
 {
     advance();
@@ -176,6 +186,9 @@ void LightingRuntime::updateEffects()
     if (running() && m_captureAvailable && m_screenColor.isValid())
         m_palette.sample(m_screenColor);
     m_notifications.configure(effects, used, m_power);
+    m_microphoneEffects = activeMicrophoneEffects(effects, used, m_power);
+    if (!microphoneEnabled())
+        m_microphoneState = { };
     Q_EMIT requirementsChanged();
     tick(true);
 }
@@ -239,10 +252,15 @@ void LightingRuntime::tick(bool force)
         const auto brightness = m_palette.brightnessFilters();
         const bool notificationDue = force || m_time >= m_nextNotificationOutput;
         const auto pulses = notificationDue ? m_notifications.colors() : m_lastPulses;
-        if (force || palette != m_lastPalette || pulses != m_lastPulses || brightness != m_lastBrightness) {
-            m_devices.submit(palette, pulses, brightness);
+        const auto microphone = microphoneColors(m_microphoneEffects, m_microphoneState);
+        if (force || palette != m_lastPalette || pulses != m_lastPulses || brightness != m_lastBrightness
+            || microphone != m_lastMicrophoneColors) {
+            auto overlays = pulses;
+            overlays.insert(microphone);
+            m_devices.submit(palette, overlays, brightness);
             m_lastPalette = palette;
             m_lastPulses = pulses;
+            m_lastMicrophoneColors = microphone;
             m_lastBrightness = brightness;
         }
         if (notificationDue)
@@ -257,6 +275,7 @@ QVariantMap LightingRuntime::status() const
         { "captureFps", captureFps() }, { "samples", m_samples }, { "sent", m_devices.completedFrames() },
         { "windowClass", m_windowClass }, { "animationWakeups", m_animationWakeups }, { "ticks", m_ticks },
         { "effectUpdates", m_effectUpdates }, { "compositions", m_devices.compositions() },
-        { "profileResolutions", m_devices.profileResolutions() } };
+        { "profileResolutions", m_devices.profileResolutions() },
+        { "microphoneEnabled", microphoneEnabled() } };
 }
 }

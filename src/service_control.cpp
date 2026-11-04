@@ -38,6 +38,17 @@ void ServiceControl::refresh()
         m_compatible = m_running && compatibleComponent(Component::Service, reply.value());
         m_desktopCanRetry = m_compatible && reply.value().value("desktopCanRetry").toBool();
         updateDiagnostics(m_running ? reply.value() : QVariantMap());
+        m_microphoneStatus.clear();
+        if (m_compatible) {
+            const auto status = reply.value();
+            for (const auto* field :
+                { "Backend", "Available", "MuteKnown", "Muted", "SourceName", "Description", "Reason" }) {
+                auto key = QString::fromLatin1(field);
+                key[0] = key[0].toLower();
+                m_microphoneStatus.insert(
+                    key, status.value(QStringLiteral("microphone") + QLatin1String(field)));
+            }
+        }
         if (!m_running) {
             m_status = tr("Lighting service is stopped. Apply settings to start it.");
         } else if (!m_compatible) {

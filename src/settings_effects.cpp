@@ -52,7 +52,7 @@ bool SettingsController::setGradient(int layer, int index, int strip, int from, 
         auto list = localEffects(layer, id);
         list.removeIf([&](const auto& e) {
             return std::none_of(definitions.begin(), definitions.end(),
-                [&](const auto& p) { return p.id == e.id && p.type == "notifications"; });
+                [&](const auto& p) { return p.id == e.id && supportsEffectOverride(p.type); });
         });
         if (ambient && list.size() >= 32) {
             m_error = tr("Use at most 32 effects per element and layer.");
@@ -105,6 +105,7 @@ namespace
         return { { "id", p.id }, { "name", p.name }, { "type", p.type }, { "fps", a.fps },
             { "ledFps", a.ledFps }, { "smoothing", a.smoothing }, { "minimum", a.minimum },
             { "maximum", a.maximum }, { "temperature", a.temperature }, { "brightness", p.brightness },
+            { "microphoneColor", p.microphone.color.name() },
             { "notificationColor", p.notification.color.name() }, { "solidColor", p.solidColor.name() },
             { "pattern", p.notification.pattern }, { "period", p.notification.period },
             { "cycles", p.notification.cycles }, { "urgency", p.notification.urgency },
@@ -210,7 +211,7 @@ QString SettingsController::localizeEffect(
 QString SettingsController::addLocalEffect(int layer, const QVariantList& ids, const QString& type)
 {
     if (layer < -1 || layer >= current().layers.size() || effectIds(ids).isEmpty()
-        || !QStringList { "solid", "ambient", "notifications", "brightness" }.contains(type))
+        || !QStringList { "solid", "ambient", "notifications", "microphone", "brightness" }.contains(type))
         return { };
     pruneLocalEffects();
     if (current().localEffects.size() >= 128) {
@@ -230,6 +231,7 @@ QString SettingsController::addLocalEffect(int layer, const QVariantList& ids, c
     effect.name = type == "solid" ? tr("Solid Color")
         : type == "ambient"       ? tr("Ambient")
         : type == "brightness"    ? tr("Brightness")
+        : type == "microphone"    ? tr("Microphone")
                                   : tr("Notifications");
     current().localEffects.append(effect);
     addAssignedEffect(layer, ids, effect.id);
@@ -269,7 +271,8 @@ void SettingsController::setEffectName(const QString& name)
 bool SettingsController::addEffect(const QString& type, bool duplicate)
 {
     if ((type != QLatin1String("ambient") && type != QLatin1String("notifications")
-            && type != QLatin1String("solid") && type != QLatin1String("brightness"))
+            && type != QLatin1String("solid") && type != QLatin1String("brightness")
+            && type != QLatin1String("microphone"))
         || m_collection.effects.size() >= 64 || (duplicate && m_selectedEffect < 0))
         return false;
     auto p = duplicate ? m_collection.effects[m_selectedEffect] : EffectPreset();
@@ -278,6 +281,7 @@ bool SettingsController::addEffect(const QString& type, bool duplicate)
         p.type = type;
     p.name = duplicate            ? tr("%1 copy").arg(p.name)
         : type == "notifications" ? tr("New Notifications preset")
+        : type == "microphone"    ? tr("New Microphone preset")
         : type == "solid"         ? tr("New Solid Color preset")
         : type == "brightness"    ? tr("New Brightness preset")
                                   : tr("New Ambient preset");
@@ -327,6 +331,23 @@ void SettingsController::exportEffectFile(const QUrl& path)
         return;
     exportEffectPreset(m_collection.effects[m_selectedEffect], path.toLocalFile(), &m_error);
     Q_EMIT documentController()->changed();
+}
+void SettingsController::setMicrophone(const QString& key, const QVariant& value, const QString& localId)
+{
+    auto* effect = editableEffect(localId);
+    if (!effect || effect->type != "microphone")
+        return;
+    if (key == "pauseOnBattery" || key == "pauseOnLowBattery") {
+        setEffectPower(key, value.toBool(), localId);
+        return;
+    }
+    if (key != "color")
+        return;
+    const QColor color(value.toString());
+    if (!color.isValid() || color.alpha() != 255)
+        return;
+    effect->microphone.color = color;
+    touch();
 }
 void SettingsController::setNotification(const QString& key, const QVariant& value, const QString& localId)
 {
@@ -568,7 +589,7 @@ void SettingsController::addAssignedEffect(
     const auto preset = std::find_if(
         definitions.cbegin(), definitions.cend(), [&](const auto& e) { return e.id == effectId; });
     if ((!effectId.isEmpty() && effectId != QLatin1String(InlineColorId) && preset == definitions.cend())
-        || (aboveLayers && (preset == definitions.cend() || preset->type != "notifications")))
+        || (aboveLayers && (preset == definitions.cend() || !supportsEffectOverride(preset->type))))
         return;
     auto& assignments = aboveLayers ? current().effectOverrides
         : layer < 0                 ? current().effects
@@ -603,7 +624,7 @@ void SettingsController::updateAssignedEffect(
     auto definitions = m_collection.effects;
     definitions.append(current().localEffects);
     if (aboveLayers && std::none_of(definitions.cbegin(), definitions.cend(), [&](const auto& e) {
-            return e.id == effectId && e.type == "notifications";
+            return e.id == effectId && supportsEffectOverride(e.type);
         }))
         return;
     const auto selected = effectIds(ids);

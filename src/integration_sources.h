@@ -2,6 +2,7 @@
 #pragma once
 #include "capture_source.h"
 #include "desktop_source.h"
+#include "microphone_source.h"
 #include <memory>
 
 namespace Ambient
@@ -34,5 +35,6 @@ struct IntegrationSources {
     std::unique_ptr<DesktopSource> desktop;
     std::unique_ptr<CaptureSource> capture;
     std::shared_ptr<HardwareControlGuard> hardwareGuard;
+    std::unique_ptr<MicrophoneSource> microphone;
 };
 }

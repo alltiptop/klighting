@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "audio_sources.h"
 #include "kwin_sources.h"
 #include "lighting_ipc.h"
 #include "lighting_service.h"
@@ -68,8 +69,10 @@ int main(int argc, char** argv)
     });
     int result = 1;
     {
+        auto sources = Ambient::kwinSources();
+        sources.microphone = Ambient::microphoneSource();
         Ambient::LightingService service(
-            Ambient::deviceEnvironment(), Ambient::driverDirectories(), Ambient::kwinSources());
+            Ambient::deviceEnvironment(), Ambient::driverDirectories(), std::move(sources));
         if (bus.registerObject(Ambient::Ipc::Path, &service, QDBusConnection::ExportScriptableSlots))
             result = app.exec();
         bus.unregisterObject(Ambient::Ipc::Path);

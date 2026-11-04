@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "lighting_runtime.h"
+#include "microphone_source.h"
 #include <QCoreApplication>
 #include <QTemporaryDir>
 #include <QTest>
@@ -54,9 +55,144 @@ private Q_SLOTS:
     void init()
     {
         qApp->setProperty("test.devices", QStringList { "one" });
-        for (const auto* name :
-            { "test.one.ready", "test.one.notifyReady", "test.one.uniform", "test.one.colors" })
+        for (const auto* name : { "test.one.ready", "test.one.notifyReady", "test.one.uniform",
+                 "test.one.colors", "test.one.globalColor" })
             qApp->setProperty(name, QVariant());
+    }
+    void microphoneSettlesAndSendsFinalRemovalFrame()
+    {
+        auto c = collection(false);
+        EffectPreset microphone;
+        microphone.id = "microphone";
+        microphone.type = "microphone";
+        microphone.microphone.color = Qt::green;
+        c.effects.append(microphone);
+        c.presets[0].effects[DefaultAssignment].append({ microphone.id });
+        LightingRuntime runtime({ }, { MULTI_DRIVER_DIR });
+        start(runtime, c, false);
+        QVERIFY(runtime.microphoneEnabled());
+        QCOMPARE(runtime.captureFps(), 0);
+        QCOMPARE(output(), QColor(Qt::red)); // Unknown must be transparent.
+        MicrophoneState state { true, true, false };
+        runtime.setMicrophoneState(state);
+        QCOMPARE(output(), QColor(Qt::green));
+        const auto wakeups = counter(runtime, "animationWakeups");
+        const auto compositions = counter(runtime, "compositions");
+        const auto resolutions = counter(runtime, "profileResolutions");
+        for (int i = 0; i < 3; ++i) {
+            runtime.setMicrophoneState(state);
+            QTest::qWait(60);
+        }
+        QCOMPARE(counter(runtime, "animationWakeups"), wakeups);
+        QCOMPARE(counter(runtime, "compositions"), compositions);
+        QCOMPARE(counter(runtime, "profileResolutions"), resolutions);
+        state.muted = true;
+        runtime.setMicrophoneState(state);
+        QCOMPARE(output(), QColor(Qt::red));
+        QCOMPARE(counter(runtime, "compositions"), compositions + 1);
+        state.muted = false;
+        runtime.setMicrophoneState(state);
+        QCOMPARE(output(), QColor(Qt::green));
+        runtime.setMicrophoneState({ }); // Server loss removes the persistent overlay.
+        QCOMPARE(output(), QColor(Qt::red));
+        const auto removed = counter(runtime, "compositions");
+        QTest::qWait(120);
+        QCOMPARE(counter(runtime, "compositions"), removed);
+        QCOMPARE(counter(runtime, "animationWakeups"), wakeups);
+    }
+    void microphoneChangesDoNotWaitForAmbientOutputDeadline()
+    {
+        auto c = collection(true, 1);
+        EffectPreset microphone;
+        microphone.id = "microphone";
+        microphone.type = "microphone";
+        microphone.microphone.color = Qt::green;
+        c.effects.append(microphone);
+        c.presets[0].effects[DefaultAssignment].append({ microphone.id });
+        LightingRuntime runtime({ }, { MULTI_DRIVER_DIR });
+        start(runtime, c);
+        runtime.sample(sample(Qt::red));
+        QTRY_COMPARE(output(), QColor(Qt::red));
+        runtime.sample(sample(Qt::blue));
+        runtime.setMicrophoneState({ true, true, false });
+        QCOMPARE(output(), QColor(Qt::green));
+        runtime.setMicrophoneState({ true, true, true });
+        QCOMPARE(output(), QColor(Qt::red));
+        QTRY_COMPARE_WITH_TIMEOUT(output(), QColor(Qt::blue), 1300);
+        runtime.setMicrophoneState({ true, true, false });
+        QCOMPARE(output(), QColor(Qt::green));
+        runtime.setMicrophoneState({ true, false, false });
+        QCOMPARE(output(), QColor(Qt::blue)); // Reveal the current, not initial, underlay.
+    }
+    void microphoneReactivationNeedsFreshState_data()
+    {
+        QTest::addColumn<QString>("policy");
+        for (const auto* policy :
+            { "effect-battery", "device-battery", "lightbar-battery", "lock", "disable" })
+            QTest::newRow(policy) << QString::fromLatin1(policy);
+    }
+    void microphoneReactivationNeedsFreshState()
+    {
+        QFETCH(QString, policy);
+        auto c = collection(false);
+        EffectPreset microphone;
+        microphone.id = "microphone";
+        microphone.type = "microphone";
+        microphone.microphone.color = Qt::green;
+        microphone.pauseOnBattery = policy == "effect-battery";
+        c.devices->first().pauseOnBattery = policy == "device-battery";
+        c.devices->first().lightbarOffOnBattery = policy == "lightbar-battery";
+        c.effects.append(microphone);
+        c.presets[0].effects[DefaultAssignment].append({ microphone.id });
+        LightingRuntime runtime({ }, { MULTI_DRIVER_DIR });
+        start(runtime, c, false);
+        runtime.setMicrophoneState({ true, true, false });
+        QCOMPARE(output(), QColor(Qt::green));
+        if (policy == "lock")
+            runtime.setLocked(true);
+        else if (policy == "disable")
+            runtime.setEnabled(false);
+        else
+            runtime.setPowerState({ true, true, false });
+        QVERIFY(!runtime.microphoneEnabled());
+        if (policy.endsWith("battery"))
+            QCOMPARE(output(), QColor(policy == "lightbar-battery" ? Qt::black : Qt::red));
+        if (policy == "lock")
+            runtime.setLocked(false);
+        else if (policy == "disable")
+            runtime.setEnabled(true);
+        else
+            runtime.setPowerState({ true, false, false });
+        QVERIFY(runtime.microphoneEnabled());
+        QTRY_COMPARE(output(), QColor(Qt::red));
+        runtime.setMicrophoneState({ true, true, false });
+        QCOMPARE(output(), QColor(Qt::green));
+    }
+    void microphoneReadinessResendsCurrentState()
+    {
+        qApp->setProperty("test.one.ready", false);
+        qApp->setProperty("test.one.notifyReady", true);
+        auto c = collection(false);
+        EffectPreset microphone;
+        microphone.id = "microphone";
+        microphone.type = "microphone";
+        c.effects.append(microphone);
+        c.presets[0].effects[DefaultAssignment]
+            = { { InlineColorId, 100, QColor(Qt::blue) }, { microphone.id } };
+        LightingRuntime runtime({ }, { MULTI_DRIVER_DIR });
+        start(runtime, c, false);
+        runtime.setMicrophoneState({ true, true, false });
+        QCOMPARE(counter(runtime, "compositions"), 0);
+        qApp->setProperty("test.one.ready", true);
+        QTRY_COMPARE_WITH_TIMEOUT(output(), QColor(Qt::red), 500);
+        qApp->setProperty("test.one.ready", false);
+        QCoreApplication::processEvents();
+        runtime.setMicrophoneState({ true, true, true });
+        qApp->setProperty("test.one.ready", true);
+        QTRY_COMPARE_WITH_TIMEOUT(output(), QColor(Qt::blue), 500);
+        const auto wakeups = counter(runtime, "animationWakeups");
+        QTest::qWait(120);
+        QCOMPARE(counter(runtime, "animationWakeups"), wakeups);
     }
     void roundedColorsDoNotEndSlowTransitions()
     {

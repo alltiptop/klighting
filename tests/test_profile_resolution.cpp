@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "lighting_runtime.h"
+#include "microphone_source.h"
 #include <QCoreApplication>
 #include <QTemporaryDir>
 #include <QTest>
@@ -48,6 +49,137 @@ private Q_SLOTS:
         for (const auto& name : qApp->dynamicPropertyNames())
             if (name.startsWith("test."))
                 qApp->setProperty(name, QVariant());
+    }
+    void microphoneAssignmentsComposeAndRestoreCurrentLayer()
+    {
+        auto c = collection();
+        EffectPreset microphone;
+        microphone.id = "microphone";
+        microphone.type = "microphone";
+        EffectPreset local = microphone;
+        local.id = "local-microphone";
+        local.microphone.color = Qt::green;
+        c.effects.append(microphone);
+        auto& profile = c.presets[0];
+        profile.localEffects = { local };
+        profile.effects[7] = { { InlineColorId, 100, QColor(Qt::blue) }, { microphone.id, 50 } };
+        profile.effects[42] = { { microphone.id }, { InlineColorId, 100, QColor(Qt::white) } };
+        profile.effects[1] = { { local.id } };
+        profile.effectOverrides[42] = { { local.id } };
+        profile.layers[0].effects[42].clear();
+        LightingRuntime runtime({ }, { MULTI_DRIVER_DIR });
+        start(runtime, c);
+        runtime.setMicrophoneState({ true, true, false });
+        QCOMPARE(colors(), (QVariantList { "#80007f", "#00ff00", "#00ff00" }));
+        const auto resolutions = counter(runtime, "profileResolutions");
+        runtime.setMicrophoneState({ true, true, true });
+        QCOMPARE(colors(), (QVariantList { "#0000ff", "#ffffff", "#000000" }));
+        QCOMPARE(counter(runtime, "profileResolutions"), resolutions);
+        runtime.setMicrophoneState({ true, true, false });
+        runtime.setDesktop({ }, { { }, Qt::ShiftModifier });
+        QCOMPARE(colors(), (QVariantList { "#ff0000", "#00ff00", "#ff0000" }));
+        runtime.setMicrophoneState({ true, true, true });
+        QCOMPARE(colors(), (QVariantList { "#ff0000", "#000000", "#ff0000" }));
+        // Above-layer assignments must not affect another device profile.
+        auto other = profile;
+        other.id = "other";
+        other.effectOverrides.clear();
+        other.effects.clear();
+        other.effects[DefaultAssignment] = { { InlineColorId, 100, QColor(Qt::cyan) } };
+        other.layers.clear();
+        c.presets.append(other);
+        c.rules = { { "Other", "other", "other", true } };
+        runtime.configure(c);
+        runtime.setMicrophoneState({ true, true, false });
+        runtime.setDesktop("other", { });
+        QVERIFY(!runtime.microphoneEnabled());
+        QCOMPARE(color(), QColor(Qt::cyan));
+        runtime.setDesktop({ }, { });
+        QVERIFY(runtime.microphoneEnabled());
+        QCOMPARE(colors(), (QVariantList { "#0000ff", "#ffffff", "#000000" }));
+        runtime.setMicrophoneState({ true, true, false });
+        QCOMPARE(colors(), (QVariantList { "#80007f", "#00ff00", "#00ff00" }));
+    }
+    void microphoneSharedAndLocalEditsRecomposeWithoutNewInput()
+    {
+        auto c = collection();
+        EffectPreset microphone;
+        microphone.id = "microphone";
+        microphone.type = "microphone";
+        c.effects.append(microphone);
+        c.presets[0].effects[DefaultAssignment] = { { microphone.id } };
+        LightingRuntime runtime({ }, { MULTI_DRIVER_DIR });
+        start(runtime, c);
+        runtime.setMicrophoneState({ true, true, false });
+        QCOMPARE(color(), QColor(Qt::red));
+        c.effects.last().microphone.color = Qt::cyan;
+        runtime.configure(c);
+        QCOMPARE(color(), QColor(Qt::cyan));
+        auto local = c.effects.last();
+        local.id = "local";
+        local.microphone.color = Qt::yellow;
+        c.presets[0].localEffects = { local };
+        c.presets[0].effects[DefaultAssignment] = { { local.id } };
+        runtime.configure(c);
+        QCOMPARE(color(), QColor(Qt::yellow));
+        c.presets[0].localEffects[0].microphone.color = Qt::magenta;
+        runtime.configure(c);
+        QCOMPARE(color(), QColor(Qt::magenta));
+        runtime.setMicrophoneState({ true, true, true });
+        QCOMPARE(color(), QColor(Qt::black));
+    }
+    void microphoneRespectsOrdinaryOrderingAndBrightnessFilters()
+    {
+        auto c = collection();
+        EffectPreset microphone;
+        microphone.id = "microphone";
+        microphone.type = "microphone";
+        EffectPreset brightness;
+        brightness.id = "brightness";
+        brightness.type = "brightness";
+        brightness.brightness = 50;
+        c.effects.append(microphone);
+        c.effects.append(brightness);
+        c.presets[0].effects[7] = { { microphone.id }, { brightness.id } };
+        c.presets[0].effects[42] = { { brightness.id }, { microphone.id } };
+        c.presets[0].effects[1] = { { microphone.id }, { InlineColorId, 100, QColor(Qt::white) } };
+        LightingRuntime runtime({ }, { MULTI_DRIVER_DIR });
+        start(runtime, c);
+        runtime.setMicrophoneState({ true, true, false });
+        QCOMPARE(colors(), (QVariantList { "#800000", "#ff0000", "#ffffff" }));
+        runtime.setMicrophoneState({ true, true, true });
+        QCOMPARE(colors(), (QVariantList { "#808080", "#808080", "#ffffff" }));
+    }
+    void microphoneAndNotificationsFollowAssignmentOrder()
+    {
+        auto c = collection();
+        EffectPreset microphone;
+        microphone.id = "microphone";
+        microphone.type = "microphone";
+        EffectPreset notification;
+        notification.id = "notification";
+        notification.type = "notifications";
+        notification.notification.pattern = "blink";
+        notification.notification.color = Qt::green;
+        notification.notification.period = 200;
+        notification.notification.cycles = 1;
+        c.effects.append(microphone);
+        c.effects.append(notification);
+        c.presets[0].effectOverrides[7] = { { microphone.id }, { notification.id } };
+        c.presets[0].effectOverrides[42] = { { notification.id }, { microphone.id } };
+        LightingRuntime runtime({ }, { MULTI_DRIVER_DIR });
+        start(runtime, c);
+        runtime.setMicrophoneState({ true, true, false });
+        QCOMPARE(colors(), (QVariantList { "#ff0000", "#ff0000", "#0000ff" }));
+        runtime.notify({ });
+        QCOMPARE(colors(), (QVariantList { "#00ff00", "#ff0000", "#0000ff" }));
+        runtime.setMicrophoneState({ true, true, true });
+        QCOMPARE(colors(), (QVariantList { "#00ff00", "#00ff00", "#0000ff" }));
+        QTRY_COMPARE_WITH_TIMEOUT(colors(), (QVariantList { "#0000ff", "#0000ff", "#0000ff" }), 1500);
+        QTest::qWait(150); // Finish the transparent half of the final blink cycle.
+        const auto wakeups = counter(runtime, "animationWakeups");
+        QTest::qWait(120);
+        QCOMPARE(counter(runtime, "animationWakeups"), wakeups);
     }
     void unchangedLayerRetainsObservedKeys()
     {
