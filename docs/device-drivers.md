@@ -1,6 +1,7 @@
 # Writing a device driver
 
 - [Plugin and discovery](#plugin-and-discovery)
+- [Legacy driver options](#legacy-driver-options)
 - [Layout and capabilities](#layout-and-capabilities)
 - [Strip display layout](#optional-strip-display-layout)
 - [Frames and controls](#frames-and-hardware-controls)
@@ -88,12 +89,34 @@ platform keyboard LEDs for this association; unknown wiring cannot be inferred.
 
 The host keys saved devices by `(driver ID, instance ID)`, independently of the
 model ID. One model may have many instances. Discovery is refreshed every two
-seconds by the effect and by Refresh/Add in settings. Existing backends survive
+seconds by the lighting runtime and by Refresh/Add in settings. Existing backends survive
 unrelated discovery changes. An unavailable device remains in the saved list;
 when its driver detects it again, its enabled backend is recreated. A backend
 must also handle readiness/recovery while its discoverable instance remains.
 Newly found hardware is only added by the user. Legacy settings without a device
 list retain one matching device. An explicit empty list means no devices.
+
+## Legacy driver options
+
+`DeviceInstance::options` is shared by the backend and explicit controls. A driver
+that needs to import old `Effect-ambientled` values from `kwinrc` can declare optional
+`LegacyOptions` metadata, mapping each key to a string, boolean or numeric default.
+Use at most 32 keys of 1–64 ASCII letters, digits, `_` or `-`. This is a host metadata
+extension; the API 4 header and the driver's Qt-only dependencies remain unchanged.
+
+The host reads `$XDG_CONFIG_HOME/klighting/drivers/<driver-id>.json` with the
+[application configuration envelope](install.md#application-configuration). These
+options apply to all instances of that driver and override matching discovered option
+keys. Only declared keys are passed through; unknown file fields are retained.
+Do not use this import mechanism for discovered identity, capabilities or secrets.
+
+Discovery and settings UI are read-only. Service Reload migrates detected drivers,
+publishing values and the completion marker atomically per file. Existing new values
+win, including false, zero and empty strings. Completed records no longer consult
+`kwinrc`; malformed records are reported without replacement. An existing loader
+retains its last valid options for devices still discovered, while a fresh loader
+omits that driver's devices until the file is repaired. Drivers without this
+metadata use their discovered options unchanged and do not create a settings file.
 
 ## Layout and capabilities
 
@@ -147,6 +170,11 @@ continuous color preview, with no borders between elements.
 calls run on the owning Qt thread; hardware I/O must not block the compositor.
 `start(options)` receives instance options (including any retained legacy options). `setEnabled(false)` pauses output and restores normal operation.
 Destruction stops workers and releases hardware. Backends should coalesce frames and avoid reinitializing hardware between colors.
+Use `readinessChanged` for availability or external control changes that require
+fresh output, not frame completion: the host may resubmit its current frame.
+Recover failed static output without relying on continuous animation or discovery
+resubmissions. The generic backend keeps only the latest pending frame and retries
+transport errors at intervals of at least one second while enabled.
 
 `submit(DeviceFrame)` receives final RGB after layers, gradients and effects:
 
@@ -176,8 +204,9 @@ A device absent from the application preset keeps using Default.
 Only presets with a matching model ID are applied. Settings for unavailable
 devices and unknown element IDs are preserved.
 
-Version 5 keyboard presets (with version 3/4 read compatibility) accept optional `gradients` arrays in the keyboard
-object and each layer. A gradient stores `strip`, `from`, `to`, `start`, `end`,
+Version 7 multi-device presets share layer conditions across device profiles; readers
+retain versions 3–6. Profiles and layers can contain legacy `gradients` arrays.
+A gradient stores `strip`, `from`, `to`, `start`, `end`,
 `ambient` and `effect`. Endpoints are stable element IDs; colors are `#AARRGGBB`.
 The range includes both ends, may run backwards, and uses linear RGB/alpha
 interpolation in encoded sRGB. One-element ranges use the start color.
@@ -193,7 +222,7 @@ references survive file export/import. No host code executes from preset files.
 The loader scans `ambient-led/drivers/v4` under Qt's plugin paths and
 `<executable directory>/lib/ambient-led/drivers/v4`. `AMBIENT_LED_DRIVER_PATH`
 replaces these paths with a colon-separated list for development. These directories
-contain trusted native code, not sandboxed extensions. Restart/reload the effect
+contain trusted native code, not sandboxed extensions. Restart `klightingd`
 and reopen settings to discover newly installed modules.
 
 A typical Qt 6 installation uses

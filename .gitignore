@@ -11,3 +11,5 @@ CMakeUserPresets.json
 # IDE
 .kdev4
 klighting.kdev4
+
+/tmp

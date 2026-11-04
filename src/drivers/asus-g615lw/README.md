@@ -25,6 +25,11 @@ per frame. Intermediate writes do not blank the strip. Enabled lamps use intensi
 255; hardware Low/Med/High already scales brightness. Hardware Off stays off.
 
 USB work runs on a worker thread, coalesces pending frames and bounds transfers.
+The client first drops identical logical frames. The worker also compares the final
+RGB/intensity values for all 100 lamps, so changes in disabled zones or equivalent
+color representations do not cause USB writes. Only a successful final commit is
+remembered; errors, release and reopen clear that state. First and recovery frames
+still update the complete device. Completed-frame counters exclude skipped duplicates.
 The host's lightbar-off policy can set every strip element black independently of
 pausing effects. Explicit lightbar power edits send only the awake flag for zone 2
 through asusd and preserve other power flags. Ambient frames do not persist colors
@@ -48,7 +53,8 @@ third-party modules.
 ## Diagnostics
 
 `ambient_probe` without a test flag only lists discovered devices. Explicit tests
-must be requested by the device owner, after unloading the effect:
+must be requested by the device owner, after stopping `klightingd` and any legacy
+lighting-owning effect:
 
 ```sh
 ./build/ambient_probe --test-colors --device asus-g615lw:internal
@@ -63,6 +69,31 @@ software brightness limits. No source test suite invokes them.
 See [the driver API](../../../docs/device-drivers.md) for host integration and
 [tests/fixtures/g615lw-lamps.json](../../../tests/fixtures/g615lw-lamps.json) for the
 public model-level lamp descriptor fixture; it contains no device serial number.
+
+With `BUILD_TESTING=ON`, `./build/asus_output_benchmark` compares nine output scenarios
+using an in-memory report sink, three runs each. JSON includes completed operations,
+committed frames, report bytes and process CPU time. It checks all final lamp values
+without accessing USB or D-Bus. Use identical build/scenario settings for before/after
+comparisons; these counters do not measure bus latency, firmware behavior or energy.
+`lamp_array_output_tests` covers deduplication and failed/partial commits; `ambient_tests`
+also checks queue progress and rate limiting through a fake asynchronous transport.
+
+## Driver configuration
+
+`AuraObjectPath` selects one compatible asusd Aura object when discovery finds more
+than one. Leave it empty for automatic selection. The driver declares this legacy
+option in its metadata; service Reload imports it from `kwinrc` once into
+`$XDG_CONFIG_HOME/klighting/drivers/asus-g615lw.json` (normally under `~/.config`):
+
+```json
+{ "version": 1, "legacyImported": true, "values": { "AuraObjectPath": "" } }
+```
+
+Set the value to the exact object path reported by asusd when disambiguation is
+necessary. Streaming and settings controls receive the same option. Opening settings
+or listing devices does not write this file; an explicitly set new value takes
+priority over the old `kwinrc` value. The [configuration notes](../../../docs/install.md#application-configuration)
+describe migration, validation and retry behavior.
 
 ## Layout metadata
 

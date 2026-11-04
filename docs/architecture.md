@@ -13,7 +13,7 @@ Effects stay built into the host; device drivers are independently loadable Qt p
 | Effects | `effect_palette.*`, `color.*`, `notification_effect.*` | Dominant color, smoothing, brightness/temperature, static colors and pulses |
 | Platform inputs | `notification_source.*`, `power_source.*` | Asynchronous D-Bus input; authenticate notification sender and track power changes |
 | Runtime/service | `lighting_runtime.*`, `lighting_service.*`, `daemon_main.cpp` | Own drivers, presets, composition and timers; reload settings over session D-Bus |
-| Desktop input contract | `desktop_source.h` | Window class, configured key conditions and lock state, without compositor types |
+| Source contracts | `desktop_source.h`, `capture_source.h`, `integration_sources.h` | Independent desktop/capture states and an optional hardware ownership guard, without compositor types |
 | KWin desktop integration | `kwin_integration.cpp`, `kwin_desktop_source.*` | The sole current desktop provider; independent of Ambient |
 | Ambient capture | `ambient_effect.*`, `frame_sampler.*`, `capture_channel.*`, `kwin_capture_source.*` | Optional small asynchronous GPU captures; no drivers or preset evaluation |
 | Settings facade | `settings_controller.*` | Pending collection, presets, layers, application rules, load/save and preview |
@@ -35,12 +35,31 @@ underlay; at most one matching keyboard layer is selected. The combination with 
 most conditions wins, with the last row breaking ties. Effects blend in list order;
 above-layer notifications compose last. Local effect IDs are scoped by device profile at runtime.
 
+Device management retains each resolved profile/layer, its styles, assignments and used
+effect IDs. Observed window/key state is always updated; unchanged selection reuses that
+result. Configuration and power changes invalidate it, and discovery replaces a backend
+when its options or description change. Ambient and notification scheduling share one
+required-effect set. Readiness changes can resend the current frame without resolving
+the profile again.
+
 Continuous effect states are shared across devices using the same effect. One small
 32×18 GPU sample feeds the active Ambient calculations. Readback uses a fence/PBO and
 zero-timeout polling; it never waits for GPU completion on KWin's thread. Expensive
-capture stops when no unpaused assignment requires it. Static output has no continuous
-animation timer. Drivers coalesce and deduplicate frames and perform USB work off the
-service event thread. Shutdown must stop workers before releasing driver objects.
+capture stops when no unpaused assignment requires it. Static output and settled
+Ambient have no continuous animation timer. The runtime schedules pending samples,
+transitions and final output independently of capture, composing only when output,
+configuration or device readiness changes. Drivers coalesce and deduplicate frames
+and perform USB work off the service event thread. Shutdown must stop workers before
+releasing driver objects.
+
+The capture timer runs only for pending readback, a deferred screen change or an
+outstanding repaint request. Valid outermost screen paints wake capture after idle;
+changes before the sampling deadline or while readback is busy retain one pending
+capture. A successful capture consumes the change, so its own repaint does not keep
+sampling alive. A forced repaint waits up to one additional 16 ms readback-poll
+interval so normal animation paints can supply the frame first. Repaint requests
+without a usable target retry at most four times per second. This does not change
+the existing direct-scanout restriction.
 
 ## Process boundaries
 
@@ -65,6 +84,14 @@ unique bus owner. They accept configuration only from that owner; the daemon che
 the current KWin owner and payload bounds. Capture stops on service disconnect.
 The daemon waits for its initial desktop/lock lookup and refuses hardware output
 while a legacy lighting-owning Ambient effect is loaded, preventing two controllers.
+
+The adapters retain successful configuration per provider instance and D-Bus owner.
+One request is in flight per adapter; newer settings replace the pending desired
+state. Errors/timeouts retry on the existing two-second health poll. Unavailability,
+owner replacement or a new `instanceId` invalidates delivery, including a plugin
+reload inside the same KWin process. Original protocol-1 providers without a valid
+instance ID retain periodic configuration for recovery. Health/legacy-controller
+polling remains separate; it does not implicitly retry a failed GPU capture.
 
 ### Compositor failure containment
 
@@ -109,8 +136,13 @@ Copy/paste matches keyboard input codes or unambiguous labels and strip position
 unsupported assignments are omitted after a capability-loss warning. Existing
 strip gradients remain editable, although new gradients have no creation button.
 Driver metadata/translation resources are isolated from shared application catalogs.
-The only legacy ASUS option injected by the host is `AuraObjectPath`; new driver
-options belong to `DeviceInstance::options`.
+Residual application settings live in `klighting/application.json`; legacy driver
+options live in `klighting/drivers/<driver-id>.json`. `application_settings.*` reads
+the common envelope; driver metadata declares imported keys. Only service Reload
+publishes migrations, atomically per file with a completion marker. Discovery and UI
+merge legacy values in memory until migration; explicit new values win and `kwinrc`
+remains untouched. The common loader supplies backend and controls through
+`DeviceInstance::options`, without driver-specific branches in the host.
 
 The installed effect ID `ambientled`, KCM IDs, configuration directory and KDE menu
 **Lighting** remain stable independently of the project name `klighting`.

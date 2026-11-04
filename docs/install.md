@@ -12,7 +12,7 @@ sudo cmake --install build
 Do not overwrite a library currently loaded in KWin. Log out before replacing a
 running installation, or use the atomic [local installer](../tools/install-local.sh)
 for a verified artifact bundle on its supported `/usr/lib/qt6` layout. Include the
-built `klightingd`, `klighting-plugin-check`, `klighting_integration.so`, generated D-Bus/systemd/autostart
+built `klightingd`, `klighting-plugin-check`, `klighting_integration.so`, generated `klighting-service.json`, D-Bus/systemd/autostart
 files and existing effect/driver/KCM artifacts in that bundle's `SHA256SUMS`.
 The installer preserves backups and prints activation commands; it does not restart
 processes or change user settings itself.
@@ -57,12 +57,19 @@ qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.loadEffect ambientled
 ```
 
 The separate desktop integration supplies active windows, modifiers and lock state
-whether Ambient is enabled or not. It loads by default; to load it after installation
-into an already-running session:
+whether Ambient is enabled or not. `klightingd` loads it automatically. After three
+startup attempts without stable desktop state, automatic loading pauses across KWin
+and service restarts. Use **Retry desktop integration** in Lighting settings, or:
 
 ```sh
-qdbus6 org.kde.KWin /Plugins org.kde.KWin.Plugins.LoadPlugin klighting_integration
+qdbus6 org.klighting.Service /org/klighting/Service org.klighting.Service1.RetryDesktopIntegration
 ```
+
+The budget resets after 60 seconds of valid desktop state. Startup state is stored in
+`$XDG_STATE_HOME/klighting/desktop-startup.json` (normally `~/.local/state/klighting/`).
+Direct KWin loading requires a fresh one-use permit from the service, including when
+a previous installation left native autoload enabled. A KWin restart is not itself
+evidence that this integration caused a crash.
 
 For an older installation, list loaded effects and unload each exact old
 `ambientled_devN` alias as well:
@@ -76,6 +83,34 @@ Qt may retain old native code after effect reload. Logging out and back in ensur
 updated KWin plugins are loaded; this does not apply to restarting `klightingd`.
 Rebuild native KWin plugins after KWin updates. D-Bus loading does not save the
 Ambient startup flag; use its checkbox and Apply for that.
+
+## Application configuration
+
+On startup or Reload, `klightingd` imports the remaining `Effect-ambientled` options
+from `kwinrc` into `$XDG_CONFIG_HOME/klighting/application.json` (normally under
+`~/.config`). The supported values are `ScreenName`, `Region` (`full` or `bottom`),
+`BottomPercent` (1–100), `Brightness` (0–1) and `Saturation` (0–2):
+
+```json
+{
+  "version": 1,
+  "legacyImported": true,
+  "values": { "ScreenName": "", "Region": "full", "BottomPercent": 25,
+              "Brightness": 1, "Saturation": 1 }
+}
+```
+
+The service is the only migration writer. Existing new values win; data and the
+completion marker are published together under a nonblocking lock. Each application
+or driver file migrates independently, so an interrupted partial migration can retry
+without overwriting completed files. Invalid files remain untouched and Reload reports
+an error while keeping the last valid running configuration. The editor and discovery
+only read settings, using legacy values in memory until migration succeeds.
+
+`kwinrc` is not rewritten or removed; component enable flags remain there. Preset/effect
+files retain their existing `kwin-effect-ambient-led/` location. Driver-specific options
+belong under `klighting/drivers/<driver-id>.json`; see the
+[G615LW notes](../src/drivers/asus-g615lw/README.md#driver-configuration) for `AuraObjectPath`.
 
 ## Diagnostics and limitations
 
@@ -97,6 +132,21 @@ Config libraries are still required, independently of the desktop session.
 Service status reports devices, output and input sources; effect debug reports only
 screen capture. A completed USB transfer does not prove physical light output.
 Remove private application names and device identities before sharing logs.
+
+Status includes build IDs, IPC capabilities and provider instance IDs. Lighting settings
+compare them with installed plugin metadata and `share/klighting/klighting-service.json`
+under the configured installation prefix. Keep that record with its daemon binary.
+Missing metadata means unknown; a different build is a restart hint, not an IPC failure.
+Compatibility uses the protocol and capabilities. Build IDs fingerprint source/build
+inputs without Git; they are diagnostic identifiers, not artifact authenticity checks.
+
+Desktop status distinguishes window, key and lock availability. Losing one input leaves
+the others usable; unknown lock state retains the last policy. A newly connected desktop
+with unknown lock state waits before enabling output, while no desktop provider permits
+standalone lighting. Capture reports provider, screen, request and readiness separately.
+A missing screen holds the last Ambient color and keeps accepting configuration; other
+effects continue. GPU failure stops sampling until explicit effect reconfiguration or
+reload, without automatically retrying GPU work on every service poll.
 
 Screen capture prevents direct scanout while needed, which can increase GPU use in
 fullscreen applications. Fractional scaling, rotation, HDR and multiple monitors

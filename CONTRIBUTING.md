@@ -53,6 +53,46 @@ obtain the device owner's explicit approval, identify the exact device, and repo
 what was actually observed. Compilation and fake-transport tests do not establish
 physical mapping or firmware behavior.
 
+## Continuous integration
+
+The build workflow uses a pinned Arch image and the 2026-09-17 package archive,
+with clang-format 23 and Qt tools 6.11. Checks, the full KWin build and CTest run
+as an unprivileged user. Package versions and failure logs are retained as artifacts.
+Update the archive date and tool baseline together after validating the new stack.
+
+Dependency vulnerability scanning is limited to dependencies managed by this
+project. Currently all external application libraries come from the distribution;
+there are no vendored libraries or downloaded dependency manifests to scan.
+System packages and the CI base image are outside this check's scope.
+
+Secret scanning uses checksum-pinned Gitleaks 8.30.1 and scans all fetched history,
+including intermediate PR commits. For PRs, both the scanner wrapper and policy come
+from the base revision; proposed ignore files and inline allow comments are ignored.
+Bootstrap changes to this workflow through a reviewed push to the default branch.
+Only rule/path/line/commit metadata is published. Add narrowly scoped false-positive
+exceptions to `.github/gitleaks.toml`, combining the rule, exact public fixture and
+path with `condition = "AND"`; exposed credentials must be revoked or rotated.
+The wrapper's synthetic directory tests run without Git or network access:
+
+```sh
+python3 -m unittest discover -s .github/tests -p 'test_*.py'
+```
+
+## Runtime measurements
+
+`./build/runtime_benchmark` emits JSON for six isolated lighting scenarios (three runs
+each, about 54 seconds). It uses temporary settings and a fake driver, with no D-Bus,
+GPU or hardware access. Compare the same build configuration and scenario parameters
+before and after a change; do not run builds or other benchmarks concurrently. See
+[measurement boundaries](docs/performance.md) before interpreting the counters.
+
+`./build/capture_schedule_benchmark` exercises the shared capture timing policy with
+synthetic paints and readback completion, also without KWin, GPU or hardware access.
+`./build/profile_benchmark` measures profile/layer changes and unchanged selections
+through synchronous runtime inputs and fake devices.
+The [ASUS output benchmark](src/drivers/asus-g615lw/README.md#diagnostics) measures
+driver report preparation and deduplication with an in-memory sink.
+
 ## Translations
 
 Host strings use Qt translation contexts and catalogs in `translations/`. Driver
