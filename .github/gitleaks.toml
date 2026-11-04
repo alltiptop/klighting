@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+title = "klighting secret scanning"
+
+[extend]
+useDefault = true
+
+# Add only narrowly scoped, reviewed false positives here, with a reason.
+# Combine targetRules, the exact public fixture value and path with condition = "AND".
+# Do not exclude complete source, test, documentation or configuration directories.
