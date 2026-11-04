@@ -118,8 +118,6 @@ SidebarPage {
             required property int index
             required property var modelData
 
-            QQC2.ToolTip.text: text
-            QQC2.ToolTip.visible: hovered
             bottomPadding: topPadding
             highlighted: modelData.sourceIndex === page.controller.selected && modelData.layerIndex
                          === page.controller.selectedLayer
@@ -155,6 +153,7 @@ SidebarPage {
                     font: entry.font
                     objectName: "PresetLabel"
                     text: entry.text
+                    textFormat: Text.PlainText
                     verticalAlignment: Text.AlignVCenter
                 }
 
@@ -176,6 +175,22 @@ SidebarPage {
             }
 
             onClicked: page.selectEntry(modelData.sourceIndex, modelData.layerIndex)
+
+            QQC2.ToolTip {
+                id: presetTip
+
+                objectName: "PresetToolTip"
+                text: entry.text
+                visible: entry.hovered
+
+                contentItem: Text {
+                    color: presetTip.palette.toolTipText
+                    font: presetTip.font
+                    text: presetTip.text
+                    textFormat: Text.PlainText
+                    wrapMode: Text.Wrap
+                }
+            }
         }
     }
 

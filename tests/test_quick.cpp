@@ -127,6 +127,38 @@ class QuickTest : public QObject
         return dir.isEmpty() || dialog.grab().save(dir + "/" + name + ".png");
     }
 private Q_SLOTS:
+    void presetNamesAndTooltipsDisplayMarkupLiterally()
+    {
+        KCMultiDialog dialog;
+        QVERIFY(
+            dialog.addModule(KPluginMetaData(QString(CONFIG_SECTION_DIR) + "/kcm_ambientled_presets.so")));
+        dialog.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&dialog));
+        dialog.resize(1100, 850);
+        auto* host = dialog.findChild<QQuickWidget*>();
+        QVERIFY(host && host->rootObject());
+        auto* module
+            = qobject_cast<KQuickConfigModule*>(host->rootObject()->property("kcm").value<QObject*>());
+        QVERIFY(module);
+        QTRY_COMPARE(module->depth(), 2);
+        auto* settings = module->property("controller").value<QObject*>();
+        QVERIFY(settings);
+        const QString name = "<b>A&B</b> <i>Preset</i>";
+        QVERIFY(QMetaObject::invokeMethod(settings, "setName", Q_ARG(QString, name)));
+        QQuickItem* entry = nullptr;
+        QTRY_VERIFY((entry = presetEntry(module, -1)));
+        auto* label = editorChild<QObject*>(entry, "PresetLabel");
+        QVERIFY(label);
+        QTRY_COMPARE(label->property("text").toString(), name);
+        QCOMPARE(label->property("textFormat").toInt(), 0); // QQuickText::PlainText
+        auto* tooltip = entry->findChild<QObject*>("PresetToolTip");
+        QVERIFY(tooltip);
+        auto* text = tooltip->property("contentItem").value<QObject*>();
+        QVERIFY(text);
+        QCOMPARE(text->property("text").toString(), name);
+        QCOMPARE(text->property("textFormat").toInt(), 0);
+        QCOMPARE(settings->property("preset").toMap()["name"].toString(), name);
+    }
     void deviceCardsExpandIndependentlyAndKeepSelection()
     {
         const auto oldPath = qgetenv("AMBIENT_LED_DRIVER_PATH");
