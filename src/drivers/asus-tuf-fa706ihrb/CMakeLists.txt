@@ -1,0 +1,12 @@
+add_library(ambient_asus_tuf_fa706ihrb STATIC tuf_backend.cpp fa706_layout.cpp)
+target_include_directories(ambient_asus_tuf_fa706ihrb PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(ambient_asus_tuf_fa706ihrb PUBLIC ambient_driver_api Qt6::DBus)
+target_compile_options(ambient_asus_tuf_fa706ihrb PRIVATE -Wall -Wextra -Wpedantic)
+add_library(asus_tuf_fa706ihrb MODULE tuf_driver.cpp)
+target_link_libraries(asus_tuf_fa706ihrb PRIVATE ambient_asus_tuf_fa706ihrb)
+set_target_properties(ambient_asus_tuf_fa706ihrb asus_tuf_fa706ihrb PROPERTIES
+    CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN YES)
+klighting_register_driver(asus_tuf_fa706ihrb)
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()
