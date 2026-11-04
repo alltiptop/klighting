@@ -11,19 +11,22 @@ sudo cmake --install build
 
 Do not overwrite a library currently loaded in KWin. Log out before replacing a
 running installation, or use the atomic [local installer](../tools/install-local.sh)
-for a verified artifact bundle on its supported `/usr/lib/qt6` layout. Include the
-built `klightingd`, `klighting-plugin-check`, `klighting_integration.so`, generated `klighting-service.json`, D-Bus/systemd/autostart
-files and existing effect/driver/KCM artifacts in that bundle's `SHA256SUMS`.
-The installer preserves backups and prints activation commands; it does not restart
-processes or change user settings itself.
-
-Check a bundle without installing it:
+for a verified artifact bundle. Build it from the configured CMake install rules;
+driver libraries and assets are included automatically. Python 3.11+ is required
+for the installer. Use only a trusted local build: checksums detect corruption,
+not malicious native code.
 
 ```sh
-tools/install-local.sh --check dist/kwin-6.7.5
+cmake --build build --target local_bundle
+tools/install-local.sh --check build/local-bundle
+sudo tools/install-local.sh build/local-bundle
 ```
 
-The installer checks each plugin in a separate process before writing to `/usr`.
+The installer honors the configured installation paths, preserves backups under
+`/var/lib/klighting/backups/` and prints activation commands. It does not restart
+processes or change user settings. Each driver declares its own legacy plugin aliases.
+
+The installer checks each plugin in a separate process before writing system files.
 When invoked with sudo, checks run as the invoking user, never as root. A missing
 dependency, crash or timeout rejects the bundle. For a normal CMake installation,
 run `ctest --test-dir build -R plugin_loading_tests --output-on-failure` first.
@@ -109,8 +112,8 @@ only read settings, using legacy values in memory until migration succeeds.
 
 `kwinrc` is not rewritten or removed; component enable flags remain there. Preset/effect
 files retain their existing `kwin-effect-ambient-led/` location. Driver-specific options
-belong under `klighting/drivers/<driver-id>.json`; see the
-[G615LW notes](../src/drivers/asus-g615lw/README.md#driver-configuration) for `AuraObjectPath`.
+belong under `klighting/drivers/<driver-id>.json`; their meanings and defaults are
+documented inside the relevant [driver module](../src/drivers/).
 
 ## Diagnostics and limitations
 
@@ -137,8 +140,9 @@ Status includes build IDs, IPC capabilities and provider instance IDs. Lighting 
 compare them with installed plugin metadata and `share/klighting/klighting-service.json`
 under the configured installation prefix. Keep that record with its daemon binary.
 Missing metadata means unknown; a different build is a restart hint, not an IPC failure.
-Compatibility uses the protocol and capabilities. Build IDs fingerprint source/build
-inputs without Git; they are diagnostic identifiers, not artifact authenticity checks.
+Compatibility uses the protocol and capabilities. Build IDs fingerprint host source/build
+inputs without Git; independent driver modules are excluded. These are diagnostic
+identifiers, not artifact authenticity checks.
 
 Desktop status distinguishes window, key and lock availability. Losing one input leaves
 the others usable; unknown lock state retains the last policy. A newly connected desktop
@@ -151,5 +155,5 @@ reload, without automatically retrying GPU work on every service poll.
 Screen capture prevents direct scanout while needed, which can increase GPU use in
 fullscreen applications. Fractional scaling, rotation, HDR and multiple monitors
 need hardware testing. Ambient currently selects one screen color per effect, not
-spatially mapped colors per key. See [G615LW driver notes](../src/drivers/asus-g615lw/README.md)
-for USB access, brightness, restoration and controller conflicts.
+spatially mapped colors per key. See the relevant [driver module](../src/drivers/)
+for hardware access, brightness, restoration and controller conflicts.

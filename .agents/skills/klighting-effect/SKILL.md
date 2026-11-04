@@ -47,6 +47,13 @@ only the integration points affected by the change.
   with opacity; above-layer notifications apply last. Missing assignments may inherit,
   but an explicitly empty list stays off. Let device adaptation limit final output
   without rewriting the saved effect for each device.
+- **Device boundary:** Effects and their editors depend on capabilities and layout
+  data from the public driver contract, never a concrete driver's private code, model
+  IDs, key maps, calibration, UI refinements or defaults. Those artifacts and their
+  tests/install rules/docs stay inside that driver's directory. Shared rendering and
+  adaptation stay generic so adding a model requires no effect changes. Use synthetic
+  descriptions for effect tests; a new capability needs a separately scoped generic
+  contract extension. See the [driver ownership rules](../klighting-driver/SKILL.md).
 - **Resolution changes:** [DeviceManager](../../../src/device_manager.cpp) reuses the
   selected profile/layer and its required-effect set. Always retain observed input;
   unchanged selection must not restart effects. Invalidate on document edits (even

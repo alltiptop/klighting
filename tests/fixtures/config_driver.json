@@ -1,0 +1,6 @@
+{
+    "ApiVersion": 4,
+    "Id": "test-config",
+    "Name": "Synthetic settings driver",
+    "LegacyOptions": { "TestEndpoint": "" }
+}

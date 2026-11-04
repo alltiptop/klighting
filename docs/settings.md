@@ -11,8 +11,8 @@ Changes remain pending until **Apply**; **Reset** reloads saved settings, and
 Add discovered devices individually. Each has an enable switch and automatically joins
 Default. Matching application bindings take priority; devices absent from an application
 preset keep using Default. Offline/disabled devices
-retain their settings; removing a device does not remove its presets. The G615LW
-keyboard and lightbar are parts of one physical device/backend.
+retain their settings; removing a device does not remove its presets. A driver may
+expose a keyboard and strips as parts of one physical device/backend.
 
 System LED and USB LampArray backends can appear alongside a specialized driver.
 Adding a conflicting alternative leaves it disabled. **Enable this device** becomes

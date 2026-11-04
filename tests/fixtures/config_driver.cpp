@@ -1,19 +1,36 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "asus_controls.h"
-#include "g615lw_layout.h"
+#include "keyboard.h"
+#include <QCoreApplication>
+#include <QTimer>
 
-// Tests use the real ASUS settings implementation against the isolated fake
-// daemon, independent of the machine's DMI board name. No USB backend exists.
+class TestControls final : public Ambient::DeviceControls
+{
+public:
+    void readLightbar(const QVariantMap&, std::function<void(Ambient::LightbarState)> done) override
+    {
+        QTimer::singleShot(0, qApp, [done = std::move(done)] {
+            done({ true, qApp->property("test.controls.enabled").toBool(), { } });
+        });
+    }
+    void writeLightbar(bool enabled, std::function<void(QString)> done) override
+    {
+        QTimer::singleShot(0, qApp, [enabled, done = std::move(done)] {
+            qApp->setProperty("test.controls.enabled", enabled);
+            qApp->setProperty("test.controls.writes", qApp->property("test.controls.writes").toInt() + 1);
+            done({ });
+        });
+    }
+};
 class ConfigDriver final : public QObject, public Ambient::DeviceDriver
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID AMBIENT_DEVICE_DRIVER_IID FILE "../../src/drivers/asus-g615lw/asus_driver.json")
+    Q_PLUGIN_METADATA(IID AMBIENT_DEVICE_DRIVER_IID FILE "config_driver.json")
     Q_INTERFACES(Ambient::DeviceDriver)
 public:
     QList<Ambient::DeviceInstance> discover(const Ambient::DeviceEnvironment&) const override
     {
-        return { { QStringLiteral("internal"), Ambient::g615lwDescription(),
-            { { "InputKeyCodes", Ambient::g615lwInputKeyCodes() } } } };
+        return { { "internal", TestFixture::keyboardDescription(),
+            { { "InputKeyCodes", TestFixture::inputKeyCodes() } } } };
     }
     std::unique_ptr<Ambient::DeviceBackend> createBackend(const Ambient::DeviceInstance&) override
     {
@@ -21,7 +38,7 @@ public:
     }
     std::unique_ptr<Ambient::DeviceControls> createControls(const Ambient::DeviceInstance&) override
     {
-        return std::make_unique<Ambient::AsusControls>();
+        return std::make_unique<TestControls>();
     }
 };
 #include "config_driver.moc"

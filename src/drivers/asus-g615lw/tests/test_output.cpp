@@ -201,4 +201,4 @@ private Q_SLOTS:
     }
 };
 QTEST_GUILESS_MAIN(LampArrayOutputTest)
-#include "test_lamp_array_output.moc"
+#include "test_output.moc"

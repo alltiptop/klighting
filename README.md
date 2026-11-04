@@ -4,9 +4,7 @@ Keyboard and lightbar lighting for KDE Plasma, with screen-driven Ambient colors
 Solid Color, notification effects, key layers and application presets. Multiple
 devices run through native Qt driver plugins. The KDE settings entry is **Lighting**.
 
-Currently supported: [ASUS ROG Strix G16 G615LW](src/drivers/asus-g615lw/README.md).
-Experimental generic backends: [Linux LEDs](src/drivers/linux-leds/README.md) and
-[USB HID LampArray](src/drivers/hid-lamparray/README.md).
+See [driver modules](src/drivers/) for supported hardware and module-specific requirements.
 
 ![Lighting preset editor with keyboard and lightbar preview](docs/screenshots/presets.png)
 

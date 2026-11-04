@@ -86,14 +86,14 @@ private Q_SLOTS:
         const auto entries = catalog(QString(SOURCE_DIR) + "/translations/ambient-led_" + language + ".ts");
         QVERIFY(entries.size() > 250);
         for (const auto& entry : entries) {
-            QVERIFY(!entry.context.contains("Asus"));
+            QVERIFY(!entry.context.startsWith("Ambient::TestDriver"));
             QVERIFY2(!entry.translation.isEmpty(), qPrintable(entry.source));
             QCOMPARE(placeholders(entry.translation), placeholders(entry.source));
             QCOMPARE(translator.translate(entry.context.toUtf8(), entry.source.toUtf8()), entry.translation);
         }
         // Installing the KCM catalog must not translate unrelated modules.
         QVERIFY(translator.translate("main", "Lighting").isEmpty());
-        QVERIFY(translator.translate("Ambient::AsusG615lwLabels", "Lightbar").isEmpty());
+        QVERIFY(translator.translate("Ambient::TestDriver", "Lightbar").isEmpty());
         // Namespaced QML contexts are also used at runtime, not just by lupdate.
         QQmlEngine engine;
         QQmlComponent component(&engine, QUrl::fromLocalFile(QString(SOURCE_DIR) + "/ui/HexColor.qml"));
@@ -177,37 +177,6 @@ private Q_SLOTS:
         KLocalizedString::setLanguages(originalLanguages);
         QLocale::setDefault(originalLocale);
         QApplication::setLayoutDirection(Qt::LeftToRight);
-    }
-    void driverOwnsTranslations()
-    {
-        // The settings resources alone contain no driver catalog.
-        QVERIFY(!QFile::exists(":/ambient-led/drivers/asus-g615lw/i18n/asus-g615lw_ru.qm"));
-        const auto original = QLocale();
-        QLocale::setDefault(QLocale("ru_RU"));
-        QPluginLoader plugin(ASUS_PLUGIN_PATH);
-        auto* driver = qobject_cast<Ambient::DeviceDriver*>(plugin.instance());
-        QVERIFY2(driver, qPrintable(plugin.errorString()));
-        const auto devices = driver->discover({ QStringLiteral("G615LW") });
-        QCOMPARE(devices.size(), 1);
-        for (const auto* language : { "ru", "fr", "it", "es", "uk", "pl", "de", "zh_CN", "ar", "he" }) {
-            QTranslator translator;
-            QVERIFY(translator.load(
-                QString(":/ambient-led/drivers/asus-g615lw/i18n/asus-g615lw_%1.qm").arg(language)));
-            const auto entries = catalog(QString(SOURCE_DIR)
-                + "/src/drivers/asus-g615lw/translations/asus-g615lw_" + language + ".ts");
-            QVERIFY(entries.size() >= 11);
-            for (const auto& entry : entries) {
-                QVERIFY(entry.context.startsWith("Ambient::Asus"));
-                QVERIFY(!entry.translation.isEmpty());
-                QCOMPARE(placeholders(entry.translation), placeholders(entry.source));
-                QCOMPARE(
-                    translator.translate(entry.context.toUtf8(), entry.source.toUtf8()), entry.translation);
-                if (QString(language) == "ru" && entry.source == "Lightbar")
-                    QCOMPARE(devices[0].description.strips[0].name, entry.translation);
-            }
-            QVERIFY(translator.translate("AmbientLed.main", "Lighting").isEmpty());
-        }
-        QLocale::setDefault(original);
     }
 };
 int main(int argc, char** argv)

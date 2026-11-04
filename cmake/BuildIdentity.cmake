@@ -5,10 +5,12 @@ file(GLOB_RECURSE identity_inputs CONFIGURE_DEPENDS RELATIVE "${PROJECT_SOURCE_D
     "${PROJECT_SOURCE_DIR}/src/*" "${PROJECT_SOURCE_DIR}/ui/*"
     "${PROJECT_SOURCE_DIR}/translations/*" "${PROJECT_SOURCE_DIR}/services/*"
     "${PROJECT_SOURCE_DIR}/cmake/*")
+# Native driver modules are independently built and installed, not host inputs.
+list(FILTER identity_inputs EXCLUDE REGEX "^src/drivers/")
 list(APPEND identity_inputs CMakeLists.txt)
 list(SORT identity_inputs)
 set(identity "${PROJECT_VERSION};${CMAKE_CXX_COMPILER_ID};${CMAKE_CXX_COMPILER_VERSION};${CMAKE_BUILD_TYPE};${CMAKE_CXX_FLAGS};${CMAKE_CXX_FLAGS_DEBUG};${CMAKE_CXX_FLAGS_RELEASE};${CMAKE_CXX_FLAGS_RELWITHDEBINFO};${Qt6_VERSION};${KWin_VERSION};${BUILD_KWIN_EFFECT};${CMAKE_INSTALL_PREFIX}")
-string(APPEND identity ";${ECM_VERSION};${KF6CoreAddons_VERSION};${KF6Config_VERSION};${LIBUSB_VERSION};${CMAKE_SYSTEM_PROCESSOR}")
+string(APPEND identity ";${ECM_VERSION};${KF6CoreAddons_VERSION};${KF6Config_VERSION};${CMAKE_SYSTEM_PROCESSOR}")
 foreach(input IN LISTS identity_inputs)
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/${input}")
     file(SHA256 "${PROJECT_SOURCE_DIR}/${input}" digest)

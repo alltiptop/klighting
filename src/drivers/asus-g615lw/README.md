@@ -3,7 +3,9 @@
 This driver is intentionally limited to the verified G615LW board and ASUS
 `0b05:19b6` lighting controller. A vendor name or matching GPU is not sufficient
 proof of hardware compatibility. Protocol, discovery, layout, metadata and
-translations live in this directory.
+translations, tests, dependencies and installation declarations live in this directory.
+The build requires `libusb-1.0` via pkg-config (Arch: `libusb`; Debian/Ubuntu:
+`libusb-1.0-0-dev`; Fedora: `libusb1-devel`) and Qt DBus.
 
 The controller has 88 keyboard/control lamps and 12 decorative lamps. Discovery
 uses DMI and asusd metadata; the USB worker validates the LampArray descriptor,
@@ -48,7 +50,7 @@ is not evidence that every physical lamp displayed the intended color.
 
 The [local installer](../../../tools/install-local.sh) atomically replaces the stable
 effect/ASUS driver filenames and retires older v1/v2/v3/v4 ASUS copies, preserving
-third-party modules.
+third-party modules. This module declares its aliases in [install/legacy-plugins.txt](install/legacy-plugins.txt).
 
 ## Diagnostics
 
@@ -67,16 +69,20 @@ in driver order, with changing intensity. These direct tests bypass Ambient's
 software brightness limits. No source test suite invokes them.
 
 See [the driver API](../../../docs/device-drivers.md) for host integration and
-[tests/fixtures/g615lw-lamps.json](../../../tests/fixtures/g615lw-lamps.json) for the
+[tests/fixtures/g615lw-lamps.json](tests/fixtures/g615lw-lamps.json) for the
 public model-level lamp descriptor fixture; it contains no device serial number.
 
-With `BUILD_TESTING=ON`, `./build/asus_output_benchmark` compares nine output scenarios
+With `BUILD_TESTING=ON`,
+`./build/src/drivers/asus-g615lw/tests/asus_g615lw_output_benchmark` compares nine output scenarios
 using an in-memory report sink, three runs each. JSON includes completed operations,
 committed frames, report bytes and process CPU time. It checks all final lamp values
 without accessing USB or D-Bus. Use identical build/scenario settings for before/after
 comparisons; these counters do not measure bus latency, firmware behavior or energy.
-`lamp_array_output_tests` covers deduplication and failed/partial commits; `ambient_tests`
-also checks queue progress and rate limiting through a fake asynchronous transport.
+`asus_g615lw_output_tests` covers deduplication and failed/partial commits;
+`asus_g615lw_transport_tests` also checks queue progress and rate limiting through
+a fake asynchronous transport. Run all module checks with
+`ctest --test-dir build -R asus_g615lw --output-on-failure`. Layout, asusd controls
+and translations have separate tests here; shared settings tests use synthetic hardware.
 
 ## Driver configuration
 

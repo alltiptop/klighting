@@ -25,47 +25,47 @@ private Q_SLOTS:
     void driverOptionsAreReadOnlyIsolatedAndReloadable()
     {
         KConfig legacy(QStringLiteral("kwinrc"), KConfig::NoGlobals);
-        KConfigGroup(&legacy, "Effect-ambientled").writeEntry("AuraObjectPath", "/legacy/device");
+        KConfigGroup(&legacy, "Effect-ambientled").writeEntry("TestEndpoint", "/legacy/device");
         QVERIFY(legacy.sync());
-        LoadedDriver loaded({ "G615LW" }, { ASUS_DRIVER_DIR, MULTI_DRIVER_DIR });
-        const auto* asus = loaded.find("asus-g615lw:internal");
-        QVERIFY(asus);
-        QCOMPARE(asus->instance.options.value("AuraObjectPath").toString(), "/legacy/device");
-        QVERIFY(!QFile::exists(driverSettingsPath("asus-g615lw")));
+        LoadedDriver loaded({ "test-board" }, { CONFIG_DRIVER_DIR, MULTI_DRIVER_DIR });
+        const auto* keyboard = loaded.find("test-config:internal");
+        QVERIFY(keyboard);
+        QCOMPARE(keyboard->instance.options.value("TestEndpoint").toString(), "/legacy/device");
+        QVERIFY(!QFile::exists(driverSettingsPath("test-config")));
         const auto* strip = loaded.find("test-strips:one");
         QVERIFY(strip);
-        QVERIFY(!strip->instance.options.contains("AuraObjectPath"));
+        QVERIFY(!strip->instance.options.contains("TestEndpoint"));
         QString error;
         QVERIFY2(loaded.migrateSettings(&error), qPrintable(error));
-        QVERIFY(QFile::exists(driverSettingsPath("asus-g615lw")));
+        QVERIFY(QFile::exists(driverSettingsPath("test-config")));
         QVERIFY(!QFile::exists(driverSettingsPath("test-strips")));
-        KConfigGroup(&legacy, "Effect-ambientled").writeEntry("AuraObjectPath", "/changed/legacy");
+        KConfigGroup(&legacy, "Effect-ambientled").writeEntry("TestEndpoint", "/changed/legacy");
         QVERIFY(legacy.sync());
         loaded.refresh();
-        QCOMPARE(loaded.find("asus-g615lw:internal")->instance.options.value("AuraObjectPath").toString(),
+        QCOMPARE(loaded.find("test-config:internal")->instance.options.value("TestEndpoint").toString(),
             "/legacy/device");
-        QFile file(driverSettingsPath("asus-g615lw"));
+        QFile file(driverSettingsPath("test-config"));
         QVERIFY(file.open(QIODevice::WriteOnly));
-        QVERIFY(file.write(R"({"version":1,"legacyImported":true,"values":{"AuraObjectPath":"/new/device"}})")
-            > 0);
+        QVERIFY(
+            file.write(R"({"version":1,"legacyImported":true,"values":{"TestEndpoint":"/new/device"}})") > 0);
         file.close();
         loaded.refresh();
-        asus = loaded.find("asus-g615lw:internal");
-        QVERIFY(asus);
-        QCOMPARE(asus->instance.options.value("AuraObjectPath").toString(), "/new/device");
-        QVERIFY(asus->instance.options.value("InputKeyCodes").toMap().contains("36"));
+        keyboard = loaded.find("test-config:internal");
+        QVERIFY(keyboard);
+        QCOMPARE(keyboard->instance.options.value("TestEndpoint").toString(), "/new/device");
+        QVERIFY(keyboard->instance.options.value("InputKeyCodes").toMap().contains("12"));
         QVERIFY(file.open(QIODevice::WriteOnly));
         file.write("{");
         file.close();
         loaded.refresh();
-        asus = loaded.find("asus-g615lw:internal");
-        QVERIFY(asus); // A malformed edit must not remove a working device during discovery.
-        QCOMPARE(asus->instance.options.value("AuraObjectPath").toString(), "/new/device");
+        keyboard = loaded.find("test-config:internal");
+        QVERIFY(keyboard); // A malformed edit must not remove a working device during discovery.
+        QCOMPARE(keyboard->instance.options.value("TestEndpoint").toString(), "/new/device");
         QVERIFY(loaded.find("test-strips:one"));
         QVERIFY(loaded.error().contains("Invalid settings document"));
         QVERIFY(!loaded.migrateSettings(&error));
-        LoadedDriver cold({ "G615LW" }, { ASUS_DRIVER_DIR, MULTI_DRIVER_DIR });
-        QVERIFY(!cold.find("asus-g615lw:internal")); // No known-good settings on a fresh load.
+        LoadedDriver cold({ "test-board" }, { CONFIG_DRIVER_DIR, MULTI_DRIVER_DIR });
+        QVERIFY(!cold.find("test-config:internal")); // No known-good settings on a fresh load.
         QVERIFY(cold.find("test-strips:one"));
         QVERIFY(file.open(QIODevice::ReadOnly));
         QCOMPARE(file.readAll(), QByteArray("{"));
@@ -162,80 +162,23 @@ private Q_SLOTS:
         qApp->setProperty("test.devices", QVariant());
         qApp->setProperty("test.conflict.claims", QVariant());
     }
-    void realPluginDescribesHardwareWithoutStartingIt()
-    {
-        LoadedDriver loaded({ "G615LW" }, { ASUS_DRIVER_DIR });
-        QVERIFY2(loaded.driver(), qPrintable(loaded.error()));
-        QCOMPARE(loaded.description().id, QStringLiteral("asus-g615lw"));
-        QCOMPARE(loaded.description().keys.size(), 88);
-        QCOMPARE(loaded.description().bodyColor, QColor("#333333"));
-        QCOMPARE(loaded.description().keyColor, QColor("#111111"));
-        QVERIFY(loaded.description().capabilities.testFlag(DeviceCapability::PerKeyColor));
-        QVERIFY(loaded.description().capabilities.testFlag(DeviceCapability::LightbarPower));
-        QCOMPARE(loaded.description().keys[36].id, 36);
-        QCOMPARE(loaded.description().keys[36].label, QStringLiteral("W"));
-        QCOMPARE(loaded.description().groups.value("WASD"), (QList<int> { 36, 50, 51, 52 }));
-        const auto codes = loaded.instance().options.value("InputKeyCodes").toMap();
-        QCOMPARE(codes.value("36").toUInt(), quint32(KEY_W));
-        QCOMPARE(codes.value("63").toUInt(), quint32(KEY_LEFTSHIFT));
-        QCOMPARE(codes.value("74").toUInt(), quint32(KEY_RIGHTSHIFT));
-        QCOMPARE(codes.value("77").toUInt(), quint32(KEY_LEFTCTRL));
-        QCOMPARE(codes.value("84").toUInt(), quint32(KEY_F23));
-        QVERIFY(!codes.contains("78")); // Fn is not reported by this firmware.
-        QVERIFY(!codes.contains("0")); // Unverified macro bindings must not be guessed.
-        LoadedDriver unsupported({ "another-board" }, { ASUS_DRIVER_DIR });
-        QVERIFY(!unsupported.driver());
-        QVERIFY(!unsupported.error().isEmpty());
-    }
     void missingIncompatibleAndAmbiguousDriversDoNotActivate()
     {
         QTemporaryDir empty;
         QVERIFY(empty.isValid());
-        LoadedDriver missing({ "G615LW" }, { empty.path() });
+        LoadedDriver missing({ "test-board" }, { empty.path() });
         QVERIFY(!missing.driver());
-        LoadedDriver incompatible({ "G615LW" }, { INCOMPATIBLE_DRIVER_DIR });
+        LoadedDriver incompatible({ "test-board" }, { INCOMPATIBLE_DRIVER_DIR });
         QVERIFY(!incompatible.driver());
         QVERIFY(incompatible.error().contains("incompatible driver API"));
-        LoadedDriver ambiguous({ "G615LW" }, { ASUS_DRIVER_DIR, CONFIG_DRIVER_DIR });
+        QTemporaryDir duplicate;
+        QVERIFY(QFile::copy(
+            QString(CONFIG_DRIVER_DIR) + "/config_driver_fixture.so", duplicate.filePath("duplicate.so")));
+        LoadedDriver ambiguous({ "test-board" }, { CONFIG_DRIVER_DIR, duplicate.path() });
         QVERIFY(!ambiguous.driver());
         QVERIFY(ambiguous.error().contains("Multiple lighting drivers"));
-        LoadedDriver repeatedPath({ "G615LW" }, { ASUS_DRIVER_DIR, ASUS_DRIVER_DIR });
+        LoadedDriver repeatedPath({ "test-board" }, { CONFIG_DRIVER_DIR, CONFIG_DRIVER_DIR });
         QVERIFY(repeatedPath.driver());
-    }
-    void asusStripCornersAndDiffusion()
-    {
-        LoadedDriver loaded({ "G615LW" }, { ASUS_DRIVER_DIR });
-        QVERIFY(loaded.driver());
-        const auto& strip = loaded.description().strips.first();
-        QCOMPARE(strip.elements.size(), 12);
-        QCOMPARE(strip.elements[1].label, QString("2"));
-        QCOMPARE(strip.elements[4].label, QString("5"));
-        QCOMPARE(strip.elements[7].label, QString("8"));
-        QCOMPARE(strip.elements[10].label, QString("11"));
-        const QList<int> cornerIds { 91, 97, 96, 90 };
-        const QList<QPointF> corners { { 16, 25 }, { 16, 174 }, { 338, 174 }, { 338, 25 } };
-        for (qsizetype i = 0; i < cornerIds.size(); ++i) {
-            QVERIFY(std::any_of(strip.path.begin(), strip.path.end(),
-                [&](const auto& p) { return p.elementId == cornerIds[i] && p.position == corners[i]; }));
-            // A corner's own color never extends down an entire side.
-            for (const auto& p : strip.path)
-                if (p.elementId == cornerIds[i])
-                    QVERIFY((p.position - corners[i]).manhattanLength() <= 1);
-        }
-        QCOMPARE(strip.path.first().elementId, strip.path.last().elementId);
-        QCOMPARE(strip.path.first().position, strip.path.last().position);
-        // Two non-corner elements cover each long side, without extra hardware IDs.
-        int longTransitions = 0;
-        for (qsizetype i = 1; i < strip.path.size(); ++i) {
-            const auto& a = strip.path[i - 1];
-            const auto& b = strip.path[i];
-            if ((a.position - b.position).manhattanLength() > 100) {
-                QVERIFY(!cornerIds.contains(a.elementId));
-                QVERIFY(!cornerIds.contains(b.elementId));
-                ++longTransitions;
-            }
-        }
-        QCOMPARE(longTransitions, 4);
     }
     void validatesOptionalStripGeometry()
     {

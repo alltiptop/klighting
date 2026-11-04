@@ -27,3 +27,5 @@ cmake -S . -B build-ci -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
 cmake --build build-ci --parallel 2 > build-ci/artifacts/build.log 2>&1
 ctest --test-dir build-ci --output-on-failure \
     --output-junit artifacts/tests.xml > build-ci/artifacts/tests.log 2>&1
+cmake --build build-ci --target local_bundle > build-ci/artifacts/bundle.log 2>&1
+tools/install-local.sh --check build-ci/local-bundle > build-ci/artifacts/bundle-check.log 2>&1

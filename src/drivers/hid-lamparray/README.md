@@ -31,8 +31,8 @@ failure can prevent restoration. Where Linux exposes a matching keyboard brightn
 control, hardware Off is honored; LampArray itself has no separate brightness getter.
 The plugin never opens hidraw nodes.
 
-The specialized ASUS G615LW driver remains unchanged and is the validated option for
-that model. Select the generic alternative only after disabling the existing owner.
+A specialized driver can provide verified geometry and behavior for its supported
+models. Select a generic alternative only after disabling the existing owner.
 Protocol/parser and discovery tests use synthetic fixtures; no physical LampArray
 device has been tested with this backend yet.
 

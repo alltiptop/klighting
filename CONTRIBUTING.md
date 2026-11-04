@@ -2,7 +2,9 @@
 
 Start with the [architecture map](docs/architecture.md). Public driver contracts are
 in [device_driver.h](src/device_driver.h) and the [driver guide](docs/device-drivers.md).
-Keep model-specific protocol, geometry, metadata and translations in its driver directory.
+Keep all model-specific code, tests, fixtures, documentation, translations, dependencies
+and installation rules in its driver directory. Shared build/install/CI mechanisms
+discover module declarations; adding a model must not require editing a central list.
 
 ## Build and checks
 
@@ -59,6 +61,8 @@ The build workflow uses a pinned Arch image and the 2026-10-01 package archive,
 with clang-format 23.1.1, Qt 6.11.2 and KWin 6.7.5. Checks, the full KWin build and CTest run
 as an unprivileged user. Package versions and failure logs are retained as artifacts.
 Update the archive date and tool baseline together after validating the new stack.
+Driver dependencies come from each module's `dependencies.arch` (one package name per
+line); keep package discovery in its own CMake file. No central CI edits are needed.
 
 Dependency vulnerability scanning is limited to dependencies managed by this
 project. Currently all external application libraries come from the distribution;
@@ -90,8 +94,7 @@ before and after a change; do not run builds or other benchmarks concurrently. S
 synthetic paints and readback completion, also without KWin, GPU or hardware access.
 `./build/profile_benchmark` measures profile/layer changes and unchanged selections
 through synchronous runtime inputs and fake devices.
-The [ASUS output benchmark](src/drivers/asus-g615lw/README.md#diagnostics) measures
-driver report preparation and deduplication with an in-memory sink.
+Driver-specific benchmarks and their instructions live inside their modules.
 
 ## Translations
 

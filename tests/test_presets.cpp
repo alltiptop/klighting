@@ -1033,7 +1033,7 @@ private Q_SLOTS:
         KeyboardLayer shift;
         shift.styles[0] = { KeyMode::Static, Qt::red };
         KeyboardStyles base;
-        // Real G615LW sequence: Super, Shift, F23 down; F23, Shift, Super up.
+        // Firmware chord sequence: Super, Shift, F23 down; F23, Shift, Super up.
         for (const auto code : { KEY_LEFTMETA, KEY_LEFTSHIFT, KEY_F23 }) {
             state.pressed.insert(code);
             QCOMPARE(resolveLayers(base, { shift }, state), base);

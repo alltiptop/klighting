@@ -18,8 +18,6 @@ target_link_libraries(component_info PUBLIC Qt6::DBus)
 set_target_properties(component_info PROPERTIES CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN YES)
 find_package(KF6CoreAddons REQUIRED)
 find_package(KF6Config REQUIRED)
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(LIBUSB REQUIRED IMPORTED_TARGET libusb-1.0)
 
 add_library(ambient_driver_api INTERFACE)
 target_include_directories(ambient_driver_api INTERFACE src)
@@ -32,17 +30,11 @@ target_link_libraries(ambient_core PUBLIC ambient_driver_api KF6::ConfigCore)
 target_compile_options(ambient_core PRIVATE -Wall -Wextra -Wpedantic)
 set_target_properties(ambient_core PROPERTIES CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN YES)
 
-# Each driver owns its build, hardware data and translations.
-add_subdirectory(src/drivers/asus-g615lw)
-add_subdirectory(src/drivers/generic)
-add_subdirectory(src/drivers/linux-leds)
-add_subdirectory(src/drivers/hid-lamparray)
 install(FILES src/device_driver.h DESTINATION "${KDE_INSTALL_INCLUDEDIR}/ambient-led")
 
 add_executable(ambient_probe tools/probe.cpp)
 target_link_libraries(ambient_probe PRIVATE ambient_core Qt6::DBus)
-add_dependencies(ambient_probe asus_g615lw)
-add_dependencies(ambient_probe linux_leds hid_lamparray)
+add_dependencies(ambient_probe klighting_drivers)
 
 qt_add_executable(klighting-plugin-check tools/check_plugins.cpp)
 target_link_libraries(klighting-plugin-check PRIVATE Qt6::Core)
@@ -165,7 +157,17 @@ if(BUILD_KWIN_EFFECT)
 endif()
 
 if(BUILD_TESTING)
-    find_package(Qt6 REQUIRED COMPONENTS Test)
+    find_package(Qt6 6.10 REQUIRED COMPONENTS Test)
+    find_program(DBUS_RUN_SESSION dbus-run-session REQUIRED)
+    if(BUILD_KWIN_EFFECT)
+        qt_add_library(settings_test_support STATIC tests/fixtures/settings_services.h)
+        target_include_directories(settings_test_support PUBLIC tests/fixtures)
+        target_link_libraries(settings_test_support PUBLIC ambient_core Qt6::DBus)
+    endif()
+endif()
+add_subdirectory(src/drivers)
+
+if(BUILD_TESTING)
     qt_add_executable(application_settings_tests tests/test_application_settings.cpp)
     target_link_libraries(application_settings_tests PRIVATE ambient_core Qt6::Test)
     add_test(NAME application_settings_tests COMMAND application_settings_tests)
@@ -177,17 +179,17 @@ if(BUILD_TESTING)
     qt_add_executable(integration_startup_tests tests/test_integration_startup.cpp)
     target_link_libraries(integration_startup_tests PRIVATE integration_startup_guard Qt6::Test)
     add_test(NAME integration_startup_tests COMMAND integration_startup_tests)
-    qt_add_executable(generic_drivers_tests tests/test_generic_drivers.cpp)
-    target_link_libraries(generic_drivers_tests PRIVATE ambient_core ambient_linux_leds ambient_hid_lamparray Qt6::Test)
-    add_test(NAME generic_drivers_tests COMMAND generic_drivers_tests)
+    if(TARGET ambient_linux_leds AND TARGET ambient_hid_lamparray)
+        qt_add_executable(generic_drivers_tests tests/test_generic_drivers.cpp)
+        target_link_libraries(generic_drivers_tests PRIVATE ambient_core ambient_linux_leds ambient_hid_lamparray Qt6::Test)
+        add_test(NAME generic_drivers_tests COMMAND generic_drivers_tests)
+    endif()
     qt_add_plugin(alternative_driver_fixture SHARED CLASS_NAME AlternativeDriver tests/fixtures/alternative_driver.cpp)
     target_link_libraries(alternative_driver_fixture PRIVATE ambient_driver_api)
     set_target_properties(alternative_driver_fixture PROPERTIES PREFIX ""
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/test-drivers/alternative")
     add_library(config_driver_fixture MODULE tests/fixtures/config_driver.cpp)
-    set_property(SOURCE tests/fixtures/config_driver.cpp APPEND PROPERTY OBJECT_DEPENDS
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/drivers/asus-g615lw/asus_driver.json")
-    target_link_libraries(config_driver_fixture PRIVATE ambient_asus_g615lw)
+    target_link_libraries(config_driver_fixture PRIVATE ambient_driver_api)
     set_target_properties(config_driver_fixture PROPERTIES PREFIX ""
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/test-drivers/config")
     add_library(incompatible_driver_fixture MODULE tests/fixtures/incompatible_driver.cpp)
@@ -201,17 +203,12 @@ if(BUILD_TESTING)
     add_executable(drivers_tests tests/test_drivers.cpp)
     target_link_libraries(drivers_tests PRIVATE ambient_core Qt6::Test)
     target_compile_definitions(drivers_tests PRIVATE
-        ASUS_DRIVER_DIR="${CMAKE_BINARY_DIR}/test-drivers/asus"
         ALTERNATIVE_DRIVER_DIR="$<TARGET_FILE_DIR:alternative_driver_fixture>"
         MULTI_DRIVER_DIR="$<TARGET_FILE_DIR:multi_driver_fixture>"
         CONFIG_DRIVER_DIR="$<TARGET_FILE_DIR:config_driver_fixture>"
         INCOMPATIBLE_DRIVER_DIR="$<TARGET_FILE_DIR:incompatible_driver_fixture>")
-    add_dependencies(drivers_tests multi_driver_fixture asus_g615lw config_driver_fixture incompatible_driver_fixture)
+    add_dependencies(drivers_tests multi_driver_fixture config_driver_fixture incompatible_driver_fixture)
     add_dependencies(drivers_tests alternative_driver_fixture)
-    add_custom_command(TARGET drivers_tests PRE_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/test-drivers/asus"
-        COMMAND ${CMAKE_COMMAND} -E create_symlink "$<TARGET_FILE:asus_g615lw>"
-            "${CMAKE_BINARY_DIR}/test-drivers/asus/asus_g615lw.so")
     add_test(NAME drivers_tests COMMAND drivers_tests)
     qt_add_executable(runtime_benchmark tests/benchmark_runtime.cpp)
     target_link_libraries(runtime_benchmark PRIVATE lighting_runtime component_info)
@@ -247,16 +244,7 @@ if(BUILD_TESTING)
     target_link_libraries(presets_tests PRIVATE ambient_core Qt6::Test)
     add_test(NAME presets_tests COMMAND presets_tests)
     add_executable(ambient_tests tests/test_ambient.cpp)
-    target_link_libraries(ambient_tests PRIVATE ambient_core ambient_asus_g615lw Qt6::Test)
-    qt_add_executable(asus_output_benchmark tests/benchmark_asus_output.cpp)
-    target_link_libraries(asus_output_benchmark PRIVATE ambient_asus_g615lw component_info)
-    target_compile_definitions(asus_output_benchmark PRIVATE BUILD_TYPE="$<CONFIG>")
-    qt_add_executable(lamp_array_output_tests tests/test_lamp_array_output.cpp)
-    target_link_libraries(lamp_array_output_tests PRIVATE ambient_asus_g615lw Qt6::Test)
-    add_test(NAME lamp_array_output_tests COMMAND lamp_array_output_tests)
-    target_compile_definitions(ambient_tests PRIVATE
-        LAMP_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/g615lw-lamps.json")
-    find_program(DBUS_RUN_SESSION dbus-run-session REQUIRED)
+    target_link_libraries(ambient_tests PRIVATE ambient_core Qt6::Test)
     qt_add_executable(lighting_service_tests tests/test_lighting_service.cpp)
     target_link_libraries(lighting_service_tests PRIVATE lighting_service kwin_sources Qt6::Test)
     target_compile_definitions(lighting_service_tests PRIVATE
@@ -332,15 +320,14 @@ if(BUILD_TESTING)
             ambient_settings KF6::KCMUtils Qt6::QuickWidgets Qt6::Widgets Qt6::Test)
         target_compile_definitions(translations_tests PRIVATE
             SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
-            CONFIG_PLUGIN_PATH="$<TARGET_FILE:kcm_ambientled_devices>"
-            ASUS_PLUGIN_PATH="$<TARGET_FILE:asus_g615lw>")
-        add_dependencies(translations_tests kcm_ambientled_devices asus_g615lw config_driver_fixture)
+            CONFIG_PLUGIN_PATH="$<TARGET_FILE:kcm_ambientled_devices>")
+        add_dependencies(translations_tests kcm_ambientled_devices config_driver_fixture)
         add_test(NAME translations_tests COMMAND ${DBUS_RUN_SESSION} --config-file=${CMAKE_CURRENT_SOURCE_DIR}/tests/session-bus.conf -- $<TARGET_FILE:translations_tests>)
         set_tests_properties(translations_tests PROPERTIES TIMEOUT 60
             ENVIRONMENT "AMBIENT_LED_DRIVER_PATH=$<TARGET_FILE_DIR:config_driver_fixture>")
         add_executable(config_tests tests/test_config.cpp)
         target_link_libraries(config_tests PRIVATE
-            ambient_settings ambient_asus_g615lw KF6::KCMUtilsQuick Qt6::Widgets Qt6::Test)
+            ambient_settings settings_test_support KF6::KCMUtilsQuick Qt6::Widgets Qt6::Test)
         target_compile_definitions(config_tests PRIVATE
             MULTI_DRIVER_DIR="$<TARGET_FILE_DIR:multi_driver_fixture>"
             ALTERNATIVE_DRIVER_DIR="$<TARGET_FILE_DIR:alternative_driver_fixture>"
@@ -362,8 +349,27 @@ endif()
 
 # Optional developer tools; normal builds do not require Python or formatters.
 include(cmake/BuildIdentity.cmake)
+add_custom_target(local_bundle
+    COMMAND ${CMAKE_COMMAND}
+        "-DBUNDLE_DIR=${CMAKE_BINARY_DIR}/local-bundle"
+        "-DBUILD_DIR=${CMAKE_BINARY_DIR}" "-DCONFIG=$<CONFIG>"
+        "-DCHECKER=$<TARGET_FILE:klighting-plugin-check>"
+        "-DPLUGIN_DIR=${KDE_INSTALL_FULL_QTPLUGINDIR}" "-DDATA_DIR=${KDE_INSTALL_FULL_DATADIR}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/LocalBundle.cmake"
+    DEPENDS klightingd klighting-plugin-check klighting_drivers VERBATIM)
+if(BUILD_KWIN_EFFECT)
+    add_dependencies(local_bundle ambientled klighting_integration kcm_ambientled
+        kcm_ambientled_devices kcm_ambientled_presets kcm_ambientled_effects kcm_ambientled_applications)
+endif()
 find_package(Python3 QUIET COMPONENTS Interpreter)
 if(Python3_Interpreter_FOUND)
+    if(BUILD_TESTING)
+        add_test(NAME installer_tests COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_installer.py")
+        add_test(NAME driver_modules_tests COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_driver_modules.py")
+        set_tests_properties(driver_modules_tests PROPERTIES TIMEOUT 60)
+    endif()
     add_custom_target(lint
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/check.py"
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" VERBATIM)

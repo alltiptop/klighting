@@ -7,10 +7,11 @@
 - [Frames and controls](#frames-and-hardware-controls)
 - [Presets and layers](#presets-and-layers)
 - [Installation and validation](#installation-and-validation)
+- [In-tree modules](#in-tree-modules)
 - [External build](#minimal-external-build)
 
 The public contract is [`src/device_driver.h`](../src/device_driver.h): Qt Core/Gui
-and C++20, independent of KWin, KDE settings, effects, presets and asusd. Effects
+and C++20, independent of KWin, KDE settings, effects, presets and hardware services. Effects
 remain built into the host. Each driver module can enumerate multiple physical
 devices; enabled devices run together, with independent backends and presets.
 
@@ -22,11 +23,10 @@ Implement `Ambient::DeviceDriver` on a `QObject`, declare
 Metadata must contain `"ApiVersion": 4` and a unique `"Id"` (1–64 ASCII letters,
 digits, `_` or `-`). The IID is `org.ambientled.DeviceDriver/4.0`. Build a `MODULE`
 library with AUTOMOC, C++20, position-independent code and Qt6::Core/Qt6::Gui.
-See the [ASUS G615LW driver](../src/drivers/asus-g615lw/asus_driver.cpp). An external driver
-can be built independently; the host does not need recompilation.
+An external driver can be built independently; the host does not need recompilation.
 
 Keep each model or verified hardware-compatible family in its own directory,
-such as `src/drivers/asus-g615lw/`, including its protocol, layout and translations.
+`src/drivers/<vendor-model>/`, including all code, tests, documentation and resources.
 Sharing a vendor name alone does not imply compatible lighting hardware. Metadata
 `Name` carries the full human-readable device name;
 keep `Id` stable because saved device configurations reference it.
@@ -55,7 +55,7 @@ A device instance contains:
 - `description`: the device model/layout and capabilities.
 - `options`: driver-owned parameters passed to its backend/controls. The optional
   `InputKeyCodes` map supplies decimal key IDs as strings and Linux evdev codes as
-  integer values, e.g. `{ "36": 17 }` for a device whose W key has ID 36. The editor
+  integer values, e.g. `{ "7": 17 }` for a device whose W key has ID 7. The editor
   uses this only to outline held keys in Live Preview, without changing selections
   or LED output. Missing entries have no input outline; labels are never used to
   guess codes. The map uses the existing API 4 options container, so older drivers
@@ -233,10 +233,51 @@ pending callbacks/metatypes; destroying a backend still releases hardware. The
 [local installer](../tools/install-local.sh) replaces its supported modules atomically;
 see the bundled driver's notes for its migration behavior.
 
-Tests load the real ASUS description without starting USB, enumerate two synthetic
-strips, exercise independent presets/disable/reconnect, verify gradient endpoints,
-layer precedence, saved devices, real QML controls and USB packet bytes through
-fake transport. These tests do not replace hardware validation for each new driver.
+Host tests use synthetic descriptions and modules for discovery, independent
+presets/disable/reconnect, gradients, layers, saved devices and QML controls.
+Model-specific descriptor/packet fixtures, controls, translations and failure/recovery
+tests belong in the module. They do not replace physical hardware validation.
+
+## In-tree modules
+
+Put each contribution entirely in `src/drivers/<vendor-model>/`. The dispatcher
+finds child `CMakeLists.txt` files automatically, with shared `generic/` utilities
+available first. No central driver list, docs inventory or test/artifact registry
+needs editing. Namespace targets, IDs, resources and installed paths by module.
+The host must not include private driver headers or use model-specific defaults.
+Shared tests use synthetic descriptions; real protocol, layout and controls tests
+belong under the module's `tests/` directory.
+
+```cmake
+qt_add_plugin(vendor_model SHARED CLASS_NAME VendorModel driver.cpp)
+target_link_libraries(vendor_model PRIVATE ambient_driver_api)
+klighting_register_driver(vendor_model)
+# Module-owned files use ordinary CMake install rules.
+install(FILES layout.json DESTINATION "${KDE_INSTALL_DATADIR}/klighting/drivers/vendor-model")
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()
+```
+
+`klighting_register_driver` supplies the build-tree and installed plugin directories
+and adds the plugin to the aggregate `klighting_drivers` target. Declare additional
+libraries with `find_package`/`pkg_check_modules` inside the module and list its Arch
+CI packages in `dependencies.arch`, one package name per line. Document other
+platform packages in the module's README. Keep translated strings and translation
+resource prefixes local as well.
+
+The `local_bundle` target uses CMake install rules, including module-owned assets.
+When replacing historical plugin filenames, install `legacy-plugins.txt` under
+`${KDE_INSTALL_DATADIR}/klighting/drivers/<driver-id>/`. Each line is `vN/basename`;
+the installer retires exactly that basename and its `_devN` variants from the
+corresponding driver API directory, excluding files in the current payload.
+Do not add model-specific branches to shared installers or execute migration hooks.
+
+Check the host without a module using
+`-DKLIGHTING_DISABLED_DRIVERS="directory-name;another-directory"` in a fresh build.
+`driver_modules_tests` verifies independent module discovery, tests, exclusion and
+installation. An API extension is a separate, model-independent change; a new
+driver using the existing API changes only its own directory.
 
 ## Minimal external build
 
@@ -272,5 +313,5 @@ it is implemented and verified. Frame lists follow description order, not key ID
 Bundle the module's dependencies, license and own translations with it. Test discovery,
 layout rejection, frame bounds, disabled/off state, disconnect/reconnect and destruction
 with pending callbacks. Then validate the physical mapping and restoration separately
-with the hardware owner's permission. See [G615LW notes](../src/drivers/asus-g615lw/README.md)
-for that driver's transport details, not a universal USB protocol.
+with the hardware owner's permission. Document protocol details and verified
+behavior inside the module; other devices may require different protocols.

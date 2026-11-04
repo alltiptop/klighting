@@ -30,11 +30,19 @@ jobs:
         run: |
           set -euo pipefail
           printf '%s\n' 'Server = https://archive.archlinux.org/repos/2026/10/01/$repo/os/$arch' > /etc/pacman.d/mirrorlist
+          driver_packages=()
+          for manifest in src/drivers/*/dependencies.arch; do
+            [[ -f "$manifest" ]] || continue
+            while IFS= read -r package || [[ -n "$package" ]]; do
+              [[ "$package" =~ ^[a-z0-9][a-z0-9@._+-]*$ ]] || { echo "Invalid package in $manifest" >&2; exit 1; }
+              driver_packages+=("$package")
+            done < "$manifest"
+          done
           pacman -Syyuu --noconfirm --needed base-devel cmake ninja pkgconf clang python \
             extra-cmake-modules qt6-base qt6-declarative qt6-tools kwin kcoreaddons \
             kconfig kcmutils kguiaddons ki18n kservice kwindowsystem kirigami \
-            qqc2-desktop-style libusb wayland libglvnd libepoxy libdrm \
-            vulkan-headers vulkan-icd-loader dbus gettext
+            qqc2-desktop-style wayland libglvnd libepoxy libdrm \
+            vulkan-headers vulkan-icd-loader dbus gettext "${driver_packages[@]}"
           useradd --create-home --uid 1001 builder
           chown -R builder:builder "$GITHUB_WORKSPACE"
       - name: Check, build and test without root or hardware

@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "application_settings.h"
-#include "aura_protocol.h"
 #include "lighting_ipc.h"
 #include "service_control.h"
 #include "settings_controller.h"
@@ -19,211 +18,12 @@
 #include <QtTest>
 #include <linux/input-event-codes.h>
 using namespace Ambient;
-class FakeAsusd : public QDBusVirtualObject
-{
-public:
-    QDBusConnection bus = QDBusConnection::connectToBus(
-        qEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS"), QStringLiteral("asusd-test"));
-    AuraPower power { { { 1, true, true, false, false }, { 2, false, true, false, false } } };
-    QList<AuraPower> writes;
-    bool malformed = false, failRead = false, failWrite = false;
-    int unexpected = 0, reads = 0;
-    QString extraPath, writtenPath;
-    FakeAsusd()
-    {
-        if (!bus.registerVirtualObject("/", this, QDBusConnection::SubPath)
-            || !bus.registerService(AsusdService))
-            qFatal("Cannot register isolated asusd fixture");
-    }
-    ~FakeAsusd() override
-    {
-        bus.unregisterService(AsusdService);
-        bus.unregisterObject("/", QDBusConnection::UnregisterTree);
-        QDBusConnection::disconnectFromBus(QStringLiteral("asusd-test"));
-    }
-    QString introspect(const QString&) const override { return { }; }
-    QVariant powerValue() const
-    {
-        return malformed ? QVariant(QStringLiteral("invalid")) : QVariant::fromValue(power);
-    }
-    bool handleMessage(const QDBusMessage& message, const QDBusConnection& connection) override
-    {
-        if (message.interface() == "org.freedesktop.DBus.ObjectManager"
-            && message.member() == "GetManagedObjects") {
-            const QVariantMap props { { "DeviceType", 0u }, { "Brightness", 1u },
-                { "SupportedBasicZones", QVariant::fromValue(QList<uint> { }) },
-                { "SupportedBasicModes", QVariant::fromValue(QList<uint> { 0 }) },
-                { "SupportedPowerZones", QVariant::fromValue(QList<uint> { 1, 2 }) },
-                { "LedModeData", QVariant::fromValue(AuraEffect { }) }, { "LedPower", powerValue() } };
-            ManagedObjects objects { { QDBusObjectPath("/xyz/ljones/aura/19b6_2_4"),
-                { { AuraInterface, props } } } };
-            if (!extraPath.isEmpty())
-                objects.insert(QDBusObjectPath(extraPath), { { AuraInterface, props } });
-            connection.send(message.createReply(QVariant::fromValue(objects)));
-        } else if (message.interface() == "org.freedesktop.DBus.Properties" && message.member() == "Get"
-            && message.arguments() == QVariantList { AuraInterface, "LedPower" }) {
-            ++reads;
-            connection.send(failRead ? message.createErrorReply(QDBusError::Failed, "power read failed")
-                                     : message.createReply(QVariant::fromValue(QDBusVariant(powerValue()))));
-        } else if (message.interface() == "org.freedesktop.DBus.Properties" && message.member() == "Set"
-            && message.arguments().size() == 3 && message.arguments()[0] == AuraInterface
-            && message.arguments()[1] == "LedPower") {
-            const auto value = qvariant_cast<QDBusVariant>(message.arguments()[2]).variant();
-            // Assert the wire contract independently of the C++ struct names.
-            if (value.value<QDBusArgument>().currentSignature() != "(a(ubbbb))")
-                qFatal("Incorrect LedPower wire signature");
-            const auto update = qdbus_cast<AuraPower>(value);
-            writtenPath = message.path();
-            writes.append(update);
-            if (failWrite) {
-                connection.send(message.createErrorReply(QDBusError::AccessDenied, "power write denied"));
-                return true;
-            }
-            for (const auto& updated : update.states)
-                for (auto& saved : power.states)
-                    if (saved.zone == updated.zone)
-                        saved = updated;
-            connection.send(message.createReply());
-        } else {
-            ++unexpected;
-            connection.send(message.createErrorReply(QDBusError::UnknownMethod, "unexpected asusd call"));
-        }
-        return true;
-    }
-};
-
-class FakeKWin : public QDBusVirtualObject
-{
-    Q_OBJECT
-public:
-    QDBusConnection bus = QDBusConnection::sessionBus();
-    QStringList reconfigured;
-    QStringList installed { "ambientled" }, loaded { "ambientled" };
-    QStringList loads, unloads;
-    bool refuseLoad = false, refuseUnload = false, overlappingLoad = false;
-    bool deferLoadReply = false;
-    QList<bool> savedAtLoad, savedAtUnload;
-    int unexpected = 0;
-    int windowQueries = 0;
-    QVariantMap windowInfo { { "resourceClass", "org.kde.kate" }, { "resourceName", "kate" } };
-    QString windowError;
-    bool deferWindowReply = false;
-    QDBusMessage windowRequest;
-    FakeKWin()
-    {
-        if (!bus.registerVirtualObject("/Effects", this) || !bus.registerVirtualObject("/KWin", this)
-            || !bus.registerService("org.kde.KWin"))
-            qFatal("Cannot register isolated KWin test fixture");
-    }
-    ~FakeKWin() override
-    {
-        bus.unregisterService("org.kde.KWin");
-        bus.unregisterObject("/Effects");
-        bus.unregisterObject("/KWin");
-    }
-    void replyToWindowQuery()
-    {
-        if (windowError.isEmpty())
-            bus.send(windowRequest.createReply(QVariant::fromValue(windowInfo)));
-        else
-            bus.send(windowRequest.createErrorReply(windowError, "Window selection failed"));
-    }
-    QString introspect(const QString&) const override { return { }; }
-    bool handleMessage(const QDBusMessage& message, const QDBusConnection& connection) override
-    {
-        if (message.path() == "/KWin" && message.interface() == "org.kde.KWin"
-            && message.member() == "queryWindowInfo" && message.arguments().isEmpty()) {
-            ++windowQueries;
-            windowRequest = message;
-            if (!deferWindowReply)
-                replyToWindowQuery();
-        } else if (message.interface() == "org.freedesktop.DBus.Properties" && message.member() == "GetAll") {
-            QVariantMap properties { { "listOfEffects", installed }, { "loadedEffects", loaded } };
-            connection.send(message.createReply(QVariant::fromValue(properties)));
-        } else if (message.member() == "loadEffect") {
-            loads << message.arguments().first().toString();
-            savedAtLoad << KConfigGroup(KSharedConfig::openConfig("kwinrc"), "Plugins")
-                               .readEntry("ambientledEnabled", false);
-            if (deferLoadReply)
-                return true;
-            overlappingLoad = overlappingLoad || !loaded.isEmpty();
-            if (!refuseLoad)
-                loaded = loads.mid(loads.size() - 1);
-            connection.send(message.createReply(!refuseLoad));
-        } else if (message.member() == "unloadEffect") {
-            unloads << message.arguments().first().toString();
-            savedAtUnload << KConfigGroup(KSharedConfig::openConfig("kwinrc"), "Plugins")
-                                 .readEntry("ambientledEnabled", false);
-            if (!refuseUnload)
-                loaded.removeAll(unloads.last());
-            connection.send(message.createReply());
-        } else if (message.member() == "isEffectLoaded") {
-            connection.send(message.createReply(loaded.contains(message.arguments().first().toString())));
-        } else if (message.interface() == "org.freedesktop.DBus.Properties" && message.member() == "Get"
-            && message.arguments() == QVariantList { "org.kde.kwin.Effects", "loadedEffects" }) {
-            connection.send(message.createReply(QVariant::fromValue(QDBusVariant(loaded))));
-        } else if (message.interface() == "org.kde.kwin.Effects" && message.member() == "reconfigureEffect") {
-            reconfigured.append(message.arguments().first().toString());
-            connection.send(message.createReply());
-        } else {
-            ++unexpected;
-            connection.send(message.createErrorReply(QDBusError::UnknownMethod, "unexpected call"));
-        }
-        return true;
-    }
-};
-
-class FakeLighting : public QObject
-{
-    Q_OBJECT
-    Q_CLASSINFO("D-Bus Interface", "org.klighting.Service1")
-public:
-    int reloads = 0;
-    int retries = 0;
-    bool canRetry = false;
-    QString retryError;
-    QVariantMap info { { "protocol", Ipc::Version } };
-    FakeLighting()
-    {
-        auto bus = QDBusConnection::sessionBus();
-        if (!bus.registerService(Ipc::Service)
-            || !bus.registerObject(Ipc::Path, this, QDBusConnection::ExportAllSlots))
-            qFatal("Cannot register isolated lighting service");
-    }
-    ~FakeLighting() override
-    {
-        auto bus = QDBusConnection::sessionBus();
-        bus.unregisterObject(Ipc::Path);
-        bus.unregisterService(Ipc::Service);
-    }
-public Q_SLOTS:
-    QString Reload()
-    {
-        ++reloads;
-        return { };
-    }
-    QString RetryDesktopIntegration()
-    {
-        ++retries;
-        if (retryError.isEmpty())
-            canRetry = false;
-        return retryError;
-    }
-    QVariantMap Status() const
-    {
-        auto status = info;
-        status.insert("safeToControl", true);
-        status.insert("desktopCanRetry", canRetry);
-        status.insert("desktop", "Automatic loading paused");
-        return status;
-    }
-};
-
+#include "fixtures/keyboard.h"
+#include "fixtures/settings_services.h"
 class ConfigTest : public QObject
 {
     Q_OBJECT
     KSharedConfig::Ptr config = KSharedConfig::openConfig("kwinrc");
-    std::unique_ptr<FakeAsusd> asusd;
     std::unique_ptr<FakeLighting> lighting;
     std::unique_ptr<SettingsController> openModule() { return std::make_unique<SettingsController>(); }
 private Q_SLOTS:
@@ -231,19 +31,15 @@ private Q_SLOTS:
     {
         QVERIFY(QDir(presetDirectory()).removeRecursively());
         QVERIFY(QDir(QFileInfo(applicationSettingsPath()).absolutePath()).removeRecursively());
-        asusd = std::make_unique<FakeAsusd>();
+        qApp->setProperty("test.controls.writes", 0);
+        qApp->setProperty("test.controls.enabled", true);
         lighting = std::make_unique<FakeLighting>();
         config->reparseConfiguration();
         config->deleteGroup("Effect-ambientled");
         config->deleteGroup("Plugins");
         QVERIFY(config->sync());
     }
-    void cleanup()
-    {
-        QCOMPARE(asusd->unexpected, 0);
-        asusd.reset();
-        lighting.reset();
-    }
+    void cleanup() { lighting.reset(); }
     void manualDesktopRetryReportsFailuresAndRefreshesAvailability()
     {
         lighting->canRetry = true;
@@ -385,7 +181,7 @@ private Q_SLOTS:
         QCOMPARE(c.presetDevices().size(), 2);
         QVERIFY(c.addPresetDevice("test-strips:two"));
         QCOMPARE(c.presetDevices().size(), 3);
-        QCOMPARE(asusd->writes.size(), 0);
+        QCOMPARE(qApp->property("test.controls.writes").toInt(), 0);
     }
     void removingLastLegacyDeviceRetainsPresetLayers()
     {
@@ -470,7 +266,7 @@ private Q_SLOTS:
         c.defaults();
         QVERIFY(c.preset()["layers"].toList().isEmpty());
         QVERIFY(c.representsDefaults());
-        QCOMPARE(asusd->writes.size(), 0);
+        QCOMPARE(qApp->property("test.controls.writes").toInt(), 0);
     }
     void multipleDeviceSelectionsKeepEffectsAndExposeOutputLimits()
     {
@@ -558,7 +354,7 @@ private Q_SLOTS:
         QString error;
         QVERIFY2(savePresets(c.collection(), &error), qPrintable(error));
         QCOMPARE(*loadPresets(defaultCollection(), &error), c.collection());
-        QCOMPARE(asusd->writes.size(), 0);
+        QCOMPARE(qApp->property("test.controls.writes").toInt(), 0);
     }
     void defaultsMetadataAndPendingEdits()
     {
@@ -568,8 +364,8 @@ private Q_SLOTS:
         QCOMPARE(metadata.value("KPlugin").toObject().value("Version").toString(), QString("0.27.0"));
         SettingsController c;
         QTRY_VERIFY(c.lightbarAvailable());
-        QCOMPARE(c.device().value("bodyColor").toString(), QString("#333333"));
-        QCOMPARE(c.device().value("keyColor").toString(), QString("#111111"));
+        QCOMPARE(c.device().value("bodyColor").toString(), QString("#252932"));
+        QCOMPARE(c.device().value("keyColor").toString(), QString("#121722"));
         QCOMPARE(c.effectPreset().value("fps").toInt(), 3);
         QCOMPARE(c.effectPreset().value("minimum").toInt(), 25);
         QCOMPARE(c.effectPreset().value("maximum").toInt(), 70);
@@ -613,8 +409,8 @@ private Q_SLOTS:
     void activeLayersPreviewWithoutEditingThePreset()
     {
         SettingsController c;
-        c.assignKeys(-1, { 36 }, 1, "#0000ff");
-        c.assignKeys(0, { 36 }, 1, "#ff0000");
+        c.assignKeys(-1, { 12 }, 1, "#0000ff");
+        c.assignKeys(0, { 12 }, 1, "#ff0000");
         QVERIFY(c.setLayer(0, { "shift", "key:30" }));
         const int upper = c.addLayer({ "shift-right" });
         QCOMPARE(upper, 1);
@@ -635,26 +431,26 @@ private Q_SLOTS:
         QCOMPARE(c.previewLayer(), -1);
         key(QEvent::KeyPress, KEY_RIGHTSHIFT, Qt::Key_Shift);
         QCOMPARE(c.previewLayer(), upper);
-        QCOMPARE(c.pressedKeys(), QVariantList { 74 });
+        QCOMPARE(c.pressedKeys(), QVariantList { 71 });
         QSignalSpy pressedChanged(&c, &SettingsController::pressedKeysChanged);
         key(QEvent::KeyPress, KEY_W, Qt::Key_W);
         QCOMPARE(c.previewLayer(), upper); // Input indicators update even if the active layer stays the same.
-        QCOMPARE(c.pressedKeys(), (QVariantList { 36, 74 }));
+        QCOMPARE(c.pressedKeys(), (QVariantList { 12, 71 }));
         QCOMPARE(pressedChanged.size(), 1);
         key(QEvent::KeyRelease, KEY_W, Qt::Key_W);
-        QCOMPARE(c.pressedKeys(), QVariantList { 74 });
-        QCOMPARE(c.liveKeyPreview()[36].toMap()["color"].toString(), QString("#0000ff"));
+        QCOMPARE(c.pressedKeys(), QVariantList { 71 });
+        QCOMPARE(c.liveKeyPreview()[12].toMap()["color"].toString(), QString("#0000ff"));
         QCOMPARE(c.liveKeyPreview()[14].toMap()["color"].toString(), QString("#00ff00"));
         key(QEvent::KeyPress, KEY_A, Qt::Key_A);
         QCOMPARE(c.previewLayer(), 0); // More conditions win even in the earlier row.
-        QCOMPARE(c.liveKeyPreview()[36].toMap()["color"].toString(), QString("#ff0000"));
+        QCOMPARE(c.liveKeyPreview()[12].toMap()["color"].toString(), QString("#ff0000"));
         QCOMPARE(c.liveKeyPreview()[14], c.keyPreview(0)[14]);
         QCOMPARE(c.liveKeyPreview()[14].toMap()["color"], c.keyPreview(-1)[14].toMap()["color"]);
         key(QEvent::KeyRelease, KEY_A, Qt::Key_A);
         QCOMPARE(c.previewLayer(), upper);
         key(QEvent::KeyPress, KEY_LEFTCTRL, Qt::Key_Control);
         QCOMPARE(c.previewLayer(), -1); // A Shift-only layer excludes Ctrl + Shift.
-        QCOMPARE(c.liveKeyPreview()[36].toMap()["color"].toString(), QString("#0000ff"));
+        QCOMPARE(c.liveKeyPreview()[12].toMap()["color"].toString(), QString("#0000ff"));
         key(QEvent::KeyRelease, KEY_LEFTCTRL, Qt::Key_Control);
         QCOMPARE(c.previewLayer(), upper);
         key(QEvent::KeyRelease, KEY_RIGHTSHIFT, Qt::Key_Shift);
@@ -662,7 +458,7 @@ private Q_SLOTS:
         QCOMPARE(c.liveKeyPreview(), c.keyPreview(-1));
         QVERIFY(c.pressedKeys().isEmpty());
         key(QEvent::KeyPress, KEY_LEFTSHIFT, Qt::Key_Shift);
-        QCOMPARE(c.pressedKeys(), QVariantList { 63 });
+        QCOMPARE(c.pressedKeys(), QVariantList { 70 });
         c.watchLayerKeys(nullptr);
         QVERIFY(c.pressedKeys().isEmpty());
         QVERIFY(c.collection() == before);
@@ -696,7 +492,7 @@ private Q_SLOTS:
         c.selectDevice(1);
         QCOMPARE(c.deviceSettings()["enableBlockedBy"].toString(), QString("Alternative"));
         QVERIFY(!QFile::exists(presetDirectory() + "/settings-v2.json"));
-        QCOMPARE(asusd->writes.size(), 0);
+        QCOMPARE(qApp->property("test.controls.writes").toInt(), 0);
     }
     void deviceChoicesAndGradientsRemainPendingUntilApply()
     {
@@ -738,7 +534,7 @@ private Q_SLOTS:
         c.save();
         QTRY_VERIFY(!c.busy());
         QVERIFY(!c.dirty());
-        QCOMPARE(asusd->writes.size(), 1);
+        QCOMPARE(qApp->property("test.controls.writes").toInt(), 1);
         SettingsController loaded;
         QCOMPARE(loaded.devices().size(), 3);
         loaded.selectDevice(2);
@@ -765,7 +561,7 @@ private Q_SLOTS:
         FakeKWin fake;
         SettingsController c;
         QVERIFY(c.editableKeys());
-        QCOMPARE(c.keys().size(), 88);
+        QCOMPARE(c.keys().size(), TestFixture::KeyCount);
         c.assignKeys(-1, { 17, 18, 31, 32 }, 1, "#e06020");
         c.saveGroup("Movement", { 17, 18, 31, 32 });
         QCOMPARE(c.collection().presets[0].base[17].color, QColor("#e06020"));
@@ -810,7 +606,7 @@ private Q_SLOTS:
         const auto effectId = c.effectPreset().value("id").toString();
         QVERIFY(!c.addEffect("unsupported"));
         c.assignKeys(-1, { 17, LightbarId }, 0, "#ff0000", effectId, 50);
-        c.setGradient(-1, -1, FirstStripId, 89, 88, "#ff0000", "#0000ff", 50, true, effectId);
+        c.setGradient(-1, -1, FirstStripId, 1001, 1023, "#ff0000", "#0000ff", 50, true, effectId);
         QCOMPARE(c.collection().presets[0].base[17].color.alpha(), 128);
         QCOMPARE(c.collection().presets[0].base[LightbarId].effectId, effectId);
         QVERIFY(!c.removeEffect());
@@ -842,12 +638,12 @@ private Q_SLOTS:
     void notificationTemplateAssignmentsAndPortablePresets()
     {
         SettingsController c;
-        c.assignKeys(-1, { 14 }, int(KeyMode::Static), "#123456");
+        c.assignKeys(-1, { 4 }, int(KeyMode::Static), "#123456");
         const auto original = c.collection().presets[0];
         c.addNotificationLayout();
         const auto id = c.effectPreset()["id"].toString();
         QCOMPARE(c.effectPreset()["type"].toString(), QString("notifications"));
-        for (int key : { 14, 15, 16, 17 })
+        for (int key : { 4, 5, 6, 7 })
             QCOMPARE(c.collection().presets[0].effectOverrides[key], (EffectList { { id } }));
         QCOMPARE(c.collection().presets[0].base, original.base);
         QCOMPARE(c.collection().presets[0].layers, original.layers);
@@ -860,16 +656,16 @@ private Q_SLOTS:
         c.setDefaultEffect(id);
         QCOMPARE(c.collection().presets[0].defaultEffectId, original.defaultEffectId);
         c.addAssignedEffect(-1, { LightbarId }, id);
-        c.addAssignedEffect(0, { 14 }, id);
+        c.addAssignedEffect(0, { 4 }, id);
         QCOMPARE(c.collection().presets[0].effects[LightbarId], (EffectList { { DefaultEffectId }, { id } }));
-        QCOMPARE(c.collection().presets[0].effectOverrides[14], (EffectList { { id } }));
-        QCOMPARE(c.collection().presets[0].layers[0].effects[14],
+        QCOMPARE(c.collection().presets[0].effectOverrides[4], (EffectList { { id } }));
+        QCOMPARE(c.collection().presets[0].layers[0].effects[4],
             (EffectList { { InlineColorId, 100, QColor("#123456") }, { id } }));
-        QVERIFY(!c.keyPreview(0)[14].toMap()["inherited"].toBool());
-        c.clearKeyLighting(0, { 15 }, false);
-        QVERIFY(c.collection().presets[0].layers[0].effects.contains(15));
-        c.clearKeyLighting(0, { 15 }, true);
-        QVERIFY(!c.collection().presets[0].layers[0].effects.contains(15));
+        QVERIFY(!c.keyPreview(0)[4].toMap()["inherited"].toBool());
+        c.clearKeyLighting(0, { 5 }, false);
+        QVERIFY(c.collection().presets[0].layers[0].effects.contains(5));
+        c.clearKeyLighting(0, { 5 }, true);
+        QVERIFY(!c.collection().presets[0].layers[0].effects.contains(5));
         QTemporaryDir dir;
         c.exportFile(QUrl::fromLocalFile(dir.filePath("notifications.json")));
         QVERIFY2(c.error().isEmpty(), qPrintable(c.error()));
@@ -879,8 +675,8 @@ private Q_SLOTS:
         const auto& imported = c.collection().presets.last();
         const auto remapped = imported.effects[LightbarId].last().id;
         QVERIFY(remapped != id);
-        QCOMPARE(imported.layers[0].effects[14].last().id, remapped);
-        QCOMPARE(imported.effectOverrides[17].last().id, remapped);
+        QCOMPARE(imported.layers[0].effects[4].last().id, remapped);
+        QCOMPARE(imported.effectOverrides[7].last().id, remapped);
         QCOMPARE(c.collection().effects.last().notification.color, QColor("#ff8800"));
         c.setSection("effects");
         c.defaults();
@@ -1096,7 +892,7 @@ private Q_SLOTS:
     }
     void loadedOrphansDoNotBlockLocalEditing()
     {
-        auto collection = defaultCollection("asus-g615lw");
+        auto collection = defaultCollection("test-keyboard");
         auto& preset = collection.presets[0];
         for (int i = 0; i < 128; ++i) {
             EffectPreset local;
@@ -1553,154 +1349,6 @@ private Q_SLOTS:
         QCOMPARE(parsed->ambient.ledFps, 1);
         QCOMPARE(parsed->ambient.temperature, 100);
     }
-    void lightbarControlsShareReadOnlyDriverOptions()
-    {
-        asusd->extraPath = "/xyz/ljones/aura/19b6_5_6";
-        KConfigGroup(config, "Effect-ambientled").writeEntry("AuraObjectPath", asusd->extraPath);
-        QVERIFY(config->sync());
-        auto module = openModule();
-        QTRY_VERIFY((module->lightbarAvailable() && !module->busy()));
-        QVERIFY(!QFile::exists(driverSettingsPath("asus-g615lw")));
-        module->setLightbarEnabled(false);
-        module->save();
-        QTRY_COMPARE(asusd->writes.size(), 1);
-        QCOMPARE(asusd->writtenPath, asusd->extraPath);
-        QTRY_VERIFY(!module->busy());
-        module.reset();
-        // The editor never owns migration, even when its fake service acknowledges Apply.
-        QVERIFY(!QFile::exists(driverSettingsPath("asus-g615lw")));
-        const auto path = driverSettingsPath("asus-g615lw");
-        QVERIFY(QDir().mkpath(QFileInfo(path).absolutePath()));
-        QFile file(path);
-        QVERIFY(file.open(QIODevice::WriteOnly));
-        const QByteArray content = R"({"version":1,"values":{"AuraObjectPath":"/xyz/ljones/aura/19b6_2_4"}})";
-        QCOMPARE(file.write(content), content.size());
-        file.close();
-        asusd->power.states[1].awake = true;
-        module = openModule();
-        QTRY_VERIFY((module->lightbarAvailable() && !module->busy()));
-        module->setLightbarEnabled(false);
-        module->save();
-        QTRY_COMPARE(asusd->writes.size(), 2);
-        QCOMPARE(asusd->writtenPath, "/xyz/ljones/aura/19b6_2_4");
-        QTRY_VERIFY(!module->busy());
-        QVERIFY(file.open(QIODevice::ReadOnly));
-        QCOMPARE(file.readAll(), content);
-    }
-    void lightbarCancelAndDefaultsDoNotWrite()
-    {
-        asusd->power.states[1].awake = false;
-        auto module = openModule();
-        QTRY_VERIFY((module->lightbarAvailable() && !module->busy()));
-        QVERIFY(!module->lightbarEnabled());
-        QVERIFY(!module->dirty());
-        module->setSection("base");
-        QVERIFY(!module->representsDefaults());
-        module->defaults();
-        QVERIFY(module->lightbarEnabled());
-        QVERIFY(module->dirty());
-        QVERIFY(module->representsDefaults());
-        module.reset();
-        QCOMPARE(asusd->writes.size(), 0);
-        QCOMPARE(asusd->reads, 0);
-        QVERIFY(!asusd->power.states[1].awake);
-    }
-    void lightbarApplyPreservesFreshFlagsAndKeyboard()
-    {
-        FakeKWin fake;
-        auto module = openModule();
-        QTRY_VERIFY((module->lightbarAvailable() && !module->busy()));
-        module->setLightbarEnabled(false);
-        // Changes made by another UI after this dialog loaded must survive.
-        asusd->power.states[0] = { 1, false, false, true, true };
-        asusd->power.states[1] = { 2, true, true, true, true };
-        module->save();
-        QTRY_VERIFY((module->lightbarAvailable() && !module->busy()));
-        QCOMPARE(asusd->reads, 1);
-        QCOMPARE(asusd->writes.size(), 1);
-        QCOMPARE(asusd->writes[0].states.size(), 1);
-        const auto state = asusd->writes[0].states.first();
-        QCOMPARE(state.zone, 2u);
-        QVERIFY(state.boot && !state.awake && state.sleep && state.shutdown);
-        const auto keyboard = asusd->power.states[0];
-        QVERIFY(!keyboard.boot && !keyboard.awake && keyboard.sleep && keyboard.shutdown);
-        QVERIFY(!module->dirty());
-        auto reopened = openModule();
-        QTRY_VERIFY((reopened->lightbarAvailable() && !reopened->busy()));
-        QVERIFY(!reopened->lightbarEnabled());
-        QCOMPARE(asusd->writes.size(), 1);
-        QTRY_COMPARE(lighting->reloads, 1);
-        QVERIFY(fake.reconfigured.isEmpty());
-    }
-    void lightbarApplySurvivesClose()
-    {
-        FakeKWin fake;
-        asusd->power.states[1].awake = false;
-        auto module = openModule();
-        QTRY_VERIFY((module->lightbarAvailable() && !module->busy()));
-        module->setLightbarEnabled(true);
-        module->save();
-        module.reset();
-        QTRY_COMPARE(asusd->writes.size(), 1);
-        QVERIFY(asusd->power.states[1].awake);
-        QTRY_COMPARE(lighting->reloads, 1);
-        QVERIFY(fake.reconfigured.isEmpty());
-    }
-    void lightbarInvalidStateIsDisabled()
-    {
-        asusd->malformed = true;
-        auto module = openModule();
-        QTRY_VERIFY(module->lightbarStatus().startsWith("Lightbar unavailable:"));
-        QVERIFY(!(module->lightbarAvailable() && !module->busy()));
-        QVERIFY(!module->dirty());
-        QCOMPARE(asusd->writes.size(), 0);
-    }
-    void refreshRecoversLightbarAndPreservesEdits()
-    {
-        asusd->malformed = true;
-        auto module = openModule();
-        QTRY_VERIFY(module->lightbarStatus().startsWith("Lightbar unavailable:"));
-        asusd->malformed = false;
-        module->refreshDevices();
-        QTRY_VERIFY(module->lightbarAvailable() && !module->busy());
-        module->setLightbarEnabled(false);
-        module->refreshDevices();
-        QTRY_VERIFY(!module->busy());
-        QVERIFY(!module->lightbarEnabled());
-        QVERIFY(module->dirty());
-        QCOMPARE(asusd->writes.size(), 0);
-        asusd->malformed = true;
-        module->refreshDevices();
-        QTRY_VERIFY(module->lightbarStatus().startsWith("Lightbar unavailable:"));
-        QVERIFY(module->dirty());
-        QVERIFY(!module->lightbarEnabled());
-    }
-    void lightbarApplyFailure_data()
-    {
-        QTest::addColumn<int>("failure");
-        QTest::newRow("read-error") << 0;
-        QTest::newRow("invalid-fresh-state") << 1;
-        QTest::newRow("write-denied") << 2;
-    }
-    void lightbarApplyFailure()
-    {
-        QFETCH(int, failure);
-        FakeKWin fake;
-        auto module = openModule();
-        QTRY_VERIFY((module->lightbarAvailable() && !module->busy()));
-        asusd->failRead = failure == 0;
-        asusd->malformed = failure == 1;
-        asusd->failWrite = failure == 2;
-        module->setLightbarEnabled(false);
-        module->save();
-        QTRY_VERIFY((module->lightbarAvailable() && !module->busy()));
-        QVERIFY(module->dirty());
-        QVERIFY(module->lightbarStatus().startsWith("Could not save lightbar setting:"));
-        QCOMPARE(asusd->writes.size(), failure == 2 ? 1 : 0);
-        QVERIFY(asusd->power.states[1].awake);
-        QTRY_COMPARE(lighting->reloads, 1);
-        QVERIFY(fake.reconfigured.isEmpty());
-    }
 };
 int main(int argc, char** argv)
 {
@@ -1709,7 +1357,6 @@ int main(int argc, char** argv)
     if (testBus.isEmpty())
         return 1;
     qputenv("DBUS_SYSTEM_BUS_ADDRESS", testBus);
-    registerAuraTypes();
     QTemporaryDir directory;
     if (!directory.isValid())
         return 1;

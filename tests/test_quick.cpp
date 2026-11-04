@@ -1037,7 +1037,7 @@ private Q_SLOTS:
             return nullptr;
         };
         QVERIFY(!editorChild<QObject*>(module->subPage(1), "LayerPreviewStatus"));
-        auto* first = key(36);
+        auto* first = key(12);
         auto* last = key(52);
         QVERIFY(first && last);
         QTRY_VERIFY(inView(first, host) && inView(last, host));
@@ -1049,7 +1049,7 @@ private Q_SLOTS:
         QTest::qWait(700);
         QTest::mouseRelease(host, Qt::LeftButton, Qt::NoModifier, to);
         const auto selected = keyboard->property("selection").toList();
-        QVERIFY(selected.contains(36));
+        QVERIFY(selected.contains(12));
         QVERIFY(selected.contains(52));
         QTest::qWait(700);
         QCOMPARE(keyboard->property("selection").toList(), selected);
@@ -1058,10 +1058,10 @@ private Q_SLOTS:
         QVERIFY(settings);
         for (const int layer : { -1, 0 })
             QVERIFY(QMetaObject::invokeMethod(settings, "assignKeys", Q_ARG(int, layer),
-                Q_ARG(QVariantList, QVariantList { 36 }), Q_ARG(int, 1),
+                Q_ARG(QVariantList, QVariantList { 12 }), Q_ARG(int, 1),
                 Q_ARG(QString, layer < 0 ? "#0000ff" : "#ff0000")));
         const auto color
-            = [&] { return keyboard->property("preview").toList()[36].toMap()["color"].toString(); };
+            = [&] { return keyboard->property("preview").toList()[12].toMap()["color"].toString(); };
         QTRY_COMPARE(color(), QString("#0000ff"));
         QKeyEvent press(QEvent::KeyPress, Qt::Key_Shift, Qt::NoModifier, KEY_RIGHTSHIFT + 8, 0, 0);
         QKeyEvent release(QEvent::KeyRelease, Qt::Key_Shift, Qt::ShiftModifier, KEY_RIGHTSHIFT + 8, 0, 0);
@@ -1078,17 +1078,17 @@ private Q_SLOTS:
         QApplication::sendEvent(dialog.windowHandle(), &press);
         QTRY_VERIFY(keyboard->property("livePreview").toBool());
         QCOMPARE(color(), QString("#ff0000"));
-        QVERIFY(key(74)->property("previewPressed").toBool());
-        QVERIFY(!key(63)->property("previewPressed").toBool());
-        QVERIFY(itemNamed(key(74), "KeySelectionBorder"));
-        QCOMPARE(itemNamed(key(74), "KeyColorBorder")->property("color").value<QColor>(), QColor("#111111"));
+        QVERIFY(key(71)->property("previewPressed").toBool());
+        QVERIFY(!key(70)->property("previewPressed").toBool());
+        QVERIFY(itemNamed(key(71), "KeySelectionBorder"));
+        QCOMPARE(itemNamed(key(71), "KeyColorBorder")->property("color").value<QColor>(), QColor("#121722"));
         QVERIFY(snapshot(dialog, "held-key-outline"));
         QCOMPARE(keyboard->property("layerIndex").toInt(), -1);
         QCOMPARE(keyboard->property("selection").toList(), selected);
         QApplication::sendEvent(dialog.windowHandle(), &release);
         QTRY_VERIFY(!keyboard->property("livePreview").toBool());
-        QVERIFY(!key(74)->property("previewPressed").toBool());
-        QVERIFY(!itemNamed(key(74), "KeySelectionBorder"));
+        QVERIFY(!key(71)->property("previewPressed").toBool());
+        QVERIFY(!itemNamed(key(71), "KeySelectionBorder"));
         QCOMPARE(color(), QString("#0000ff"));
         QCOMPARE(keyboard->property("selection").toList(), selected);
         // Restore a manually selected layer, not always Base.
@@ -1096,7 +1096,7 @@ private Q_SLOTS:
         QVERIFY(QMetaObject::invokeMethod(settings, "addLayer", Q_RETURN_ARG(int, upper),
             Q_ARG(QStringList, QStringList { "shift-right" })));
         QVERIFY(QMetaObject::invokeMethod(settings, "assignKeys", Q_ARG(int, upper),
-            Q_ARG(QVariantList, QVariantList { 36 }), Q_ARG(int, 1), Q_ARG(QString, "#00ff00")));
+            Q_ARG(QVariantList, QVariantList { 12 }), Q_ARG(int, 1), Q_ARG(QString, "#00ff00")));
         auto* layers = presetEntry(module, 0);
         QVERIFY(layers);
         QVERIFY(QMetaObject::invokeMethod(presetEntry(module, 0), "clicked"));
@@ -1138,7 +1138,7 @@ private Q_SLOTS:
         QVERIFY(!keyboard->property("livePreview").toBool());
         QCOMPARE(color(), QString("#0000ff"));
         auto ctrlSelection = selected;
-        ctrlSelection.removeOne(36);
+        ctrlSelection.removeOne(12);
         QCOMPARE(keyboard->property("selection").toList(), ctrlSelection);
         QApplication::sendEvent(dialog.windowHandle(), &ctrlRelease);
         livePreview->setProperty("checked", true);
@@ -1149,7 +1149,7 @@ private Q_SLOTS:
         QCOMPARE(keyboard->property("selection").toList(), ctrlSelection);
         QApplication::sendEvent(dialog.windowHandle(), &ctrlRelease);
         QVERIFY(!keyboard->property("livePreview").toBool());
-        QVERIFY(!key(77)->property("previewPressed").toBool());
+        QVERIFY(!key(72)->property("previewPressed").toBool());
         // Ordinary typing is outlined even without a matching layer.
         livePreview->setProperty("checked", true);
         QKeyEvent letterPress(QEvent::KeyPress, Qt::Key_W, Qt::NoModifier, KEY_W + 8, 0, 0);
@@ -1478,7 +1478,8 @@ private Q_SLOTS:
                 QVERIFY(element && inView(element, host));
                 QTest::mouseClick(host, Qt::LeftButton, Qt::NoModifier,
                     element->mapToScene(element->boundingRect().center()).toPoint());
-                const QList<int> ids { 89, 91, 93, 95, 97, 99, 98, 96, 94, 92, 90, 88 };
+                const QList<int> ids { 1001, 1003, 1005, 1007, 1009, 1011, 1013, 1015, 1017, 1019, 1021,
+                    1023 };
                 QCOMPARE(keyboard->property("selection").toList(), QVariantList { ids[i] });
             }
         };
@@ -1489,7 +1490,7 @@ private Q_SLOTS:
         QTRY_VERIFY(inView(first, host) && inView(last, host));
         QTest::mouseClick(host, Qt::LeftButton, Qt::NoModifier,
             first->mapToScene(first->boundingRect().center()).toPoint());
-        QCOMPARE(keyboard->property("selection").toList(), QVariantList { 89 });
+        QCOMPARE(keyboard->property("selection").toList(), QVariantList { 1001 });
         QTest::mouseClick(host, Qt::LeftButton, Qt::ShiftModifier,
             last->mapToScene(last->boundingRect().center()).toPoint());
         QCOMPARE(keyboard->property("selection").toList().size(), 12);
@@ -1497,11 +1498,12 @@ private Q_SLOTS:
         QVERIFY(middle);
         QTest::mouseClick(host, Qt::LeftButton, Qt::ShiftModifier,
             middle->mapToScene(middle->boundingRect().center()).toPoint());
-        QCOMPARE(keyboard->property("selection").toList(), (QVariantList { 89, 91, 93, 95, 97, 99 }));
+        QCOMPARE(
+            keyboard->property("selection").toList(), (QVariantList { 1001, 1003, 1005, 1007, 1009, 1011 }));
         QVERIFY(!visualChild<QObject*>(editor, "AddGradient"));
         // Existing presets can still contain gradients; keep their editing coverage.
         QVERIFY(QMetaObject::invokeMethod(settings, "setGradient", Q_ARG(int, -1), Q_ARG(int, -1),
-            Q_ARG(int, 65536), Q_ARG(int, 89), Q_ARG(int, 88), Q_ARG(QString, "#00ff00"),
+            Q_ARG(int, 65536), Q_ARG(int, 1001), Q_ARG(int, 1023), Q_ARG(QString, "#00ff00"),
             Q_ARG(QString, "#ffffff"), Q_ARG(int, 100), Q_ARG(bool, false), Q_ARG(QString, QString())));
         QQuickItem* edit = nullptr;
         QTRY_VERIFY((edit = itemNamed(editor, "EditGradient0")));
@@ -1524,8 +1526,8 @@ private Q_SLOTS:
         QVERIFY(QMetaObject::invokeMethod(
             settings, "gradients", Q_RETURN_ARG(QVariantList, gradients), Q_ARG(int, -1)));
         QCOMPARE(gradients.size(), 1);
-        QCOMPARE(gradients.first().toMap()["from"].toInt(), 93);
-        QCOMPARE(gradients.first().toMap()["to"].toInt(), 99);
+        QCOMPARE(gradients.first().toMap()["from"].toInt(), 1005);
+        QCOMPARE(gradients.first().toMap()["to"].toInt(), 1011);
         auto* stripEditor = itemNamed(editor, "StripView65536");
         QVERIFY(stripEditor);
         QCOMPARE(stripEditor->property("gradientList").toList().size(), 1);
@@ -1545,10 +1547,10 @@ private Q_SLOTS:
                     return p.toMap()["color"].toString();
             return QString();
         };
-        QCOMPARE(color(93), QString("#ff0000"));
-        QCOMPARE(color(95), QString("#aa0055"));
-        QCOMPARE(color(97), QString("#5500aa"));
-        QCOMPARE(color(99), QString("#0000ff"));
+        QCOMPARE(color(1005), QString("#ff0000"));
+        QCOMPARE(color(1007), QString("#aa0055"));
+        QCOMPARE(color(1009), QString("#5500aa"));
+        QCOMPARE(color(1011), QString("#0000ff"));
         dialog.resize(500, 1100);
         QTRY_VERIFY(inView(editor, host));
         selectEveryElement();

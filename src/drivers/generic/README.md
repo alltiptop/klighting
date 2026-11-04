@@ -3,7 +3,7 @@
 `linux-leds` and `hid-lamparray` implement the existing API 4 contract. Their shared
 support library handles cached asynchronous discovery, coalesced output and optional
 display geometry. Hardware protocols remain in their respective plugin directories.
-The ASUS model driver does not depend on this library.
+Model-specific drivers may implement the public API without this library.
 
 Place an optional file at `$XDG_CONFIG_HOME/klighting/layouts/<model-id>.json`
 (normally `~/.config/klighting/layouts/`). The model ID is `keyboard.device` in a
@@ -15,13 +15,13 @@ enable it and refresh discovery first.
 {
   "version": 1,
   "model": "replace-with-the-device-model-id",
-  "bodyColor": "#333333",
-  "keyColor": "#111111",
+  "bodyColor": "#30343b",
+  "keyColor": "#181b20",
   "keys": [
     { "id": 7, "label": "W", "rect": [20, 20, 18, 18] }
   ],
   "strips": [
-    { "id": 65536, "width": 4, "path": [[88, 0, 0], [89, 100, 0]] }
+    { "id": 65536, "width": 4, "path": [[100, 0, 0], [101, 100, 0]] }
   ]
 }
 ```

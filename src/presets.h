@@ -80,7 +80,7 @@ struct DeviceProfile {
     QString id = QStringLiteral("default"), name = QStringLiteral("Default");
     QString targetDevice; // Empty for legacy model-wide profiles.
     // Key IDs are scoped to the driver description.
-    QString keyboardDeviceId = QStringLiteral("asus-g615lw");
+    QString keyboardDeviceId = QStringLiteral("unknown-device");
     QString defaultEffectId = QStringLiteral("ambient-default");
     KeyboardStyles base;
     KeyboardLayers layers { KeyboardLayer() };
@@ -146,7 +146,7 @@ struct PresetCollection {
 };
 QList<EffectPreset> runtimeEffects(const PresetCollection& collection);
 QString scopedEffectId(const DeviceProfile& preset, const QString& id);
-PresetCollection defaultCollection(const QString& deviceId = QStringLiteral("asus-g615lw"));
+PresetCollection defaultCollection(const QString& deviceId = QStringLiteral("unknown-device"));
 QSet<QString> referencedEffects(const DeviceProfile& preset);
 QSet<QString> referencedEffects(const LightingPreset& preset);
 QJsonObject effectPresetJson(const EffectPreset& preset);
