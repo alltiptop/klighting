@@ -12,7 +12,6 @@ SettingsController::SettingsController(SettingsController* owner, const QString&
     , m_document(owner->m_document)
     , m_owner(owner)
     , m_profileId(profileId)
-    , m_config(owner->m_config)
     , m_driver(m_document->driver)
     , m_effect(owner->m_effect)
     , m_service(owner->m_service)

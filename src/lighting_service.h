@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
-#include "desktop_source.h"
-#include "kwin_capture_source.h"
+#include "integration_sources.h"
 #include "lighting_runtime.h"
 #include "notification_source.h"
 #include "power_source.h"
-#include <KSharedConfig>
 
 namespace Ambient
 {
@@ -15,21 +13,22 @@ class LightingService : public QObject
     Q_CLASSINFO("D-Bus Interface", "org.klighting.Service1")
 public:
     explicit LightingService(const DeviceEnvironment& environment = deviceEnvironment(),
-        const QStringList& directories = driverDirectories(),
-        std::unique_ptr<DesktopSource> desktop = nullptr, QObject* parent = nullptr);
+        const QStringList& directories = driverDirectories(), IntegrationSources sources = { },
+        QObject* parent = nullptr);
 public Q_SLOTS:
     Q_SCRIPTABLE QString Reload();
+    Q_SCRIPTABLE QString RetryDesktopIntegration();
     Q_SCRIPTABLE QVariantMap Status() const;
 
 private:
     void updateRequirements();
     void updateControl();
+    void updateDesktop();
+    void updateCapture();
     LightingRuntime m_runtime;
     PowerSource m_power;
     NotificationSource m_notifications;
-    std::unique_ptr<DesktopSource> m_desktop;
-    KWinCaptureSource m_kwin;
-    KSharedConfig::Ptr m_config;
+    IntegrationSources m_sources;
     QVariantMap m_captureOptions;
     QString m_error;
     double m_brightness = 1, m_saturation = 1;

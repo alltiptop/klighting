@@ -35,13 +35,17 @@ void NotificationEffects::configure(
     }
     m_states = next;
 }
-void NotificationEffects::trigger(const NotificationEvent& event)
+bool NotificationEffects::trigger(const NotificationEvent& event)
 {
     // Coalesce bursts while a pattern is running; no unbounded queues, restarts
     // or indefinitely extended flashes from progress notifications.
+    bool started = false;
     for (auto& state : m_states)
-        if (state.elapsed < 0 && notificationMatches(state.options, event))
+        if (state.elapsed < 0 && notificationMatches(state.options, event)) {
             state.elapsed = 0;
+            started = true;
+        }
+    return started;
 }
 void NotificationEffects::advance(double elapsedMs)
 {

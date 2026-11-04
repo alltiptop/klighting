@@ -123,6 +123,15 @@ public:
                << QStringList { };
         bus.send(signal);
     }
+    void mode(const AuraEffect& effect)
+    {
+        props["LedModeData"] = QVariant::fromValue(effect);
+        auto signal
+            = QDBusMessage::createSignal(Path, "org.freedesktop.DBus.Properties", "PropertiesChanged");
+        signal << QString::fromLatin1(AuraInterface)
+               << QVariantMap { { "LedModeData", QVariant::fromValue(effect) } } << QStringList { };
+        bus.send(signal);
+    }
 };
 
 struct UsbState {
@@ -130,6 +139,7 @@ struct UsbState {
     QList<qint64> times;
     QElapsedTimer clock;
     int delay = 0, failAt = -1, releases = 0, shutdowns = 0;
+    int skipAt = -1, completions = 0;
     bool active = false;
     UsbState() { clock.start(); }
 };
@@ -147,15 +157,18 @@ public:
         state->active = true;
         const auto error
             = state->frames.size() == state->failAt ? QStringLiteral("test USB error") : QString();
-        QTimer::singleShot(
-            state->delay, this, [this, operation, error] { Q_EMIT finished(operation, error); });
+        const bool written = error.isEmpty() && state->frames.size() != state->skipAt;
+        QTimer::singleShot(state->delay, this, [this, operation, error, written] {
+            ++state->completions;
+            Q_EMIT finished(operation, error, written);
+        });
     }
     void release(quint64 operation) override
     {
         ++state->releases;
         QTimer::singleShot(state->delay, this, [this, operation] {
             state->active = false;
-            Q_EMIT finished(operation, { });
+            Q_EMIT finished(operation, { }, false);
         });
     }
     void shutdown() override
@@ -763,6 +776,63 @@ private Q_SLOTS:
         QVERIFY(f.fake.frames.isEmpty()); // Restore must wait for the USB release.
         QTRY_COMPARE(f.fake.frames.size(), 2);
     }
+    void externalModeResumesStaticOutput_data()
+    {
+        QTest::addColumn<bool>("inFlight");
+        QTest::newRow("idle") << false;
+        QTest::newRow("in-flight") << true;
+    }
+    void externalModeResumesStaticOutput()
+    {
+        QFETCH(bool, inFlight);
+        Fixture f;
+        f.client.start();
+        QTRY_VERIFY(f.client.ready());
+        f.client.submit(Qt::red);
+        QTRY_COMPARE(f.client.completedFrames(), 1);
+        QSignalSpy changed(&f.client, &AsusdClient::readinessChanged);
+        // Match the host's queued resubmission; no periodic animation or discovery writes.
+        connect(
+            &f.client, &AsusdClient::readinessChanged, &f.client, [&] { f.client.submit(Qt::red); },
+            Qt::QueuedConnection);
+        if (inFlight) {
+            f.usb->delay = 80;
+            f.client.submit(Qt::blue);
+            QTRY_COMPARE(f.usb->frames.size(), 2);
+        }
+        auto effect = originalEffect();
+        effect.first = { 90, 80, 70 };
+        f.fake.mode(effect);
+        QTRY_COMPARE(f.fake.displayedEffects.size(), 1);
+        QTRY_COMPARE_WITH_TIMEOUT(f.client.completedFrames(), inFlight ? 3 : 2, 1000);
+        QCOMPARE(changed.size(), 1);
+        QCOMPARE(f.usb->releases, 1);
+        QVERIFY(f.usb->active);
+        QCOMPARE(f.usb->frames.last().color, QColor(Qt::red));
+        QCOMPARE(f.fake.displayedEffects.last(), *effectPacket(effect));
+        QTest::qWait(100);
+        QCOMPARE(f.usb->frames.size(), inFlight ? 3 : 2);
+        QCOMPARE(changed.size(), 1); // Completing a frame must not trigger another resubmission.
+    }
+    void externalModeRestoreStillHonorsDisable()
+    {
+        Fixture f;
+        f.client.start();
+        QTRY_VERIFY(f.client.ready());
+        f.client.submit(Qt::red);
+        QTRY_COMPARE(f.client.completedFrames(), 1);
+        connect(
+            &f.client, &AsusdClient::readinessChanged, &f.client, [&] { f.client.submit(Qt::red); },
+            Qt::QueuedConnection);
+        f.fake.replyDelay = 80;
+        f.fake.mode(originalEffect());
+        QTRY_COMPARE(f.fake.frames.size(), 1);
+        f.client.setEnabled(false);
+        QTRY_VERIFY(!f.usb->active);
+        QTest::qWait(250);
+        QCOMPARE(f.usb->frames.size(), 1);
+        QVERIFY(!f.client.ready());
+    }
     void keyChangesAreCoalescedEvenWhenAmbientColorIsUnchanged()
     {
         Fixture f;
@@ -783,6 +853,29 @@ private Q_SLOTS:
         f.client.submit(Qt::blue, keys);
         QTest::qWait(100);
         QCOMPARE(f.usb->frames.size(), 2);
+    }
+    void skippedUsbFrameCompletesWithoutCountingOrBlockingPendingOutput()
+    {
+        Fixture f;
+        f.client.setLedFramesPerSecond(20);
+        f.usb->delay = 80;
+        f.usb->skipAt = 2;
+        f.client.start();
+        QTRY_VERIFY(f.client.ready());
+        f.client.submit(Qt::red);
+        QTRY_COMPARE(f.client.completedFrames(), 1);
+        f.client.submit(Qt::green);
+        QTRY_COMPARE(f.usb->frames.size(), 2);
+        f.client.submit(Qt::blue);
+        f.client.submit(Qt::yellow);
+        QTRY_COMPARE(f.usb->completions, 3);
+        QCOMPARE(f.usb->frames.size(), 3);
+        QCOMPARE(f.usb->frames.last().color, QColor(Qt::yellow));
+        QCOMPARE(f.client.completedFrames(), 2);
+        QVERIFY(f.usb->times[2] - f.usb->times[1] >= 120);
+        f.client.submit(Qt::yellow); // Cheap logical deduplication still runs first.
+        QTest::qWait(100);
+        QCOMPARE(f.usb->frames.size(), 3);
     }
     void shiftLayerUpdatesOnStaticScreenWithoutResettingTransport()
     {

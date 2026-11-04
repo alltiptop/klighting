@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "presets.h"
+#include "preset_reader_p.h"
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDir>
@@ -628,78 +629,106 @@ namespace
         }
         return true;
     }
+    std::optional<PresetCollection> readPresetIndex(
+        const QByteArray& bytes, const QDir& dir, QString* error, const Internal::PresetFileReader& read)
+    {
+        const auto o = QJsonDocument::fromJson(bytes).object();
+        if (o["version"].toInt() != 2 || !o["presets"].isArray() || !o["effects"].isArray()
+            || !o["rules"].isArray() || o["presets"].toArray().size() > 64
+            || o["effects"].toArray().size() > 64 || o["rules"].toArray().size() > 128) {
+            *error = QStringLiteral("Invalid preset settings or unsupported settings version.");
+            return std::nullopt;
+        }
+        PresetCollection c;
+        c.effects.clear();
+        if (o.contains("devices")) {
+            if (!o["devices"].isArray() || o["devices"].toArray().size() > 32) {
+                *error = QStringLiteral("Invalid device list.");
+                return std::nullopt;
+            }
+            c.devices = QList<DeviceConfiguration>();
+            for (const auto& item : o["devices"].toArray()) {
+                const auto d = item.toObject();
+                if (!d["enabled"].isBool()
+                    || (!d["pauseOnBattery"].isUndefined() && !d["pauseOnBattery"].isBool())
+                    || (!d["pauseOnLowBattery"].isUndefined() && !d["pauseOnLowBattery"].isBool())
+                    || (!d["lightbarOffOnBattery"].isUndefined() && !d["lightbarOffOnBattery"].isBool())
+                    || (!d["lightbarOffOnLowBattery"].isUndefined() && !d["lightbarOffOnLowBattery"].isBool())
+                    || (!d["brightnessChannel"].isUndefined() && !d["brightnessChannel"].isString())) {
+                    *error = QStringLiteral("Invalid device options.");
+                    return std::nullopt;
+                }
+                c.devices->append({ d["driver"].toString(), d["instance"].toString(), d["model"].toString(),
+                    d["name"].toString(), d["enabled"].toBool(), d["pauseOnBattery"].toBool(false),
+                    d["pauseOnLowBattery"].toBool(false), d["lightbarOffOnBattery"].toBool(false),
+                    d["lightbarOffOnLowBattery"].toBool(false), d["brightnessChannel"].toString("average") });
+            }
+        }
+        c.defaultId = o["defaultPreset"].toString();
+        for (const auto& section : { QStringLiteral("presets"), QStringLiteral("effects") }) {
+            for (const auto& value : o[section].toArray()) {
+                const QString name = value.toString();
+                if (!managedName(name)) {
+                    *error = QStringLiteral("Invalid preset filename.");
+                    return std::nullopt;
+                }
+                const auto data = read(dir.filePath(section + '/' + name), error);
+                if (!data)
+                    return std::nullopt;
+                if (section == QLatin1String("presets")) {
+                    const auto p = parsePreset(*data, error);
+                    if (!p)
+                        return std::nullopt;
+                    c.presets.append(*p);
+                } else {
+                    const auto p = parseEffectPreset(*data, error);
+                    if (!p)
+                        return std::nullopt;
+                    c.effects.append(*p);
+                }
+            }
+        }
+        for (const auto& value : o["rules"].toArray()) {
+            const auto r = value.toObject();
+            c.rules.append({ r["name"].toString(), r["windowClass"].toString(), r["preset"].toString(),
+                r["enabled"].toBool(true) });
+        }
+        return validCollection(c, error) ? std::optional(c) : std::nullopt;
+    }
 }
-std::optional<PresetCollection> loadPresets(const PresetCollection& fallback, QString* error)
+std::optional<PresetCollection> Internal::loadPresets(
+    const PresetCollection& fallback, QString* error, const PresetFileReader& read)
 {
     error->clear();
     const QDir dir(presetDirectory());
     if (!dir.exists(QLatin1String(IndexFile)))
         return fallback;
-    const auto bytes = readFile(dir.filePath(QLatin1String(IndexFile)), error);
+    const auto index = dir.filePath(QLatin1String(IndexFile));
+    auto bytes = read(index, error);
     if (!bytes)
         return std::nullopt;
-    const auto o = QJsonDocument::fromJson(*bytes).object();
-    if (o["version"].toInt() != 2 || !o["presets"].isArray() || !o["effects"].isArray()
-        || !o["rules"].isArray() || o["presets"].toArray().size() > 64 || o["effects"].toArray().size() > 64
-        || o["rules"].toArray().size() > 128) {
-        *error = QStringLiteral("Invalid preset settings or unsupported settings version.");
-        return std::nullopt;
-    }
-    PresetCollection c;
-    c.effects.clear();
-    if (o.contains("devices")) {
-        if (!o["devices"].isArray() || o["devices"].toArray().size() > 32) {
-            *error = QStringLiteral("Invalid device list.");
+    for (int attempt = 0; attempt < 3; ++attempt) {
+        error->clear();
+        if (const auto collection = readPresetIndex(*bytes, dir, error, read))
+            return collection;
+        // Writers publish immutable files and an atomic index before removing old
+        // files. Retry only if our failed read used an index that was replaced.
+        QString nextError;
+        auto next = read(index, &nextError);
+        if (!next) {
+            *error = nextError;
             return std::nullopt;
         }
-        c.devices = QList<DeviceConfiguration>();
-        for (const auto& item : o["devices"].toArray()) {
-            const auto d = item.toObject();
-            if (!d["enabled"].isBool()
-                || (!d["pauseOnBattery"].isUndefined() && !d["pauseOnBattery"].isBool())
-                || (!d["pauseOnLowBattery"].isUndefined() && !d["pauseOnLowBattery"].isBool())
-                || (!d["lightbarOffOnBattery"].isUndefined() && !d["lightbarOffOnBattery"].isBool())
-                || (!d["lightbarOffOnLowBattery"].isUndefined() && !d["lightbarOffOnLowBattery"].isBool())
-                || (!d["brightnessChannel"].isUndefined() && !d["brightnessChannel"].isString())) {
-                *error = QStringLiteral("Invalid device options.");
-                return std::nullopt;
-            }
-            c.devices->append({ d["driver"].toString(), d["instance"].toString(), d["model"].toString(),
-                d["name"].toString(), d["enabled"].toBool(), d["pauseOnBattery"].toBool(false),
-                d["pauseOnLowBattery"].toBool(false), d["lightbarOffOnBattery"].toBool(false),
-                d["lightbarOffOnLowBattery"].toBool(false), d["brightnessChannel"].toString("average") });
-        }
+        if (*next == *bytes)
+            return std::nullopt;
+        bytes = std::move(next);
     }
-    c.defaultId = o["defaultPreset"].toString();
-    for (const auto& section : { QStringLiteral("presets"), QStringLiteral("effects") }) {
-        for (const auto& value : o[section].toArray()) {
-            const QString name = value.toString();
-            if (!managedName(name)) {
-                *error = QStringLiteral("Invalid preset filename.");
-                return std::nullopt;
-            }
-            const auto data = readFile(dir.filePath(section + '/' + name), error);
-            if (!data)
-                return std::nullopt;
-            if (section == QLatin1String("presets")) {
-                const auto p = parsePreset(*data, error);
-                if (!p)
-                    return std::nullopt;
-                c.presets.append(*p);
-            } else {
-                const auto p = parseEffectPreset(*data, error);
-                if (!p)
-                    return std::nullopt;
-                c.effects.append(*p);
-            }
-        }
-    }
-    for (const auto& value : o["rules"].toArray()) {
-        const auto r = value.toObject();
-        c.rules.append({ r["name"].toString(), r["windowClass"].toString(), r["preset"].toString(),
-            r["enabled"].toBool(true) });
-    }
-    return validCollection(c, error) ? std::optional(c) : std::nullopt;
+    *error = QStringLiteral("Preset settings keep changing. Try reading them again.");
+    return std::nullopt;
+}
+std::optional<PresetCollection> loadPresets(const PresetCollection& fallback, QString* error)
+{
+    return Internal::loadPresets(fallback, error, readFile);
 }
 bool savePresets(const PresetCollection& c, QString* error, const PresetCollection* expected,
     const PresetCollection* fallback)

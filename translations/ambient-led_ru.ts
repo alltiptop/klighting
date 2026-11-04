@@ -267,6 +267,34 @@
         <source>Settings saved, but the lighting service could not apply them: %1</source>
         <translation>Настройки сохранены, но сервис подсветки не смог их применить: %1</translation>
     </message>
+    <message>
+        <source>Could not retry desktop integration: %1</source>
+        <translation>Не удалось повторить подключение к рабочему столу: %1</translation>
+    </message>
+    <message>
+        <source>Lighting service is running with an incompatible protocol or capabilities. Restart it after updating.</source>
+        <translation>Сервис подсветки запущен, но его протокол или возможности несовместимы. Перезапустите его после обновления.</translation>
+    </message>
+    <message>
+        <source>%1 has an incompatible protocol or capabilities. %2</source>
+        <translation>Протокол или возможности %1 несовместимы. %2</translation>
+    </message>
+    <message>
+        <source>%1 does not report its build. %2</source>
+        <translation>%1 не сообщает свою сборку. %2</translation>
+    </message>
+    <message>
+        <source>%1 is using build %2; installed build is %3. %4</source>
+        <translation>%1 использует сборку %2; установлена сборка %3. %4</translation>
+    </message>
+    <message>
+        <source>Restart the lighting service to use the installed build.</source>
+        <translation>Перезапустите сервис подсветки, чтобы использовать установленную сборку.</translation>
+    </message>
+    <message>
+        <source>Log out and back in to use the installed KWin plugin.</source>
+        <translation>Выйдите из сеанса и войдите снова, чтобы использовать установленный плагин KWin.</translation>
+    </message>
 </context>
 <context>
     <name>Ambient::SettingsController</name>
@@ -1192,6 +1220,10 @@
         <location line="+4"/>
         <source>Blue channel</source>
         <translation>Синий канал</translation>
+    </message>
+    <message>
+        <source>Retry desktop integration</source>
+        <translation>Повторить подключение к рабочему столу</translation>
     </message>
 </context>
 <context>

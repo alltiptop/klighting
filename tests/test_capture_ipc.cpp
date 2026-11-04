@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "capture_channel.h"
+#include "component_info.h"
 #include "lighting_ipc.h"
 #include <QDBusConnectionInterface>
 #include <QDBusMessage>
 #include <QDBusPendingCall>
+#include <QDBusPendingReply>
 #include <QtTest>
 using namespace Ambient;
 class SampleReceiver : public QObject
@@ -18,6 +20,22 @@ class CaptureIpcTest : public QObject
 {
     Q_OBJECT
 private Q_SLOTS:
+    void providerIdentityChangesOnlyOnRecreation()
+    {
+        QString previous;
+        {
+            CaptureChannel channel;
+            const auto info = channel.Snapshot();
+            QCOMPARE(info.value("buildId"), componentInfo(Component::Capture).value("buildId"));
+            QVERIFY(compatibleComponent(Component::Capture, info));
+            previous = info.value("instanceId").toString();
+            QVERIFY(!previous.isEmpty());
+            channel.setError("No screen");
+            QCOMPARE(channel.Snapshot().value("instanceId").toString(), previous);
+        }
+        CaptureChannel replacement;
+        QVERIFY(replacement.Snapshot().value("instanceId").toString() != previous);
+    }
     void onlyDaemonCanConfigureAndReceiveSamples()
     {
         CaptureChannel channel;
@@ -42,10 +60,32 @@ private Q_SLOTS:
         };
         auto accepted = configure(peer);
         QTRY_VERIFY(accepted.isFinished());
+        QVERIFY(!QDBusPendingReply<>(accepted).isError());
         QTRY_VERIFY(!configured.isEmpty() && configured.last()[0].toInt() == 5);
+        channel.setState(false, false, false);
+        channel.setError("GPU readback failed");
+        const auto failed = channel.Snapshot();
+        QVERIFY(failed.value("providerAvailable").toBool());
+        QVERIFY(!failed.value("screenAvailable").toBool());
+        QVERIFY(!failed.value("enabled").toBool());
+        QVERIFY(!failed.value("ready").toBool());
+        const int beforeRetry = configured.size();
+        auto retry = configure(peer);
+        QTRY_VERIFY(retry.isFinished());
+        QTRY_COMPARE(configured.size(), beforeRetry + 1); // Failed/stopped providers still accept Configure.
+        channel.setError({ });
+        QCOMPARE(channel.Snapshot().value("status").toString(), "Selected screen is unavailable");
+        channel.setState(true, false, false);
+        QVERIFY(channel.Snapshot().value("ready").toBool());
+        QVERIFY(!channel.Snapshot().value("enabled").toBool());
+        channel.setState(true, true, true);
+        QVERIFY(!channel.Snapshot().value("ready").toBool());
+        channel.setState(true, true, false);
+        QVERIFY(channel.Snapshot().value("ready").toBool());
         configured.clear();
         auto rejected = configure(observer);
         QTRY_VERIFY(rejected.isFinished());
+        QCOMPARE(QDBusPendingReply<>(rejected).error().type(), QDBusError::AccessDenied);
         QCOMPARE(configured.size(), 0);
         channel.sendSample("short");
         channel.sendSample(QByteArray(Ipc::SampleBytes, '\0'));

@@ -267,6 +267,34 @@
         <source>Settings saved, but the lighting service could not apply them: %1</source>
         <translation>حُفظت الإعدادات، لكن تعذّر على خدمة الإضاءة تطبيقها: %1</translation>
     </message>
+    <message>
+        <source>Could not retry desktop integration: %1</source>
+        <translation>تعذرت إعادة محاولة التكامل مع سطح المكتب: %1</translation>
+    </message>
+    <message>
+        <source>Lighting service is running with an incompatible protocol or capabilities. Restart it after updating.</source>
+        <translation>تعمل خدمة الإضاءة ببروتوكول أو إمكانات غير متوافقة. أعد تشغيلها بعد التحديث.</translation>
+    </message>
+    <message>
+        <source>%1 has an incompatible protocol or capabilities. %2</source>
+        <translation>لدى %1 بروتوكول أو إمكانات غير متوافقة. %2</translation>
+    </message>
+    <message>
+        <source>%1 does not report its build. %2</source>
+        <translation>لا يبلّغ %1 عن معرّف بنائه. %2</translation>
+    </message>
+    <message>
+        <source>%1 is using build %2; installed build is %3. %4</source>
+        <translation>يستخدم %1 البناء %2؛ البناء المثبت هو %3. %4</translation>
+    </message>
+    <message>
+        <source>Restart the lighting service to use the installed build.</source>
+        <translation>أعد تشغيل خدمة الإضاءة لاستخدام البناء المثبت.</translation>
+    </message>
+    <message>
+        <source>Log out and back in to use the installed KWin plugin.</source>
+        <translation>سجّل الخروج ثم سجّل الدخول مجددًا لاستخدام إضافة KWin المثبتة.</translation>
+    </message>
 </context>
 <context>
     <name>Ambient::SettingsController</name>
@@ -1192,6 +1220,10 @@
         <location line="+4"/>
         <source>Blue channel</source>
         <translation>القناة الزرقاء</translation>
+    </message>
+    <message>
+        <source>Retry desktop integration</source>
+        <translation>إعادة محاولة التكامل مع سطح المكتب</translation>
     </message>
 </context>
 <context>

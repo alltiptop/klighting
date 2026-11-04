@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "kwin_sources.h"
 #include "lighting_ipc.h"
 #include "lighting_service.h"
 #include <QCommandLineParser>
@@ -67,7 +68,8 @@ int main(int argc, char** argv)
     });
     int result = 1;
     {
-        Ambient::LightingService service;
+        Ambient::LightingService service(
+            Ambient::deviceEnvironment(), Ambient::driverDirectories(), Ambient::kwinSources());
         if (bus.registerObject(Ambient::Ipc::Path, &service, QDBusConnection::ExportScriptableSlots))
             result = app.exec();
         bus.unregisterObject(Ambient::Ipc::Path);

@@ -267,6 +267,34 @@
         <source>Settings saved, but the lighting service could not apply them: %1</source>
         <translation>Налаштування збережено, але сервіс підсвічування не зміг їх застосувати: %1</translation>
     </message>
+    <message>
+        <source>Could not retry desktop integration: %1</source>
+        <translation>Не вдалося повторити підключення до стільниці: %1</translation>
+    </message>
+    <message>
+        <source>Lighting service is running with an incompatible protocol or capabilities. Restart it after updating.</source>
+        <translation>Служба підсвічування працює, але її протокол або можливості несумісні. Перезапустіть її після оновлення.</translation>
+    </message>
+    <message>
+        <source>%1 has an incompatible protocol or capabilities. %2</source>
+        <translation>Протокол або можливості %1 несумісні. %2</translation>
+    </message>
+    <message>
+        <source>%1 does not report its build. %2</source>
+        <translation>%1 не повідомляє свою збірку. %2</translation>
+    </message>
+    <message>
+        <source>%1 is using build %2; installed build is %3. %4</source>
+        <translation>%1 використовує збірку %2; встановлено збірку %3. %4</translation>
+    </message>
+    <message>
+        <source>Restart the lighting service to use the installed build.</source>
+        <translation>Перезапустіть службу підсвічування, щоб використовувати встановлену збірку.</translation>
+    </message>
+    <message>
+        <source>Log out and back in to use the installed KWin plugin.</source>
+        <translation>Вийдіть із сеансу та увійдіть знову, щоб використовувати встановлений додаток KWin.</translation>
+    </message>
 </context>
 <context>
     <name>Ambient::SettingsController</name>
@@ -1192,6 +1220,10 @@
         <location line="+4"/>
         <source>Blue channel</source>
         <translation>Синій канал</translation>
+    </message>
+    <message>
+        <source>Retry desktop integration</source>
+        <translation>Повторити підключення до стільниці</translation>
     </message>
 </context>
 <context>

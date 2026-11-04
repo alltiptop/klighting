@@ -7,6 +7,7 @@ target_include_directories(ambient_asus_g615lw PUBLIC "${CMAKE_CURRENT_SOURCE_DI
 target_link_libraries(ambient_asus_g615lw PUBLIC ambient_driver_api Qt6::DBus PkgConfig::LIBUSB)
 target_compile_options(ambient_asus_g615lw PRIVATE -Wall -Wextra -Wpedantic)
 add_library(asus_g615lw MODULE asus_driver.cpp asus_translations.cpp)
+set_property(SOURCE asus_driver.cpp APPEND PROPERTY OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/asus_driver.json")
 target_link_libraries(asus_g615lw PRIVATE ambient_asus_g615lw)
 set_target_properties(ambient_asus_g615lw asus_g615lw PROPERTIES
     CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN YES)

@@ -14,6 +14,12 @@ public:
     ~CaptureChannel() override;
     void sendSample(const QByteArray& rgba);
     void setError(const QString& error) { m_error = error; }
+    void setState(bool screenAvailable, bool enabled, bool locked)
+    {
+        m_screenAvailable = screenAvailable;
+        m_enabled = enabled;
+        m_locked = locked;
+    }
 public Q_SLOTS:
     Q_SCRIPTABLE QVariantMap Snapshot() const;
     Q_SCRIPTABLE void Configure(int fps, const QVariantMap& options);
@@ -24,6 +30,8 @@ Q_SIGNALS:
 private:
     DaemonPeer m_peer;
     QString m_error;
+    const QString m_instance;
     bool m_registered = false;
+    bool m_screenAvailable = false, m_enabled = false, m_locked = false;
 };
 }

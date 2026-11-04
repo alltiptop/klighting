@@ -33,6 +33,9 @@ public:
     void reset();
     void setTarget(const QColor& color);
     std::optional<QColor> step(double elapsedMs, double smoothingMs);
+    bool active() const;
+    std::optional<QColor> color() const;
+    const std::optional<QColor>& target() const { return m_target; }
 
 private:
     std::optional<QColor> m_target;

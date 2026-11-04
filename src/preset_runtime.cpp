@@ -319,6 +319,11 @@ EffectAssignments deviceEffects(
 }
 EffectAssignments deviceEffectsForLayer(const DeviceProfile& p, const DeviceDescription& d, int selected)
 {
+    return deviceEffectsForLayer(p, d, selected, deviceKeyStylesForLayer(p, d, selected));
+}
+EffectAssignments deviceEffectsForLayer(
+    const DeviceProfile& p, const DeviceDescription& d, int selected, const KeyboardStyles& resolvedStyles)
+{
     if (p.keyboardDeviceId != d.id)
         return { };
     if (!d.capabilities.testFlag(DeviceCapability::PerKeyColor)
@@ -355,10 +360,9 @@ EffectAssignments deviceEffectsForLayer(const DeviceProfile& p, const DeviceDesc
         for (auto it = effects.cbegin(); it != effects.cend(); ++it)
             result.insert(it.key(), it.value());
     }
-    const auto styles = deviceKeyStylesForLayer(p, d, selected);
     const auto overrides = expandedEffects(p.effectOverrides, { }, d);
     for (auto it = overrides.cbegin(); it != overrides.cend(); ++it) {
-        auto list = result.value(it.key(), implicitEffects(keyStyle(styles, it.key())));
+        auto list = result.value(it.key(), implicitEffects(keyStyle(resolvedStyles, it.key())));
         list.append(it.value());
         result.insert(it.key(), list);
     }

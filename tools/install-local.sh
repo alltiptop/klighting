@@ -33,6 +33,8 @@ files+=(klightingd klighting_integration.so org.klighting.Service.service klight
 targets+=(/usr/bin/klightingd "$integration/klighting_integration.so"
     /usr/share/dbus-1/services/org.klighting.Service.service
     /usr/lib/systemd/user/klightingd.service /etc/xdg/autostart/klightingd.desktop)
+files+=(klighting-service.json)
+targets+=(/usr/share/klighting/klighting-service.json)
 for driver in linux_leds hid_lamparray; do
     files+=("$driver.so")
     targets+=("$drivers/$driver.so")
@@ -76,7 +78,7 @@ if [[ -e "$target" ]]; then
 fi
 backup_root=/var/lib/kwin-effect-ambient-led/backups
 install -d -m 755 -- "$backup_root" "$drivers" "$integration" \
-    /usr/share/dbus-1/services /usr/lib/systemd/user /etc/xdg/autostart
+    /usr/share/dbus-1/services /usr/share/klighting /usr/lib/systemd/user /etc/xdg/autostart
 backup=$(mktemp -d "$backup_root/install.XXXXXXXX")
 echo "Backup: $backup"
 for destination in "${targets[@]}"; do
@@ -130,11 +132,12 @@ echo "  qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect ambientle
 echo "Reload the stable effect:"
 echo "  qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect ambientled"
 echo "  qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.loadEffect ambientled"
-echo "Load the separate desktop integration, then restart the lighting service:"
-echo "  qdbus6 org.kde.KWin /Plugins org.kde.KWin.Plugins.LoadPlugin klighting_integration"
+echo "Restart the lighting service; it manages desktop integration loading:"
 echo "  systemctl --user daemon-reload"
 echo "  systemctl --user restart klightingd.service"
 echo "  klightingd --status"
+echo "If automatic desktop loading is paused, use Retry desktop integration in Lighting settings, or:"
+echo "  qdbus6 org.klighting.Service /org/klighting/Service org.klighting.Service1.RetryDesktopIntegration"
 echo "D-Bus effect loading is temporary. Use Enable Ambient screen capture and Apply to save its startup setting."
 echo "Lighting does not require Ambient capture. If the old effect remains loaded, the service pauses output."
 echo "Qt may retain the old library after a reload. Log out and back in to ensure updated native code is used."

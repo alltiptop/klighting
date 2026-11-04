@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "driver_loader.h"
+#include "application_settings.h"
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
@@ -129,7 +130,8 @@ LoadedDriver::LoadedDriver(const DeviceEnvironment& environment, const QStringLi
             const auto id = info.value("Id").toString();
             static const QRegularExpression pattern(QStringLiteral("\\A[a-zA-Z0-9_-]{1,64}\\z"));
             if (metadata.value("IID") != QLatin1String(AMBIENT_DEVICE_DRIVER_IID)
-                || info.value("ApiVersion").toInt() != DriverApiVersion || !pattern.match(id).hasMatch()) {
+                || info.value("ApiVersion").toInt() != DriverApiVersion || !pattern.match(id).hasMatch()
+                || (!info.value("LegacyOptions").isUndefined() && !info.value("LegacyOptions").isObject())) {
                 m_loadErrors.append(
                     file.fileName() + QStringLiteral(": incompatible driver API or identity"));
                 continue;
@@ -142,7 +144,7 @@ LoadedDriver::LoadedDriver(const DeviceEnvironment& environment, const QStringLi
             }
             if (std::any_of(m_plugins.begin(), m_plugins.end(), [&](const auto& p) { return p.id == id; }))
                 duplicateIds.insert(id);
-            m_plugins.push_back({ id, std::move(loader), driver });
+            m_plugins.push_back({ id, std::move(loader), driver, info.value("LegacyOptions").toObject() });
         }
     }
     for (const auto& id : duplicateIds) {
@@ -158,12 +160,26 @@ void LoadedDriver::refresh()
 {
     QList<DiscoveredDevice> next;
     auto errors = m_loadErrors;
-    for (const auto& plugin : m_plugins) {
+    for (auto& plugin : m_plugins) {
         const auto instances = plugin.driver->discover(m_environment);
+        plugin.detected = !instances.isEmpty();
         if (instances.size() > 64) {
             errors.append(plugin.id + QStringLiteral(": too many device instances"));
             continue;
         }
+        if (instances.isEmpty())
+            continue;
+        QString settingsError;
+        const auto settings
+            = loadDriverSettings(plugin.id, plugin.legacyOptions, SettingsAccess::ReadOnly, &settingsError);
+        if (!settings) {
+            errors.append(plugin.id + QStringLiteral(": ") + settingsError);
+            if (!plugin.settings)
+                continue;
+            // Preserve known-good options while an edited settings file is invalid.
+            // Discovery still controls presence and validates the current descriptor.
+        } else
+            plugin.settings = *settings;
         QSet<QString> ids, duplicates;
         for (const auto& instance : instances) {
             if (ids.contains(instance.id))
@@ -177,13 +193,24 @@ void LoadedDriver::refresh()
                 errors.append(plugin.id + QStringLiteral(": invalid or duplicate device instance. ") + error);
                 continue;
             }
-            next.append({ plugin.id, instance, plugin.driver });
+            auto configuredInstance = instance;
+            configuredInstance.options.insert(*plugin.settings);
+            next.append({ plugin.id, configuredInstance, plugin.driver });
         }
     }
     m_devices = std::move(next);
     if (m_devices.isEmpty() && errors.isEmpty())
         errors.append(QStringLiteral("No compatible lighting driver found for this device."));
     m_error = errors.join(QStringLiteral("; "));
+}
+bool LoadedDriver::migrateSettings(QString* error) const
+{
+    error->clear();
+    for (const auto& plugin : m_plugins)
+        if (plugin.detected
+            && !loadDriverSettings(plugin.id, plugin.legacyOptions, SettingsAccess::Migrate, error))
+            return false;
+    return true;
 }
 const DiscoveredDevice* LoadedDriver::find(const QString& identity) const
 {

@@ -267,6 +267,34 @@
         <source>Settings saved, but the lighting service could not apply them: %1</source>
         <translation>设置已保存，但灯光服务无法应用这些设置：%1</translation>
     </message>
+    <message>
+        <source>Could not retry desktop integration: %1</source>
+        <translation>无法重试桌面集成：%1</translation>
+    </message>
+    <message>
+        <source>Lighting service is running with an incompatible protocol or capabilities. Restart it after updating.</source>
+        <translation>灯光服务正在运行，但其协议或功能不兼容。更新后请重启服务。</translation>
+    </message>
+    <message>
+        <source>%1 has an incompatible protocol or capabilities. %2</source>
+        <translation>%1 的协议或功能不兼容。%2</translation>
+    </message>
+    <message>
+        <source>%1 does not report its build. %2</source>
+        <translation>%1 未报告其构建标识。%2</translation>
+    </message>
+    <message>
+        <source>%1 is using build %2; installed build is %3. %4</source>
+        <translation>%1 正在使用构建 %2；已安装的构建为 %3。%4</translation>
+    </message>
+    <message>
+        <source>Restart the lighting service to use the installed build.</source>
+        <translation>请重启灯光服务以使用已安装的构建。</translation>
+    </message>
+    <message>
+        <source>Log out and back in to use the installed KWin plugin.</source>
+        <translation>请注销并重新登录以使用已安装的 KWin 插件。</translation>
+    </message>
 </context>
 <context>
     <name>Ambient::SettingsController</name>
@@ -1192,6 +1220,10 @@
         <location line="+4"/>
         <source>Blue channel</source>
         <translation>蓝色通道</translation>
+    </message>
+    <message>
+        <source>Retry desktop integration</source>
+        <translation>重试桌面集成</translation>
     </message>
 </context>
 <context>

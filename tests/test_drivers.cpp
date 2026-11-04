@@ -1,5 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "application_settings.h"
 #include "device_manager.h"
+#include <KConfig>
+#include <KConfigGroup>
+#include <QDir>
+#include <QFile>
+#include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QtTest>
 #include <limits>
@@ -10,6 +16,60 @@ class DriversTest : public QObject
 {
     Q_OBJECT
 private Q_SLOTS:
+    void init()
+    {
+        const auto root = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation);
+        QVERIFY(QDir(root).removeRecursively());
+        QVERIFY(QDir().mkpath(root));
+    }
+    void driverOptionsAreReadOnlyIsolatedAndReloadable()
+    {
+        KConfig legacy(QStringLiteral("kwinrc"), KConfig::NoGlobals);
+        KConfigGroup(&legacy, "Effect-ambientled").writeEntry("AuraObjectPath", "/legacy/device");
+        QVERIFY(legacy.sync());
+        LoadedDriver loaded({ "G615LW" }, { ASUS_DRIVER_DIR, MULTI_DRIVER_DIR });
+        const auto* asus = loaded.find("asus-g615lw:internal");
+        QVERIFY(asus);
+        QCOMPARE(asus->instance.options.value("AuraObjectPath").toString(), "/legacy/device");
+        QVERIFY(!QFile::exists(driverSettingsPath("asus-g615lw")));
+        const auto* strip = loaded.find("test-strips:one");
+        QVERIFY(strip);
+        QVERIFY(!strip->instance.options.contains("AuraObjectPath"));
+        QString error;
+        QVERIFY2(loaded.migrateSettings(&error), qPrintable(error));
+        QVERIFY(QFile::exists(driverSettingsPath("asus-g615lw")));
+        QVERIFY(!QFile::exists(driverSettingsPath("test-strips")));
+        KConfigGroup(&legacy, "Effect-ambientled").writeEntry("AuraObjectPath", "/changed/legacy");
+        QVERIFY(legacy.sync());
+        loaded.refresh();
+        QCOMPARE(loaded.find("asus-g615lw:internal")->instance.options.value("AuraObjectPath").toString(),
+            "/legacy/device");
+        QFile file(driverSettingsPath("asus-g615lw"));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QVERIFY(file.write(R"({"version":1,"legacyImported":true,"values":{"AuraObjectPath":"/new/device"}})")
+            > 0);
+        file.close();
+        loaded.refresh();
+        asus = loaded.find("asus-g615lw:internal");
+        QVERIFY(asus);
+        QCOMPARE(asus->instance.options.value("AuraObjectPath").toString(), "/new/device");
+        QVERIFY(asus->instance.options.value("InputKeyCodes").toMap().contains("36"));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write("{");
+        file.close();
+        loaded.refresh();
+        asus = loaded.find("asus-g615lw:internal");
+        QVERIFY(asus); // A malformed edit must not remove a working device during discovery.
+        QCOMPARE(asus->instance.options.value("AuraObjectPath").toString(), "/new/device");
+        QVERIFY(loaded.find("test-strips:one"));
+        QVERIFY(loaded.error().contains("Invalid settings document"));
+        QVERIFY(!loaded.migrateSettings(&error));
+        LoadedDriver cold({ "G615LW" }, { ASUS_DRIVER_DIR, MULTI_DRIVER_DIR });
+        QVERIFY(!cold.find("asus-g615lw:internal")); // No known-good settings on a fresh load.
+        QVERIFY(cold.find("test-strips:one"));
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QCOMPARE(file.readAll(), QByteArray("{"));
+    }
     void monochromeChannelSelectionAndApplicationOnlyPreset()
     {
         const auto oldDevices = qApp->property("test.devices");
@@ -267,7 +327,7 @@ private Q_SLOTS:
         runtime.setEnabled(true);
         runtime.configure(c);
         QCOMPARE(runtime.count(), 2);
-        QCOMPARE(runtime.ambientEffects(), QSet<QString> { "ambient-default" });
+        QCOMPARE(runtime.requiredEffects(), QSet<QString> { "ambient-default" });
         runtime.submit({ { "ambient-default", Qt::blue } }, { });
         QCOMPARE(
             qApp->property("test.one.colors").toList(), (QVariantList { "#ff0000", "#0000ff", "#0000ff" }));
@@ -345,8 +405,7 @@ private Q_SLOTS:
         (*c.devices)[1].enabled = false;
         runtime.configure(c);
         runtime.setPowerState({ true, true, true });
-        QVERIFY(runtime.ambientEffects().isEmpty());
-        QVERIFY(runtime.notificationEffects().isEmpty());
+        QVERIFY(runtime.requiredEffects().isEmpty());
         QVERIFY(runtime.ready());
         runtime.setEnabled(false);
         runtime.setPowerState({ true, false, false });
@@ -366,7 +425,7 @@ private Q_SLOTS:
         runtime.setEnabled(true);
         runtime.submit({ }, { });
         QVERIFY(QColor(qApp->property("test.one.uniform").toString()).value() > 0);
-        QVERIFY(runtime.ambientEffects().isEmpty());
+        QVERIFY(runtime.requiredEffects().isEmpty());
         QVERIFY(qApp->property("test.one.enabled").toBool());
         qApp->setProperty("test.devices", QVariant());
     }
@@ -426,5 +485,15 @@ private Q_SLOTS:
         QVERIFY(!validateDescription(d).isEmpty());
     }
 };
-QTEST_GUILESS_MAIN(DriversTest)
+int main(int argc, char** argv)
+{
+    QTemporaryDir directory;
+    if (!directory.isValid())
+        return 1;
+    qputenv("XDG_CONFIG_HOME", directory.path().toUtf8());
+    qputenv("XDG_CONFIG_DIRS", directory.path().toUtf8());
+    QCoreApplication app(argc, argv);
+    DriversTest test;
+    return QTest::qExec(&test, argc, argv);
+}
 #include "test_drivers.moc"

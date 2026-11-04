@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "effect_palette.h"
+#include "preset_reader_p.h"
 #include "preset_transfer.h"
 #include "presets.h"
 #include <KConfigGroup>
@@ -15,8 +16,83 @@ using namespace Ambient;
 class PresetsTest : public QObject
 {
     Q_OBJECT
+    static std::optional<QByteArray> readFile(const QString& path, QString* error)
+    {
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly)) {
+            *error = "Cannot read " + path;
+            return std::nullopt;
+        }
+        return file.readAll();
+    }
 private Q_SLOTS:
     void init() { QVERIFY(QDir(presetDirectory()).removeRecursively()); }
+    void readerRecoversWhenPublishedIndexReplacesItsFiles()
+    {
+        const auto old = defaultCollection("test");
+        auto next = old;
+        next.presets[0].name = "New preset";
+        next.effects[0].ambient.minimum = 17;
+        QString error;
+        QVERIFY(savePresets(old, &error));
+        bool published = false, saved = false;
+        const auto loaded = Internal::loadPresets(
+            old, &error, [&](const QString& path, QString* readError) -> std::optional<QByteArray> {
+                if (!published && path.contains("/presets/")) {
+                    published = true;
+                    QString saveError;
+                    saved = savePresets(next, &saveError);
+                }
+                return readFile(path, readError);
+            });
+        QVERIFY(saved);
+        QVERIFY2(loaded, qPrintable(error));
+        QCOMPARE(*loaded, next); // Never mix the old preset with the new effect.
+        QVERIFY(error.isEmpty());
+    }
+    void unchangedIndexKeepsMissingFileError()
+    {
+        const auto original = defaultCollection("test");
+        QString error;
+        QVERIFY(savePresets(original, &error));
+        bool removed = false;
+        QString missing;
+        const auto loaded = Internal::loadPresets(
+            original, &error, [&](const QString& path, QString* readError) -> std::optional<QByteArray> {
+                if (!removed && path.contains("/presets/")) {
+                    missing = path;
+                    removed = QFile::remove(path);
+                }
+                return readFile(path, readError);
+            });
+        QVERIFY(removed);
+        QVERIFY(!loaded);
+        QVERIFY(error.contains(missing));
+    }
+    void continuouslyChangingIndexHasBoundedRetries()
+    {
+        auto current = defaultCollection("test");
+        QString error;
+        QVERIFY(savePresets(current, &error));
+        int writes = 0;
+        bool saved = true;
+        const auto loaded = Internal::loadPresets(
+            current, &error, [&](const QString& path, QString* readError) -> std::optional<QByteArray> {
+                if (path.contains("/presets/")) {
+                    // Stop the fixture too: a missing retry bound must fail, not hang CI.
+                    if (++writes <= 5) {
+                        current.presets[0].name = QString("Revision %1").arg(writes);
+                        QString saveError;
+                        saved &= savePresets(current, &saveError);
+                    }
+                }
+                return readFile(path, readError);
+            });
+        QVERIFY(saved);
+        QVERIFY(!loaded);
+        QVERIFY(writes > 1 && writes <= 5);
+        QVERIFY(error.contains("keep changing"));
+    }
     void multiDevicePresetsRoundTripAndScopeLocalEffects()
     {
         auto c = defaultCollection("test");
@@ -602,6 +678,23 @@ private Q_SLOTS:
         json["keyboard"] = keyboard;
         QVERIFY(!parsePreset(QJsonDocument(json).toJson(), &error));
     }
+    void explicitEmptyEffectsSuppressAmbientFallback()
+    {
+        LightingPreset p;
+        DeviceDescription device { p.keyboardDeviceId, "Test",
+            DeviceCapability::Color | DeviceCapability::PerKeyColor, { { 1, "A", { } } }, { } };
+        const KeyboardStyles styles { { 1, { KeyMode::Ambient, Qt::transparent, DefaultEffectId } } };
+        const QMap<QString, QColor> palette { { DefaultEffectId, Qt::blue }, { "green", Qt::green } };
+        EffectAssignments assignments;
+        QCOMPARE(activeEffects(p, styles, device, assignments), (QSet<QString> { DefaultEffectId }));
+        QCOMPARE(lightingColors(p, styles, device, palette, assignments).uniform, QColor(Qt::blue));
+        assignments[1] = { };
+        QVERIFY(activeEffects(p, styles, device, assignments).isEmpty());
+        QCOMPARE(lightingColors(p, styles, device, palette, assignments).uniform, QColor(Qt::black));
+        assignments[1] = { { "green" } };
+        QCOMPARE(activeEffects(p, styles, device, assignments), (QSet<QString> { "green" }));
+        QCOMPARE(lightingColors(p, styles, device, palette, assignments).uniform, QColor(Qt::green));
+    }
     void effectMixAndLightbarAreIndependent()
     {
         LightingPreset p;
@@ -676,6 +769,31 @@ private Q_SLOTS:
         cold.configure({ first }, { "first" }, { true, true, false });
         QVERIFY(cold.colors()["first"].value() > 0);
         QCOMPARE(cold.samplingFps(), 0);
+    }
+    void recoveredCaptureAcceptsFirstSampleWithoutResettingColors()
+    {
+        EffectPreset slow, fast;
+        slow.id = "slow";
+        fast.id = "fast";
+        slow.ambient = { 1, 60, 0, 0, 100, 0 };
+        fast.ambient = { 20, 60, 0, 0, 100, 0 };
+        EffectPalette palette;
+        palette.configure({ slow, fast }, { "slow", "fast" });
+        palette.sample(Qt::red);
+        palette.advance(20);
+        QCOMPARE(palette.colors()["slow"], QColor(Qt::red));
+        QCOMPARE(palette.colors()["fast"], QColor(Qt::red));
+        palette.resumeSampling();
+        QCOMPARE(palette.colors()["slow"], QColor(Qt::red));
+        QCOMPARE(palette.colors()["fast"], QColor(Qt::red));
+        palette.sample(Qt::blue);
+        palette.advance(20);
+        QCOMPARE(palette.colors()["slow"], QColor(Qt::blue));
+        QCOMPARE(palette.colors()["fast"], QColor(Qt::blue));
+        palette.sample(Qt::green); // Normal per-effect rate limits still apply after recovery.
+        palette.advance(20);
+        QCOMPARE(palette.colors()["slow"], QColor(Qt::blue));
+        QCOMPARE(palette.colors()["fast"], QColor(Qt::blue));
     }
     void ambientPresetsHaveIndependentCadencesAndDarkFloor()
     {

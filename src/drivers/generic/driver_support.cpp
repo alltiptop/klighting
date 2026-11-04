@@ -284,12 +284,18 @@ void Backend::start(const QVariantMap&)
 {
     m_started = true;
     m_status = QStringLiteral("Waiting for lighting output");
+    if (readinessChanged)
+        readinessChanged();
 }
 void Backend::setEnabled(bool enabled)
 {
+    if (m_enabled == enabled)
+        return;
     m_enabled = enabled;
-    if (!enabled)
+    if (!enabled) {
+        m_timer.stop();
         m_pending.reset();
+    }
     dispatch();
     if (readinessChanged)
         readinessChanged();
@@ -348,8 +354,10 @@ void Backend::dispatch()
                 ++m_frames;
             m_status = !error.isEmpty() ? error
                                         : (opened ? QStringLiteral("Connected") : QStringLiteral("Stopped"));
-            if (readinessChanged)
-                readinessChanged();
+            // The runtime may be idle after a static frame. Keep the latest failed
+            // output for a bounded retry, without asking it to compose another one.
+            if (!error.isEmpty() && m_enabled && !m_pending)
+                m_pending = frame;
             dispatch();
         });
     });

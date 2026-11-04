@@ -191,6 +191,8 @@ void AsusdClient::propertiesChanged(
         }
         m_restorePacket = *effectPacket(*effect); // Preserve the user's latest factory effect.
         restore();
+        // The host may be idle. Its queued frame waits for release/restore in pump().
+        Q_EMIT readinessChanged();
     }
     if (changed.contains("Brightness")) {
         m_brightness = changed.value("Brightness").toUInt();
@@ -282,7 +284,7 @@ void AsusdClient::pump()
     m_lastFrame = frame;
     m_transport->submit(frame, ++m_operation);
 }
-void AsusdClient::transferFinished(quint64 operation, const QString& error)
+void AsusdClient::transferFinished(quint64 operation, const QString& error, bool frameWritten)
 {
     if (operation != m_operation)
         return;
@@ -297,7 +299,7 @@ void AsusdClient::transferFinished(quint64 operation, const QString& error)
         forget(QStringLiteral("LampArray USB failed: ") + error);
         return;
     }
-    if (!m_releasing)
+    if (!m_releasing && frameWritten)
         ++m_completedFrames;
     pump();
 }

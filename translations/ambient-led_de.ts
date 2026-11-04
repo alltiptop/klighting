@@ -267,6 +267,34 @@
         <source>Settings saved, but the lighting service could not apply them: %1</source>
         <translation>Die Einstellungen wurden gespeichert, aber der Beleuchtungsdienst konnte sie nicht anwenden: %1</translation>
     </message>
+    <message>
+        <source>Could not retry desktop integration: %1</source>
+        <translation>Desktop-Integration konnte nicht erneut versucht werden: %1</translation>
+    </message>
+    <message>
+        <source>Lighting service is running with an incompatible protocol or capabilities. Restart it after updating.</source>
+        <translation>Der Beleuchtungsdienst läuft mit einem inkompatiblen Protokoll oder Funktionsumfang. Starten Sie ihn nach der Aktualisierung neu.</translation>
+    </message>
+    <message>
+        <source>%1 has an incompatible protocol or capabilities. %2</source>
+        <translation>%1 hat ein inkompatibles Protokoll oder einen inkompatiblen Funktionsumfang. %2</translation>
+    </message>
+    <message>
+        <source>%1 does not report its build. %2</source>
+        <translation>%1 meldet seine Build-Kennung nicht. %2</translation>
+    </message>
+    <message>
+        <source>%1 is using build %2; installed build is %3. %4</source>
+        <translation>%1 verwendet Build %2; installiert ist Build %3. %4</translation>
+    </message>
+    <message>
+        <source>Restart the lighting service to use the installed build.</source>
+        <translation>Starten Sie den Beleuchtungsdienst neu, um den installierten Build zu verwenden.</translation>
+    </message>
+    <message>
+        <source>Log out and back in to use the installed KWin plugin.</source>
+        <translation>Melden Sie sich ab und wieder an, um das installierte KWin-Modul zu verwenden.</translation>
+    </message>
 </context>
 <context>
     <name>Ambient::SettingsController</name>
@@ -1192,6 +1220,10 @@
         <location line="+4"/>
         <source>Blue channel</source>
         <translation>Blauer Kanal</translation>
+    </message>
+    <message>
+        <source>Retry desktop integration</source>
+        <translation>Desktop-Integration erneut versuchen</translation>
     </message>
 </context>
 <context>

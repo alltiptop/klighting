@@ -17,7 +17,7 @@ class NotificationEffects
 public:
     void configure(
         const QList<EffectPreset>& presets, const QSet<QString>& used, const PowerState& power = { });
-    void trigger(const NotificationEvent& event);
+    bool trigger(const NotificationEvent& event);
     void advance(double elapsedMs);
     void reset();
     bool empty() const { return m_states.isEmpty(); }

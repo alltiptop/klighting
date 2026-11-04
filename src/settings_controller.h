@@ -5,7 +5,6 @@
 #include "layer_key_tracker.h"
 #include "presets.h"
 #include "service_control.h"
-#include <KSharedConfig>
 #include <QObject>
 #include <QTimer>
 #include <QUrl>
@@ -223,7 +222,6 @@ private:
     DeviceProfile newProfile(const DeviceConfiguration& device) const;
     const DeviceInstance& editingInstance() const;
     const DeviceDescription& editingDescription() const { return editingInstance().description; }
-    KSharedConfig::Ptr m_config;
     LoadedDriver& m_driver;
     QTimer m_discoveryTimer;
     struct Controls {

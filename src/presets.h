@@ -113,6 +113,8 @@ KeyboardStyles deviceKeyStylesForLayer(
     const DeviceProfile& preset, const DeviceDescription& device, int layer);
 EffectAssignments deviceEffectsForLayer(
     const DeviceProfile& preset, const DeviceDescription& device, int layer);
+EffectAssignments deviceEffectsForLayer(const DeviceProfile& preset, const DeviceDescription& device,
+    int layer, const KeyboardStyles& resolvedStyles);
 KeyboardStyles deviceKeyStyles(
     const DeviceProfile& preset, const DeviceDescription& device, const ModifierState& modifiers);
 EffectAssignments deviceEffects(

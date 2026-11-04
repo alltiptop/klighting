@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "lighting_service.h"
-#include "kwin_desktop_source.h"
+#include "application_settings.h"
+#include "component_info.h"
 #include "lighting_ipc.h"
-#include <KConfigGroup>
 #include <QFile>
 #include <algorithm>
 #include <linux/input-event-codes.h>
@@ -10,37 +10,28 @@
 namespace Ambient
 {
 LightingService::LightingService(const DeviceEnvironment& environment, const QStringList& directories,
-    std::unique_ptr<DesktopSource> desktop, QObject* parent)
+    IntegrationSources sources, QObject* parent)
     : QObject(parent)
     , m_runtime(environment, directories)
-    , m_desktop(desktop ? std::move(desktop) : std::make_unique<KWinDesktopSource>())
-    , m_config(KSharedConfig::openConfig("kwinrc"))
+    , m_sources(std::move(sources))
 {
     connect(&m_runtime, &LightingRuntime::requirementsChanged, this, &LightingService::updateRequirements);
-    connect(&m_kwin, &KWinCaptureSource::changed, this, [this] {
-        m_runtime.setCaptureAvailable(m_kwin.captureAvailable());
-        updateControl();
-        updateRequirements();
-    });
-    connect(m_desktop.get(), &DesktopSource::stateChanged, this,
-        [this](const QString& windowClass, const ModifierState& modifiers, bool locked) {
-            m_runtime.setLocked(locked);
-            m_runtime.setDesktop(windowClass, modifiers);
-            m_desktopKnown = true;
-            updateControl();
-        });
-    connect(m_desktop.get(), &DesktopSource::unavailable, this, [this] {
-        // Drop held keys and application overrides. Retain the last known lock state.
-        m_runtime.setDesktop({ }, { });
-        m_desktopKnown = true;
-        updateControl();
-    });
-    connect(&m_kwin, &KWinCaptureSource::sample, this,
-        [this](const QByteArray& rgba) { m_runtime.sample(rgba, m_brightness, m_saturation); });
+    if (m_sources.hardwareGuard)
+        connect(m_sources.hardwareGuard.get(), &HardwareControlGuard::changed, this,
+            &LightingService::updateControl);
+    if (m_sources.desktop)
+        connect(m_sources.desktop.get(), &DesktopSource::changed, this, &LightingService::updateDesktop);
+    if (m_sources.capture) {
+        connect(m_sources.capture.get(), &CaptureSource::changed, this, &LightingService::updateCapture);
+        connect(m_sources.capture.get(), &CaptureSource::sample, this,
+            [this](const QByteArray& rgba) { m_runtime.sample(rgba, m_brightness, m_saturation); });
+    }
     connect(&m_power, &PowerSource::stateChanged, this, [this] { m_runtime.setPowerState(m_power.state()); });
     connect(&m_power, &PowerSource::powerConnected, this,
         [this] { m_runtime.notify({ { }, { }, { }, { }, 1, QStringLiteral("power-connected") }); });
     connect(&m_notifications, &NotificationSource::received, &m_runtime, &LightingRuntime::notify);
+    updateDesktop();
+    m_runtime.setCaptureAvailable(m_sources.capture && m_sources.capture->state().ready);
     Reload();
 }
 QString LightingService::Reload()
@@ -55,13 +46,12 @@ QString LightingService::Reload()
     const auto collection = loadPresets(defaultCollection(model), &m_error);
     if (!collection)
         return m_error; // Preserve the last valid running collection.
-    m_config->reparseConfiguration();
-    const KConfigGroup cfg(m_config, ConfigGroup);
-    m_captureOptions = { { "screen", cfg.readEntry("ScreenName", QString()) },
-        { "bottomOnly", cfg.readEntry("Region", QStringLiteral("full")) == QLatin1String("bottom") },
-        { "bottomPercent", std::clamp(cfg.readEntry("BottomPercent", 25), 1, 100) } };
-    m_brightness = std::clamp(cfg.readEntry("Brightness", 1.0), 0.0, 1.0);
-    m_saturation = std::clamp(cfg.readEntry("Saturation", 1.0), 0.0, 2.0);
+    const auto settings = loadApplicationSettings(SettingsAccess::Migrate, &m_error);
+    if (!settings || !m_runtime.drivers().migrateSettings(&m_error))
+        return m_error; // No partial runtime reconfiguration after a failed migration.
+    m_captureOptions = settings->capture;
+    m_brightness = settings->brightness;
+    m_saturation = settings->saturation;
     m_configured = true;
     QSet<quint32> tracked { KEY_LEFTSHIFT, KEY_RIGHTSHIFT, KEY_LEFTCTRL, KEY_RIGHTCTRL, KEY_LEFTALT,
         KEY_RIGHTALT, KEY_LEFTMETA, KEY_RIGHTMETA, KEY_COMPOSE, KEY_MENU, KEY_FN, KEY_CAPSLOCK };
@@ -70,8 +60,9 @@ QString LightingService::Reload()
             for (const auto& condition : conditions)
                 if (condition.startsWith("key:"))
                     tracked.insert(condition.mid(4).toUInt());
-    m_desktop->setTrackedKeys(tracked);
-    m_runtime.configure(*collection, { { "AuraObjectPath", cfg.readEntry("AuraObjectPath", QString()) } });
+    if (m_sources.desktop)
+        m_sources.desktop->setTrackedKeys(tracked);
+    m_runtime.configure(*collection);
     updateControl();
     updateRequirements();
     return { };
@@ -79,7 +70,32 @@ QString LightingService::Reload()
 void LightingService::updateControl()
 {
     // Resolve the initial desktop/lock snapshot before the first hardware frame.
-    m_runtime.setEnabled(m_configured && m_desktopKnown && m_kwin.safeToControl());
+    m_runtime.setEnabled(
+        m_configured && m_desktopKnown && (!m_sources.hardwareGuard || m_sources.hardwareGuard->allowed()));
+}
+void LightingService::updateDesktop()
+{
+    const auto state = m_sources.desktop ? m_sources.desktop->state()
+                                         : DesktopState { ProviderState::Unavailable, { }, { }, { } };
+    if (state.provider == ProviderState::Available) {
+        if (state.locked.has_value()) {
+            m_runtime.setLocked(*state.locked);
+            m_desktopKnown = true;
+        }
+        m_runtime.setDesktop(
+            state.windowClass.value_or(QString()), state.modifiers.value_or(ModifierState()));
+    } else {
+        // Lose application/held-key overrides without turning unknown lock state into unlocked.
+        m_runtime.setDesktop({ }, { });
+        if (state.provider == ProviderState::Unavailable)
+            m_desktopKnown = true; // Standalone operation with no desktop provider.
+    }
+    updateControl();
+}
+void LightingService::updateCapture()
+{
+    m_runtime.setCaptureAvailable(m_sources.capture && m_sources.capture->state().ready);
+    updateRequirements();
 }
 void LightingService::updateRequirements()
 {
@@ -88,16 +104,36 @@ void LightingService::updateRequirements()
         return;
     }
     m_notifications.setEnabled(m_runtime.notificationsEnabled());
-    m_kwin.requestCapture(m_runtime.captureFps(), m_captureOptions);
+    if (m_sources.capture)
+        m_sources.capture->requestCapture(m_runtime.captureFps(), m_captureOptions);
+}
+QString LightingService::RetryDesktopIntegration()
+{
+    return m_sources.desktop ? m_sources.desktop->retry() : QStringLiteral("No desktop provider");
 }
 QVariantMap LightingService::Status() const
 {
     auto status = m_runtime.status();
-    status.insert("protocol", Ipc::Version);
+    status.insert(componentInfo(Component::Service));
+    const auto desktop = m_sources.desktop ? m_sources.desktop->state()
+                                           : DesktopState { ProviderState::Unavailable, { }, { }, { } };
+    const auto capture = m_sources.capture ? m_sources.capture->state() : CaptureState();
+    status.insert("desktopInfo", m_sources.desktop ? m_sources.desktop->info() : QVariantMap());
+    status.insert("captureInfo", capture.info);
+    status.insert("desktopAvailable", desktop.provider == ProviderState::Available);
+    status.insert("windowAvailable", desktop.windowClass.has_value());
+    status.insert("keysAvailable", desktop.modifiers.has_value());
+    status.insert("lockAvailable", desktop.locked.has_value());
+    status.insert("captureProviderAvailable", capture.providerAvailable);
+    status.insert("screenAvailable", capture.screenAvailable);
+    status.insert("captureEnabled", capture.enabled);
     status.insert("error", m_error);
-    status.insert("desktop", m_desktop->status());
-    status.insert("capture", m_kwin.status());
-    status.insert("safeToControl", m_kwin.safeToControl());
+    status.insert(
+        "desktop", m_sources.desktop ? m_sources.desktop->status() : QStringLiteral("No desktop provider"));
+    status.insert("desktopCanRetry", m_sources.desktop && m_sources.desktop->canRetry());
+    status.insert("capture", capture.status);
+    status.insert("safeToControl", !m_sources.hardwareGuard || m_sources.hardwareGuard->allowed());
+    status.insert("controlStatus", m_sources.hardwareGuard ? m_sources.hardwareGuard->status() : QString());
     status.insert("notifications", m_notifications.status());
     status.insert("power", m_power.status());
     return status;

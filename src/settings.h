@@ -4,7 +4,6 @@
 
 namespace Ambient
 {
-inline constexpr auto ConfigGroup = "Effect-ambientled";
 inline constexpr int DefaultFramesPerSecond = 3;
 inline constexpr int MaxFramesPerSecond = 20;
 inline constexpr int DefaultSmoothingMs = 400;

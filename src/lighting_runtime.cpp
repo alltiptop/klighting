@@ -2,6 +2,8 @@
 #include "lighting_runtime.h"
 #include "settings.h"
 #include <algorithm>
+#include <cmath>
+#include <utility>
 
 namespace Ambient
 {
@@ -11,22 +13,50 @@ LightingRuntime::LightingRuntime(
     , m_devices(environment, directories)
 {
     m_timer.setTimerType(Qt::PreciseTimer);
-    connect(&m_timer, &QTimer::timeout, this, &LightingRuntime::tick);
+    m_timer.setSingleShot(true);
+    connect(&m_timer, &QTimer::timeout, this, [this] {
+        ++m_animationWakeups;
+        tick();
+    });
     connect(&m_discovery, &QTimer::timeout, this, &LightingRuntime::refresh);
+    m_devices.readinessChanged = [this] {
+        if (m_readinessPending)
+            return;
+        m_readinessPending = true;
+        // Backend start/enable can notify synchronously during reconciliation.
+        // Deliver after it finishes, and coalesce bursts without losing recovery.
+        QMetaObject::invokeMethod(
+            this,
+            [this] {
+                m_readinessPending = false;
+                m_devices.updateReadiness();
+                Q_EMIT requirementsChanged();
+                tick(true);
+            },
+            Qt::QueuedConnection);
+    };
     m_discovery.start(2000);
-    m_elapsed.start();
+    m_clock.start();
 }
-LightingRuntime::~LightingRuntime() { m_devices.setEnabled(false); }
-void LightingRuntime::configure(const PresetCollection& collection, const QVariantMap& options)
+LightingRuntime::~LightingRuntime()
 {
+    m_devices.readinessChanged = { };
+    m_devices.setEnabled(false);
+}
+void LightingRuntime::configure(const PresetCollection& collection)
+{
+    advance();
+    m_pendingSample.reset();
+    m_lastSample.invalidate();
     m_collection = collection;
-    m_devices.configure(collection, options);
+    m_devices.configure(collection);
     updateEffects();
 }
 void LightingRuntime::setEnabled(bool enabled)
 {
     if (m_enabled == enabled)
         return;
+    advance();
     m_enabled = enabled;
     m_devices.setEnabled(running());
     if (!running())
@@ -37,6 +67,7 @@ void LightingRuntime::setLocked(bool locked)
 {
     if (m_locked == locked)
         return;
+    advance();
     m_locked = locked;
     m_devices.setEnabled(running());
     m_notifications.reset();
@@ -47,14 +78,19 @@ void LightingRuntime::setDesktop(const QString& windowClass, const ModifierState
 {
     if (m_windowClass == windowClass && m_modifiers == modifiers)
         return;
+    advance();
     m_windowClass = windowClass;
     m_modifiers = modifiers;
-    updateEffects();
+    if (m_devices.selectPresets(windowClass, modifiers))
+        updateEffects();
+    else
+        updateTimer();
 }
 void LightingRuntime::setPowerState(const PowerState& state)
 {
     if (m_power == state)
         return;
+    advance();
     m_power = state;
     m_devices.setPowerState(state);
     updateEffects();
@@ -63,7 +99,10 @@ void LightingRuntime::setCaptureAvailable(bool available)
 {
     if (m_captureAvailable == available)
         return;
+    advance();
     m_captureAvailable = available;
+    if (available)
+        m_palette.resumeSampling();
     m_lastSample.invalidate();
     m_picker.reset();
     // An unavailable screen source holds its last color (or the configured dark floor).
@@ -73,24 +112,42 @@ void LightingRuntime::setCaptureAvailable(bool available)
 }
 void LightingRuntime::sample(QByteArrayView rgba, double brightness, double saturation)
 {
-    const int fps = captureFps();
-    if (!m_captureAvailable || fps == 0 || rgba.size() != 32 * 18 * 4
-        || (m_lastSample.isValid() && m_lastSample.elapsed() < 1000 / fps))
+    const int delay = inputDelayMs();
+    if (delay < 0 || rgba.size() != 32 * 18 * 4)
         return;
+    advance();
+    if (delay > 0)
+        m_pendingSample = PendingSample { QByteArray(rgba.data(), rgba.size()), brightness, saturation };
+    else {
+        m_pendingSample.reset();
+        acceptSample(rgba, brightness, saturation);
+    }
+    updateTimer();
+}
+int LightingRuntime::inputDelayMs() const
+{
+    const int fps = captureFps();
+    if (!m_captureAvailable || fps == 0)
+        return -1;
+    return m_lastSample.isValid() ? int(std::max<qint64>(0, (1000 + fps - 1) / fps - m_lastSample.elapsed()))
+                                  : 0;
+}
+void LightingRuntime::acceptSample(QByteArrayView rgba, double brightness, double saturation)
+{
     m_lastSample.start();
-    m_palette.sample(m_picker.select(rgba, brightness, saturation));
+    m_screenColor = m_picker.select(rgba, brightness, saturation);
+    m_palette.sample(m_screenColor);
     ++m_samples;
-    tick();
 }
 void LightingRuntime::notify(const NotificationEvent& event)
 {
     if (!running())
         return;
-    // Idle time before this event must not consume the new pulse's duration.
-    if (!m_timer.isActive())
-        m_elapsed.restart();
-    m_notifications.trigger(event);
-    tick();
+    advance();
+    if (m_notifications.trigger(event))
+        tick(true);
+    else
+        updateTimer();
 }
 int LightingRuntime::captureFps() const
 {
@@ -99,22 +156,37 @@ int LightingRuntime::captureFps() const
 bool LightingRuntime::notificationsEnabled() const { return running() && !m_notifications.empty(); }
 void LightingRuntime::refresh()
 {
+    advance();
     if (m_devices.refresh())
         updateEffects();
-    Q_EMIT requirementsChanged();
-    tick(); // Also delivers a static frame when an asynchronous backend becomes ready.
+    else {
+        Q_EMIT requirementsChanged();
+        updateTimer();
+    }
 }
 void LightingRuntime::updateEffects()
 {
-    m_devices.selectPresets(m_windowClass, m_modifiers);
+    ++m_effectUpdates;
+    m_devices.updateReadiness();
     const auto effects = runtimeEffects(m_collection);
-    m_palette.configure(effects, m_devices.ambientEffects(), m_power);
-    m_notifications.configure(effects, m_devices.notificationEffects(), m_power);
+    const auto used = m_devices.requiredEffects();
+    m_palette.configure(effects, used, m_power);
+    // A settled screen may never paint again. New layers and edited Ambient
+    // options must reuse its last accepted color without restarting capture.
+    if (running() && m_captureAvailable && m_screenColor.isValid())
+        m_palette.sample(m_screenColor);
+    m_notifications.configure(effects, used, m_power);
     Q_EMIT requirementsChanged();
-    tick();
+    tick(true);
 }
 void LightingRuntime::updateTimer()
 {
+    const int inputDelay = inputDelayMs();
+    if (inputDelay < 0) {
+        m_pendingSample.reset();
+        m_lastSample.invalidate();
+        m_screenColor = QColor();
+    }
     const int fps = m_notifications.active() ? std::max(m_palette.ledFps(), 60)
         : m_captureAvailable                 ? m_palette.ledFps()
                                              : 0;
@@ -123,21 +195,58 @@ void LightingRuntime::updateTimer()
         m_ledFps = outputFps;
         m_devices.setLedFramesPerSecond(outputFps);
     }
-    if (!running() || fps == 0) {
+    if (!running()) {
         m_timer.stop();
-    } else if (!m_timer.isActive() || m_timer.interval() != ledIntervalMs(fps)) {
-        m_elapsed.start();
-        m_timer.start(ledIntervalMs(fps));
+        return;
     }
+    int delay = m_captureAvailable ? m_palette.nextUpdateMs() : -1;
+    if (m_pendingSample)
+        delay = delay < 0 ? inputDelay : std::min(delay, inputDelay);
+    // An expired pulse still needs one final frame to remove its overlay.
+    if (m_notifications.active() || m_notifications.colors() != m_lastPulses) {
+        const int notificationDelay = int(std::ceil(std::max(0.0, m_nextNotificationOutput - m_time)));
+        delay = delay < 0 ? notificationDelay : std::min(delay, notificationDelay);
+    }
+    if (delay < 0)
+        m_timer.stop();
+    else if (!m_timer.isActive() || m_timer.remainingTime() > delay)
+        m_timer.start(delay);
 }
-void LightingRuntime::tick()
+void LightingRuntime::advance()
 {
-    const auto elapsed = std::min<qint64>(m_elapsed.restart(), 1000);
+    const double now = m_clock.nsecsElapsed() / 1000000.0;
+    const double elapsed = now - m_time;
+    m_time = now;
+    if (!running())
+        return;
+    if (m_captureAvailable)
+        m_palette.advance(elapsed, false);
+    m_notifications.advance(elapsed);
+}
+void LightingRuntime::tick(bool force)
+{
+    ++m_ticks;
+    advance();
     if (running()) {
-        if (m_captureAvailable)
-            m_palette.advance(elapsed);
-        m_notifications.advance(elapsed);
-        m_devices.submit(m_palette.colors(), m_notifications.colors(), m_palette.brightnessFilters());
+        if (m_captureAvailable) {
+            if (m_pendingSample && inputDelayMs() == 0) {
+                const auto pending = std::exchange(m_pendingSample, std::nullopt);
+                acceptSample(pending->rgba, pending->brightness, pending->saturation);
+            }
+            m_palette.advance(0);
+        }
+        const auto palette = m_palette.colors();
+        const auto brightness = m_palette.brightnessFilters();
+        const bool notificationDue = force || m_time >= m_nextNotificationOutput;
+        const auto pulses = notificationDue ? m_notifications.colors() : m_lastPulses;
+        if (force || palette != m_lastPalette || pulses != m_lastPulses || brightness != m_lastBrightness) {
+            m_devices.submit(palette, pulses, brightness);
+            m_lastPalette = palette;
+            m_lastPulses = pulses;
+            m_lastBrightness = brightness;
+        }
+        if (notificationDue)
+            m_nextNotificationOutput = m_time + ledIntervalMs(60);
     }
     updateTimer();
 }
@@ -146,6 +255,8 @@ QVariantMap LightingRuntime::status() const
     return { { "running", running() }, { "locked", m_locked }, { "devices", m_devices.count() },
         { "driverStatus", m_devices.status() }, { "captureAvailable", m_captureAvailable },
         { "captureFps", captureFps() }, { "samples", m_samples }, { "sent", m_devices.completedFrames() },
-        { "windowClass", m_windowClass } };
+        { "windowClass", m_windowClass }, { "animationWakeups", m_animationWakeups }, { "ticks", m_ticks },
+        { "effectUpdates", m_effectUpdates }, { "compositions", m_devices.compositions() },
+        { "profileResolutions", m_devices.profileResolutions() } };
 }
 }

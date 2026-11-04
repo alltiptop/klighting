@@ -267,6 +267,34 @@
         <source>Settings saved, but the lighting service could not apply them: %1</source>
         <translation>Impostazioni salvate, ma il servizio di illuminazione non ha potuto applicarle: %1</translation>
     </message>
+    <message>
+        <source>Could not retry desktop integration: %1</source>
+        <translation>Impossibile riprovare l’integrazione con il desktop: %1</translation>
+    </message>
+    <message>
+        <source>Lighting service is running with an incompatible protocol or capabilities. Restart it after updating.</source>
+        <translation>Il servizio di illuminazione è in esecuzione con un protocollo o funzionalità incompatibili. Riavvialo dopo l’aggiornamento.</translation>
+    </message>
+    <message>
+        <source>%1 has an incompatible protocol or capabilities. %2</source>
+        <translation>%1 ha un protocollo o funzionalità incompatibili. %2</translation>
+    </message>
+    <message>
+        <source>%1 does not report its build. %2</source>
+        <translation>%1 non comunica la propria build. %2</translation>
+    </message>
+    <message>
+        <source>%1 is using build %2; installed build is %3. %4</source>
+        <translation>%1 usa la build %2; la build installata è %3. %4</translation>
+    </message>
+    <message>
+        <source>Restart the lighting service to use the installed build.</source>
+        <translation>Riavvia il servizio di illuminazione per usare la build installata.</translation>
+    </message>
+    <message>
+        <source>Log out and back in to use the installed KWin plugin.</source>
+        <translation>Esci dalla sessione e accedi nuovamente per usare il plugin KWin installato.</translation>
+    </message>
 </context>
 <context>
     <name>Ambient::SettingsController</name>
@@ -1192,6 +1220,10 @@
         <location line="+4"/>
         <source>Blue channel</source>
         <translation>Canale blu</translation>
+    </message>
+    <message>
+        <source>Retry desktop integration</source>
+        <translation>Riprova l’integrazione con il desktop</translation>
     </message>
 </context>
 <context>

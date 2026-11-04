@@ -33,23 +33,34 @@ DeviceManager::DeviceManager(const DeviceEnvironment& environment, const QString
     : m_drivers(environment, directories)
 {
 }
-void DeviceManager::configure(const PresetCollection& collection, const QVariantMap& options)
+void DeviceManager::configure(const PresetCollection& collection)
 {
     m_collection = collection;
     if (!m_collection.devices && m_legacyDevices)
         m_collection.devices = m_legacyDevices;
-    if (m_options != options)
-        m_outputs.clear();
-    m_options = options;
+    for (auto& [id, output] : m_outputs)
+        output.presetIndex = -1; // IDs/indices alone cannot identify an edited document.
+    m_drivers.refresh(); // Apply newly imported/edited driver options before reconciling backends.
     reconcile();
     selectPresets(m_windowClass, m_modifiers);
 }
 bool DeviceManager::refresh()
 {
     m_drivers.refresh();
-    const bool changed = reconcile();
+    const bool reconciled = reconcile();
+    const bool changed = updateReadiness() || reconciled;
     if (changed)
         selectPresets(m_windowClass, m_modifiers);
+    return changed;
+}
+bool DeviceManager::updateReadiness()
+{
+    bool changed = false;
+    for (auto& [id, output] : m_outputs) {
+        const bool ready = output.backend->ready();
+        changed |= output.observedReady != ready;
+        output.observedReady = ready;
+    }
     return changed;
 }
 bool DeviceManager::reconcile()
@@ -90,7 +101,8 @@ bool DeviceManager::reconcile()
             continue;
         const auto* device = m_drivers.find(config.identity());
         auto found = m_outputs.find(config.identity());
-        if (found != m_outputs.end() && found->second.instance.options == device->instance.options) {
+        if (found != m_outputs.end() && found->second.instance.options == device->instance.options
+            && found->second.instance.description == device->instance.description) {
             found->second.configuration = config;
             found->second.backend->setEnabled(m_enabled);
             continue;
@@ -100,37 +112,44 @@ bool DeviceManager::reconcile()
         auto backend = device->driver->createBackend(device->instance);
         if (!backend)
             continue;
+        backend->readinessChanged = [this] {
+            if (readinessChanged)
+                readinessChanged();
+        };
         backend->setEnabled(m_enabled);
         backend->setLedFramesPerSecond(m_fps);
-        auto options = device->instance.options;
-        // Legacy ASUS override is scoped to that driver, never sent to other modules.
-        if (device->driverId == "asus-g615lw")
-            for (auto it = m_options.cbegin(); it != m_options.cend(); ++it)
-                options.insert(it.key(), it.value());
-        backend->start(options);
-        m_outputs.emplace(
-            config.identity(), Output { config, device->instance, std::move(backend), { }, { }, { }, { } });
+        backend->start(device->instance.options);
+        const bool ready = backend->ready();
+        m_outputs.emplace(config.identity(),
+            Output { config, device->instance, std::move(backend), { }, { }, { }, { }, ready });
         changed = true;
     }
     return changed;
 }
-void DeviceManager::selectPresets(const QString& windowClass, const ModifierState& modifiers)
+bool DeviceManager::selectPresets(const QString& windowClass, const ModifierState& modifiers)
 {
     const bool windowChanged = m_windowClass != windowClass;
     m_windowClass = windowClass;
     m_modifiers = modifiers;
-    if (windowChanged)
-        reconcile();
+    bool changed = windowChanged && reconcile();
     for (auto& [id, output] : m_outputs) {
         const int index = devicePreset(m_collection, output.configuration, windowClass);
         if (index < 0)
             continue;
-        if (output.preset.id != profileFor(m_collection.presets[index], output.configuration)->id)
-            output.lastPalette.clear();
-        output.preset = *profileFor(m_collection.presets[index], output.configuration);
         const int layer = activePresetLayer(m_collection.presets[index], modifiers);
+        if (output.presetIndex == index && output.layer == layer)
+            continue;
+        changed = true;
+        ++m_profileResolutions;
+        const auto* profile = profileFor(m_collection.presets[index], output.configuration);
+        if (output.preset.id != profile->id)
+            output.lastPalette.clear();
+        output.preset = *profile;
+        output.presetIndex = index;
+        output.layer = layer;
         output.styles = deviceKeyStylesForLayer(output.preset, output.instance.description, layer);
-        output.effects = deviceEffectsForLayer(output.preset, output.instance.description, layer);
+        output.effects
+            = deviceEffectsForLayer(output.preset, output.instance.description, layer, output.styles);
         if (lightbarOff(output.configuration)) {
             auto off = [&](int id) {
                 output.styles.insert(id, { KeyMode::Off, Qt::black });
@@ -143,7 +162,10 @@ void DeviceManager::selectPresets(const QString& windowClass, const ModifierStat
                     off(element.id);
             }
         }
+        output.usedEffects
+            = activeEffects(output.preset, output.styles, output.instance.description, output.effects);
     }
+    return changed;
 }
 void DeviceManager::setEnabled(bool enabled)
 {
@@ -164,6 +186,8 @@ void DeviceManager::setPowerState(const PowerState& state)
     if (m_power == state)
         return;
     m_power = state;
+    for (auto& [id, output] : m_outputs)
+        output.presetIndex = -1;
     selectPresets(m_windowClass, m_modifiers);
 }
 void DeviceManager::setLedFramesPerSecond(int fps)
@@ -178,16 +202,14 @@ bool DeviceManager::ready() const
         return entry.second.backend->ready();
     });
 }
-QSet<QString> DeviceManager::ambientEffects() const
+QSet<QString> DeviceManager::requiredEffects() const
 {
     QSet<QString> result;
     for (const auto& [id, output] : m_outputs)
         if (!powerPaused(output.configuration))
-            result.unite(
-                activeEffects(output.preset, output.styles, output.instance.description, output.effects));
+            result.unite(output.usedEffects);
     return result;
 }
-QSet<QString> DeviceManager::notificationEffects() const { return ambientEffects(); }
 void DeviceManager::submit(const QMap<QString, QColor>& palette, const QMap<QString, QColor>& pulses,
     const QMap<QString, int>& brightness)
 {
@@ -201,12 +223,12 @@ void DeviceManager::submit(const QMap<QString, QColor>& palette, const QMap<QStr
             else if (output.lastPalette.isEmpty()) {
                 // Startup on battery still uses each Ambient effect's dark floor.
                 EffectPalette initial;
-                initial.configure(runtimeEffects(m_collection),
-                    activeEffects(output.preset, output.styles, output.instance.description, output.effects));
+                initial.configure(runtimeEffects(m_collection), output.usedEffects);
                 output.lastPalette = initial.colors();
                 for (auto it = palette.cbegin(); it != palette.cend(); ++it)
                     output.lastPalette.insert(it.key(), it.value());
             }
+            ++m_compositions;
             auto frame = lightingColors(output.preset, output.styles, output.instance.description,
                 paused ? output.lastPalette : palette, output.effects,
                 paused ? QMap<QString, QColor>() : pulses, brightness);

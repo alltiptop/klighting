@@ -267,6 +267,34 @@
         <source>Settings saved, but the lighting service could not apply them: %1</source>
         <translation>Ustawienia zapisano, ale usługa podświetlenia nie mogła ich zastosować: %1</translation>
     </message>
+    <message>
+        <source>Could not retry desktop integration: %1</source>
+        <translation>Nie udało się ponowić integracji z pulpitem: %1</translation>
+    </message>
+    <message>
+        <source>Lighting service is running with an incompatible protocol or capabilities. Restart it after updating.</source>
+        <translation>Usługa podświetlenia działa z niezgodnym protokołem lub możliwościami. Uruchom ją ponownie po aktualizacji.</translation>
+    </message>
+    <message>
+        <source>%1 has an incompatible protocol or capabilities. %2</source>
+        <translation>%1 ma niezgodny protokół lub możliwości. %2</translation>
+    </message>
+    <message>
+        <source>%1 does not report its build. %2</source>
+        <translation>%1 nie podaje swojej kompilacji. %2</translation>
+    </message>
+    <message>
+        <source>%1 is using build %2; installed build is %3. %4</source>
+        <translation>%1 używa kompilacji %2; zainstalowana kompilacja to %3. %4</translation>
+    </message>
+    <message>
+        <source>Restart the lighting service to use the installed build.</source>
+        <translation>Uruchom ponownie usługę podświetlenia, aby użyć zainstalowanej kompilacji.</translation>
+    </message>
+    <message>
+        <source>Log out and back in to use the installed KWin plugin.</source>
+        <translation>Wyloguj się i zaloguj ponownie, aby użyć zainstalowanej wtyczki KWin.</translation>
+    </message>
 </context>
 <context>
     <name>Ambient::SettingsController</name>
@@ -1192,6 +1220,10 @@
         <location line="+4"/>
         <source>Blue channel</source>
         <translation>Kanał niebieski</translation>
+    </message>
+    <message>
+        <source>Retry desktop integration</source>
+        <translation>Ponów integrację z pulpitem</translation>
     </message>
 </context>
 <context>

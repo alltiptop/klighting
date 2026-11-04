@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 #include "device_driver.h"
+#include <QJsonObject>
 #include <QPluginLoader>
+#include <optional>
 #include <vector>
 
 namespace Ambient
@@ -24,6 +26,7 @@ public:
     explicit LoadedDriver(const DeviceEnvironment& environment = deviceEnvironment(),
         const QStringList& directories = driverDirectories());
     void refresh();
+    bool migrateSettings(QString* error) const;
     bool discoveryPending() const;
     bool hasDrivers() const { return !m_plugins.empty(); }
     const QList<DiscoveredDevice>& devices() const { return m_devices; }
@@ -39,6 +42,9 @@ private:
         QString id;
         std::unique_ptr<QPluginLoader> loader;
         DeviceDriver* driver;
+        QJsonObject legacyOptions;
+        bool detected = false;
+        std::optional<QVariantMap> settings = std::nullopt;
     };
     DeviceEnvironment m_environment;
     std::vector<Plugin> m_plugins;

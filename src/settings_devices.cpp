@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "settings_controller.h"
-#include <KConfigGroup>
 #include <QDebug>
 #include <QPointer>
 #include <algorithm>
@@ -228,10 +227,6 @@ void SettingsController::loadLightbar(bool refresh)
     state->reading = true;
     state->status = tr("Reading lightbar settings…");
     auto options = m_driver.instance().options;
-    const auto* device = m_driver.find(m_selectedDevice);
-    if (device && device->driverId == "asus-g615lw")
-        options.insert(
-            "AuraObjectPath", KConfigGroup(m_config, ConfigGroup).readEntry("AuraObjectPath", QString()));
     const QPointer<SettingsController> self(this);
     state->backend->readLightbar(
         options, [self, weak = std::weak_ptr<Controls>(state)](LightbarState result) {

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "application_settings.h"
 #include "aura_protocol.h"
 #include "lighting_ipc.h"
+#include "service_control.h"
 #include "settings_controller.h"
 #include <KConfigGroup>
 #include <QApplication>
@@ -26,6 +28,7 @@ public:
     QList<AuraPower> writes;
     bool malformed = false, failRead = false, failWrite = false;
     int unexpected = 0, reads = 0;
+    QString extraPath, writtenPath;
     FakeAsusd()
     {
         if (!bus.registerVirtualObject("/", this, QDBusConnection::SubPath)
@@ -52,8 +55,10 @@ public:
                 { "SupportedBasicModes", QVariant::fromValue(QList<uint> { 0 }) },
                 { "SupportedPowerZones", QVariant::fromValue(QList<uint> { 1, 2 }) },
                 { "LedModeData", QVariant::fromValue(AuraEffect { }) }, { "LedPower", powerValue() } };
-            const ManagedObjects objects { { QDBusObjectPath("/xyz/ljones/aura/19b6_2_4"),
+            ManagedObjects objects { { QDBusObjectPath("/xyz/ljones/aura/19b6_2_4"),
                 { { AuraInterface, props } } } };
+            if (!extraPath.isEmpty())
+                objects.insert(QDBusObjectPath(extraPath), { { AuraInterface, props } });
             connection.send(message.createReply(QVariant::fromValue(objects)));
         } else if (message.interface() == "org.freedesktop.DBus.Properties" && message.member() == "Get"
             && message.arguments() == QVariantList { AuraInterface, "LedPower" }) {
@@ -68,6 +73,7 @@ public:
             if (value.value<QDBusArgument>().currentSignature() != "(a(ubbbb))")
                 qFatal("Incorrect LedPower wire signature");
             const auto update = qdbus_cast<AuraPower>(value);
+            writtenPath = message.path();
             writes.append(update);
             if (failWrite) {
                 connection.send(message.createErrorReply(QDBusError::AccessDenied, "power write denied"));
@@ -173,6 +179,10 @@ class FakeLighting : public QObject
     Q_CLASSINFO("D-Bus Interface", "org.klighting.Service1")
 public:
     int reloads = 0;
+    int retries = 0;
+    bool canRetry = false;
+    QString retryError;
+    QVariantMap info { { "protocol", Ipc::Version } };
     FakeLighting()
     {
         auto bus = QDBusConnection::sessionBus();
@@ -192,7 +202,21 @@ public Q_SLOTS:
         ++reloads;
         return { };
     }
-    QVariantMap Status() const { return { { "protocol", Ipc::Version }, { "safeToControl", true } }; }
+    QString RetryDesktopIntegration()
+    {
+        ++retries;
+        if (retryError.isEmpty())
+            canRetry = false;
+        return retryError;
+    }
+    QVariantMap Status() const
+    {
+        auto status = info;
+        status.insert("safeToControl", true);
+        status.insert("desktopCanRetry", canRetry);
+        status.insert("desktop", "Automatic loading paused");
+        return status;
+    }
 };
 
 class ConfigTest : public QObject
@@ -206,6 +230,7 @@ private Q_SLOTS:
     void init()
     {
         QVERIFY(QDir(presetDirectory()).removeRecursively());
+        QVERIFY(QDir(QFileInfo(applicationSettingsPath()).absolutePath()).removeRecursively());
         asusd = std::make_unique<FakeAsusd>();
         lighting = std::make_unique<FakeLighting>();
         config->reparseConfiguration();
@@ -218,6 +243,82 @@ private Q_SLOTS:
         QCOMPARE(asusd->unexpected, 0);
         asusd.reset();
         lighting.reset();
+    }
+    void manualDesktopRetryReportsFailuresAndRefreshesAvailability()
+    {
+        lighting->canRetry = true;
+        lighting->retryError = "Cannot save startup state";
+        ServiceControl control;
+        QTRY_VERIFY(control.desktopCanRetry());
+        QCOMPARE(control.status(), "Automatic loading paused");
+        control.retryDesktopIntegration();
+        QVERIFY(control.busy());
+        control.retryDesktopIntegration(); // A second click must not duplicate the request.
+        QTRY_VERIFY(!control.busy());
+        QCOMPARE(lighting->retries, 1);
+        QVERIFY(control.status().contains(lighting->retryError));
+        lighting->retryError.clear();
+        control.retryDesktopIntegration();
+        QTRY_VERIFY(!control.desktopCanRetry());
+        QCOMPARE(lighting->retries, 2);
+        QCOMPARE(lighting->reloads, 0); // Retry does not apply unsaved editor settings.
+    }
+    void buildWarningsUseInstalledFilesAndDoNotBlockCompatibleService()
+    {
+        QTemporaryDir dir;
+        const auto path = dir.filePath("service.json");
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write("{\"buildId\":\"installed-v2\",\"version\":\"0.27.0\"}");
+        file.close();
+        lighting->info = componentInfo(Component::Service);
+        lighting->info["buildId"] = "running-old";
+        auto capture = componentInfo(Component::Capture);
+        capture["buildId"] = "capture-old";
+        lighting->info["captureInfo"] = capture;
+        ServiceControl control(InstallationPaths { path, { }, EFFECT_PLUGIN_PATH });
+        QTRY_VERIFY(control.running());
+        QVERIFY(control.compatible());
+        QVERIFY(control.diagnostics().contains("running-old"));
+        QVERIFY(control.diagnostics().contains("installed-v2"));
+        QVERIFY(control.diagnostics().contains("capture-old"));
+        control.reload();
+        QTRY_COMPARE(lighting->reloads, 1);
+        QTRY_VERIFY(!control.busy());
+        lighting->info["buildId"] = "installed-v2";
+        lighting->info.remove("captureInfo");
+        control.refresh();
+        QTRY_VERIFY(control.diagnostics().isEmpty());
+        lighting->info.remove("buildId");
+        control.refresh();
+        QTRY_VERIFY(control.diagnostics().contains("does not report its build"));
+        QVERIFY(QFile::remove(path));
+        control.refresh();
+        QTRY_VERIFY(control.diagnostics().isEmpty()); // Unknown installed identity, not mismatch.
+    }
+    void incompatibleServiceIsRunningButDoesNotReceiveReload()
+    {
+        lighting->info["protocol"] = Ipc::Version + 1;
+        lighting->canRetry = true;
+        ServiceControl control(InstallationPaths { });
+        QTRY_VERIFY(control.running());
+        QVERIFY(!control.compatible());
+        QVERIFY(control.status().contains("incompatible"));
+        QVERIFY(!control.desktopCanRetry());
+        QSignalSpy finished(&control, &ServiceControl::finished);
+        control.reload();
+        QCOMPARE(finished.size(), 1);
+        QVERIFY(!control.error().isEmpty());
+        QCOMPARE(lighting->reloads, 0);
+        control.retryDesktopIntegration();
+        QCOMPARE(lighting->retries, 0);
+        lighting->info = componentInfo(Component::Service);
+        control.refresh();
+        QTRY_VERIFY(control.compatible());
+        control.reload();
+        QTRY_COMPARE(lighting->reloads, 1);
+        QTRY_VERIFY(!control.busy());
+        QVERIFY(control.error().isEmpty());
     }
     void addingSameModelDeviceCreatesItsOwnDefaultCard()
     {
@@ -1451,6 +1552,40 @@ private Q_SLOTS:
         QCOMPARE(parsed->ambient.maximum, 0);
         QCOMPARE(parsed->ambient.ledFps, 1);
         QCOMPARE(parsed->ambient.temperature, 100);
+    }
+    void lightbarControlsShareReadOnlyDriverOptions()
+    {
+        asusd->extraPath = "/xyz/ljones/aura/19b6_5_6";
+        KConfigGroup(config, "Effect-ambientled").writeEntry("AuraObjectPath", asusd->extraPath);
+        QVERIFY(config->sync());
+        auto module = openModule();
+        QTRY_VERIFY((module->lightbarAvailable() && !module->busy()));
+        QVERIFY(!QFile::exists(driverSettingsPath("asus-g615lw")));
+        module->setLightbarEnabled(false);
+        module->save();
+        QTRY_COMPARE(asusd->writes.size(), 1);
+        QCOMPARE(asusd->writtenPath, asusd->extraPath);
+        QTRY_VERIFY(!module->busy());
+        module.reset();
+        // The editor never owns migration, even when its fake service acknowledges Apply.
+        QVERIFY(!QFile::exists(driverSettingsPath("asus-g615lw")));
+        const auto path = driverSettingsPath("asus-g615lw");
+        QVERIFY(QDir().mkpath(QFileInfo(path).absolutePath()));
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        const QByteArray content = R"({"version":1,"values":{"AuraObjectPath":"/xyz/ljones/aura/19b6_2_4"}})";
+        QCOMPARE(file.write(content), content.size());
+        file.close();
+        asusd->power.states[1].awake = true;
+        module = openModule();
+        QTRY_VERIFY((module->lightbarAvailable() && !module->busy()));
+        module->setLightbarEnabled(false);
+        module->save();
+        QTRY_COMPARE(asusd->writes.size(), 2);
+        QCOMPARE(asusd->writtenPath, "/xyz/ljones/aura/19b6_2_4");
+        QTRY_VERIFY(!module->busy());
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QCOMPARE(file.readAll(), content);
     }
     void lightbarCancelAndDefaultsDoNotWrite()
     {

@@ -17,7 +17,7 @@ public:
     explicit LightingRuntime(const DeviceEnvironment& environment = deviceEnvironment(),
         const QStringList& directories = driverDirectories(), QObject* parent = nullptr);
     ~LightingRuntime() override;
-    void configure(const PresetCollection& collection, const QVariantMap& options = { });
+    void configure(const PresetCollection& collection);
     void setEnabled(bool enabled);
     void setLocked(bool locked);
     void setDesktop(const QString& windowClass, const ModifierState& modifiers);
@@ -37,7 +37,10 @@ private:
     void refresh();
     void updateEffects();
     void updateTimer();
-    void tick();
+    int inputDelayMs() const;
+    void acceptSample(QByteArrayView rgba, double brightness, double saturation);
+    void advance();
+    void tick(bool force = false);
     DeviceManager m_devices;
     PresetCollection m_collection;
     EffectPalette m_palette;
@@ -47,9 +50,19 @@ private:
     QString m_windowClass;
     ModifierState m_modifiers;
     QTimer m_timer, m_discovery;
-    QElapsedTimer m_elapsed, m_lastSample;
+    QElapsedTimer m_clock, m_lastSample;
+    double m_time = 0, m_nextNotificationOutput = 0;
+    QMap<QString, QColor> m_lastPalette, m_lastPulses;
+    QMap<QString, int> m_lastBrightness;
+    struct PendingSample {
+        QByteArray rgba;
+        double brightness, saturation;
+    };
+    std::optional<PendingSample> m_pendingSample;
+    QColor m_screenColor;
+    bool m_readinessPending = false;
     bool m_enabled = false, m_locked = false, m_captureAvailable = false;
-    quint64 m_samples = 0;
+    quint64 m_samples = 0, m_animationWakeups = 0, m_ticks = 0, m_effectUpdates = 0;
     int m_ledFps = 0;
 };
 }

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
+#include "integration_sources.h"
 #include <QDBusConnection>
 #include <QDBusServiceWatcher>
 #include <QObject>
@@ -7,35 +8,33 @@
 
 namespace Ambient
 {
-// Optional screen source and guard against legacy effects that still own hardware.
-class KWinCaptureSource : public QObject
+// KWin-specific legacy-controller detection updates the separately injected guard.
+class KWinCaptureSource : public CaptureSource
 {
     Q_OBJECT
 public:
-    explicit KWinCaptureSource(
+    explicit KWinCaptureSource(const std::shared_ptr<HardwareControlGuard>& guard,
         const QDBusConnection& bus = QDBusConnection::sessionBus(), QObject* parent = nullptr);
     ~KWinCaptureSource() override;
-    void requestCapture(int fps, const QVariantMap& options);
-    QString status() const { return m_status; }
-    bool safeToControl() const { return m_safe; }
-    bool captureAvailable() const { return m_capture; }
-Q_SIGNALS:
-    void changed();
-    void sample(const QByteArray& rgba);
+    void requestCapture(int fps, const QVariantMap& options) override;
+    CaptureState state() const override { return m_state; }
 private Q_SLOTS:
     void screenSample(const QByteArray& rgba);
 
 private:
     void ownerChanged(const QString& owner);
     void refresh();
-    void captureState(bool safe, bool available, const QString& status);
+    void captureState(bool safe, const CaptureState& state);
     void configureCapture();
+    void resetConfiguration();
     QDBusConnection m_bus;
     QDBusServiceWatcher m_watcher;
     QTimer m_poll;
-    QString m_owner, m_status;
-    int m_generation = 0, m_fps = 0;
-    QVariantMap m_options;
-    bool m_safe = false, m_capture = false, m_reading = false;
+    const std::shared_ptr<HardwareControlGuard> m_guard;
+    QString m_owner;
+    int m_generation = 0, m_fps = 0, m_configurationEpoch = 0, m_configuredFps = -1;
+    QVariantMap m_options, m_configuredOptions;
+    CaptureState m_state;
+    bool m_reading = false, m_configuring = false;
 };
 }

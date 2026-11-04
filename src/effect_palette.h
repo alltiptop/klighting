@@ -15,7 +15,10 @@ public:
         const QList<EffectPreset>& presets, const QSet<QString>& used, const PowerState& power = { });
     void reset();
     void sample(const QColor& screenColor);
-    void advance(double elapsedMs);
+    void resumeSampling();
+    // Input events advance time without publishing between LED deadlines.
+    void advance(double elapsedMs, bool publish = true);
+    int nextUpdateMs() const; // -1 when no transition, pending sample or final output remains.
     int samplingFps() const;
     int ledFps() const;
     QMap<QString, QColor> colors() const;
@@ -26,6 +29,7 @@ private:
         AmbientOptions options;
         ColorSmoother smoother;
         QColor color;
+        std::optional<QColor> pendingSample;
         bool paused = false;
         double nextSample = 0, nextOutput = 0;
     };

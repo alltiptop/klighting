@@ -58,6 +58,7 @@ void put(const QString& path, const QByteArray& bytes)
 }
 struct Counters {
     std::atomic<int> writes = 0, closes = 0, lastRed = 0;
+    std::atomic<bool> fail = false;
 };
 class SlowSession : public Generic::Session
 {
@@ -71,6 +72,8 @@ public:
     {
         QThread::msleep(20);
         ++m_counters->writes;
+        if (m_counters->fail)
+            return QStringLiteral("Fixture transport unavailable");
         m_counters->lastRed = frame.uniform.red();
         return { };
     }
@@ -373,6 +376,65 @@ private Q_SLOTS:
         QVERIFY(!backend.ready());
         backend.submit({ Qt::white, { }, { } });
         QCOMPARE(counters->writes.load(), 2);
+    }
+    void completedFramesDoNotRequestMoreFrames()
+    {
+        auto counters = std::make_shared<Counters>();
+        Generic::Backend backend([counters] { return std::make_unique<SlowSession>(counters); });
+        int changes = 0;
+        backend.readinessChanged = [&] { ++changes; };
+        backend.start({ });
+        backend.setEnabled(true);
+        const int before = changes;
+        backend.submit({ Qt::red, { }, { } });
+        QTRY_COMPARE(backend.completedFrames(), 1);
+        backend.setEnabled(true); // Unchanged discovery must not invalidate output either.
+        QTest::qWait(100);
+        QCOMPARE(changes, before);
+        QCOMPARE(counters->writes.load(), 1);
+    }
+    void failedStaticOutputRetriesLatestFrame_data()
+    {
+        QTest::addColumn<bool>("replace");
+        QTest::newRow("retained") << false;
+        QTest::newRow("replaced") << true;
+    }
+    void failedStaticOutputRetriesLatestFrame()
+    {
+        QFETCH(bool, replace);
+        auto counters = std::make_shared<Counters>();
+        counters->fail = true;
+        Generic::Backend backend([counters] { return std::make_unique<SlowSession>(counters); });
+        backend.start({ });
+        backend.setEnabled(true);
+        backend.submit({ Qt::red, { }, { } });
+        QTRY_VERIFY(backend.status().contains("Fixture transport unavailable"));
+        QCOMPARE(backend.completedFrames(), 0);
+        QTest::qWait(150);
+        QCOMPARE(counters->writes.load(), 1); // No immediate failure/resubmit loop.
+        counters->fail = false;
+        if (replace)
+            backend.submit({ QColor(64, 0, 0), { }, { } });
+        QTRY_COMPARE_WITH_TIMEOUT(backend.completedFrames(), 1, 1500);
+        QCOMPARE(counters->lastRed.load(), replace ? 64 : 255);
+        QTest::qWait(100);
+        QCOMPARE(counters->writes.load(), 2);
+    }
+    void disablingCancelsFailedStaticOutput()
+    {
+        auto counters = std::make_shared<Counters>();
+        counters->fail = true;
+        Generic::Backend backend([counters] { return std::make_unique<SlowSession>(counters); });
+        backend.start({ });
+        backend.setEnabled(true);
+        backend.submit({ Qt::red, { }, { } });
+        QTRY_VERIFY(backend.status().contains("Fixture transport unavailable"));
+        backend.setEnabled(false);
+        counters->fail = false;
+        QTest::qWait(1200);
+        QCOMPARE(counters->writes.load(), 1);
+        QCOMPARE(backend.completedFrames(), 0);
+        QVERIFY(!backend.ready());
     }
 };
 QTEST_GUILESS_MAIN(GenericDriversTest)

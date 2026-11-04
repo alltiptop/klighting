@@ -220,7 +220,25 @@ std::optional<QColor> ColorSmoother::step(double elapsedMs, double smoothingMs)
         : -std::expm1(-std::clamp(elapsedMs, 0.0, 1000.0) / smoothingMs);
     for (int c = 0; c < 3; ++c)
         m_current[c] += alpha * (target[c] - m_current[c]);
+    // Finish below a quarter of an 8-bit channel step, using internal state rather
+    // than consecutive rounded colors. Snap once so tiny transitions also terminate.
+    constexpr double tolerance = 0.25 / 255.0;
+    if (std::abs(m_current[0] - target[0]) <= tolerance && std::abs(m_current[1] - target[1]) <= tolerance
+        && std::abs(m_current[2] - target[2]) <= tolerance)
+        m_current = target;
     m_initialized = true;
+    return color();
+}
+bool ColorSmoother::active() const
+{
+    return m_target
+        && (!m_initialized || m_current[0] != m_target->redF() || m_current[1] != m_target->greenF()
+            || m_current[2] != m_target->blueF());
+}
+std::optional<QColor> ColorSmoother::color() const
+{
+    if (!m_initialized)
+        return std::nullopt;
     return QColor(qRound(m_current[0] * 255), qRound(m_current[1] * 255), qRound(m_current[2] * 255));
 }
 }

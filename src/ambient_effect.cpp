@@ -18,6 +18,7 @@ AmbientEffect::AmbientEffect()
 {
     m_locked = effects->isScreenLocked();
     m_timer.setTimerType(Qt::PreciseTimer);
+    m_timer.setSingleShot(true);
     connect(&m_timer, &QTimer::timeout, this, &AmbientEffect::tick);
     connect(&m_channel, &CaptureChannel::configured, this, &AmbientEffect::configure);
     connect(effects, &EffectsHandler::screenAdded, this, &AmbientEffect::selectScreen);
@@ -83,13 +84,17 @@ void AmbientEffect::selectScreen()
 }
 void AmbientEffect::resetCapture()
 {
+    m_channel.setState(bool(m_screen), m_framesPerSecond > 0, m_locked);
     m_timer.stop();
     discardSampler();
-    m_captureTime.invalidate();
+    m_clock.start();
+    m_schedule.reset(m_captureInterval);
     if (isActive()) {
-        // Poll the asynchronous readback promptly; capture cadence is independent.
-        m_timer.start(16);
-        effects->addRepaint(m_screen->geometry());
+        if (m_schedule.requestRepaint(0, false)) {
+            ++m_repaints;
+            effects->addRepaint(m_screen->geometry());
+        }
+        updateTimer();
     }
 }
 bool AmbientEffect::isActive() const { return m_screen && m_framesPerSecond > 0 && !m_locked && !m_failed; }
@@ -127,16 +132,32 @@ void AmbientEffect::paintScreen(const RenderTarget& target, const RenderViewport
     }
     if (!m_sampler)
         m_sampler = std::make_unique<FrameSampler>();
-    if (m_sampler->pending() || (m_captureTime.isValid() && m_captureTime.elapsed() < m_captureInterval)) {
+    if (!m_schedule.captureOnPaint(m_clock.nsecsElapsed() / 1000000.0, m_sampler->pending())) {
+        updateTimer();
         return;
     }
     if (m_sampler->capture(target, viewport, area)) {
         ++m_captures;
-        m_captureTime.start();
+        m_schedule.captured(m_clock.nsecsElapsed() / 1000000.0);
     }
+    updateTimer();
+}
+void AmbientEffect::updateTimer()
+{
+    if (!isActive()) {
+        m_timer.stop();
+        return;
+    }
+    const int delay
+        = m_schedule.nextUpdateMs(m_clock.nsecsElapsed() / 1000000.0, m_sampler && m_sampler->pending());
+    if (delay < 0)
+        m_timer.stop();
+    else if (!m_timer.isActive() || m_timer.remainingTime() > delay)
+        m_timer.start(delay);
 }
 void AmbientEffect::tick()
 {
+    ++m_timerWakeups;
     if (!isActive())
         return;
     if (m_sampler && m_sampler->pending()) {
@@ -144,6 +165,7 @@ void AmbientEffect::tick()
             failCapture(QStringLiteral("OpenGL context lost; reload Ambient capture to retry"));
             return;
         }
+        ++m_polls;
         if (const auto pixels = m_sampler->poll()) {
             ++m_samples;
             m_channel.sendSample(*pixels);
@@ -153,9 +175,11 @@ void AmbientEffect::tick()
         failCapture(QStringLiteral("GPU readback failed; reload Ambient capture to retry"));
         return;
     }
-    if ((!m_sampler || !m_sampler->pending())
-        && (!m_captureTime.isValid() || m_captureTime.elapsed() >= m_captureInterval))
+    if (m_schedule.requestRepaint(m_clock.nsecsElapsed() / 1000000.0, m_sampler && m_sampler->pending())) {
+        ++m_repaints;
         effects->addRepaint(m_screen->geometry());
+    }
+    updateTimer();
 }
 void AmbientEffect::failCapture(const QString& error)
 {
@@ -168,7 +192,8 @@ void AmbientEffect::failCapture(const QString& error)
 QString AmbientEffect::debug(const QString&) const
 {
     return QStringLiteral("captureProtocol=1 screen=%1 active=%2 fps<=%3 paints=%4 captures=%5 samples=%6 "
-                          "locked=%7 gpuFailed=%8 boundsSkipped=%9 noFramebuffer=%10")
+                          "locked=%7 gpuFailed=%8 boundsSkipped=%9 noFramebuffer=%10 "
+                          "timerWakeups=%11 repaintRequests=%12 polls=%13")
         .arg(m_screen ? m_screen->name() : QStringLiteral("none"))
         .arg(isActive())
         .arg(m_framesPerSecond)
@@ -178,6 +203,9 @@ QString AmbientEffect::debug(const QString&) const
         .arg(m_locked)
         .arg(m_failed)
         .arg(m_skippedBounds)
-        .arg(m_missingFramebuffer);
+        .arg(m_missingFramebuffer)
+        .arg(m_timerWakeups)
+        .arg(m_repaints)
+        .arg(m_polls);
 }
 }

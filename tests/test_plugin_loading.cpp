@@ -1,12 +1,41 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "component_info.h"
 #include <QPluginLoader>
 #include <QProcess>
+#include <QTemporaryDir>
 #include <QtTest>
+#include <plugin.h>
 
 class PluginLoadingTest : public QObject
 {
     Q_OBJECT
 private Q_SLOTS:
+    void installedMetadataNeedsNoNativeCode()
+    {
+        const auto build = Ambient::componentInfo(Ambient::Component::Service).value("buildId");
+        for (const auto* path : { EFFECT_PLUGIN_PATH, INTEGRATION_PLUGIN_PATH }) {
+            QPluginLoader loader(path);
+            const auto info = Ambient::installedComponentInfo(QString::fromUtf8(path), true);
+            QCOMPARE(info.value("buildId"), build);
+            QVERIFY(!loader.isLoaded());
+        }
+        // Even metadata of a plugin with a crashing static initializer can be inspected.
+        QVERIFY(Ambient::installedComponentInfo(CRASH_PLUGIN_PATH, true).isEmpty());
+    }
+    void nativeAutoloadCannotConstructWithoutPermit()
+    {
+        QTemporaryDir state;
+        const auto old = qgetenv("XDG_STATE_HOME");
+        const auto restore = qScopeGuard([&] { qputenv("XDG_STATE_HOME", old); });
+        qputenv("XDG_STATE_HOME", state.path().toUtf8());
+        QPluginLoader loader(INTEGRATION_PLUGIN_PATH);
+        const auto metadata = loader.metaData().value("MetaData").toObject().value("KPlugin").toObject();
+        QVERIFY(!metadata.value("EnabledByDefault").toBool(true));
+        auto* factory = qobject_cast<KWin::PluginFactory*>(loader.instance());
+        QVERIFY2(factory, qPrintable(loader.errorString()));
+        // The factory must refuse before accessing any compositor objects.
+        QVERIFY(!factory->create());
+    }
     void resolvesEverySymbol_data()
     {
         QTest::addColumn<QString>("path");

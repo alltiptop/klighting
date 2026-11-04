@@ -31,12 +31,14 @@ struct DeviceKey {
     int id; // Stable within this device ID; never a position in the keys list.
     QString label;
     QRectF rect; // Device-local units, shared by all keys.
+    bool operator==(const DeviceKey&) const = default;
 };
 inline constexpr int FirstStripId = MaxKeyId + 1;
 inline constexpr int MaxAssignmentId = FirstStripId + 63;
 struct StripPoint {
     int elementId; // Color at this point; must belong to this strip.
     QPointF position; // Same device-local coordinates as keyboard keys.
+    bool operator==(const StripPoint&) const = default;
 };
 struct DeviceStrip {
     int id = FirstStripId; // Group ID; individual element IDs are in 0..MaxKeyId.
@@ -47,6 +49,7 @@ struct DeviceStrip {
     // Empty means a straight line below the keyboard. Does not change output.
     QList<StripPoint> path = { };
     qreal pathWidth = 4;
+    bool operator==(const DeviceStrip&) const = default;
 };
 struct DeviceFrame {
     QColor uniform;
@@ -63,6 +66,7 @@ struct DeviceDescription {
     // Invalid colors leave the choice to the UI theme.
     QColor bodyColor = { };
     QColor keyColor = { };
+    bool operator==(const DeviceDescription&) const = default;
 };
 struct DeviceInstance {
     QString id; // Stable within the driver; use serial/physical identity, never a bus address.
@@ -90,6 +94,8 @@ class DeviceBackend
 {
 public:
     virtual ~DeviceBackend() = default;
+    // Notify when readiness or externally changed controls require fresh output.
+    // The host may resubmit its current frame; do not notify on frame completion.
     std::function<void()> readinessChanged;
     virtual void start(const QVariantMap& options) = 0;
     virtual void setEnabled(bool enabled) = 0;

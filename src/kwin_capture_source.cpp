@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "kwin_capture_source.h"
+#include "component_info.h"
 #include "effect_names.h"
 #include "lighting_ipc.h"
 #include "settings.h"
@@ -20,11 +21,14 @@ namespace
         return call;
     }
 }
-KWinCaptureSource::KWinCaptureSource(const QDBusConnection& bus, QObject* parent)
-    : QObject(parent)
+KWinCaptureSource::KWinCaptureSource(
+    const std::shared_ptr<HardwareControlGuard>& guard, const QDBusConnection& bus, QObject* parent)
+    : CaptureSource(parent)
     , m_bus(bus)
     , m_watcher(QStringLiteral("org.kde.KWin"), bus, QDBusServiceWatcher::WatchForOwnerChange)
+    , m_guard(guard)
 {
+    Q_ASSERT(m_guard);
     connect(&m_watcher, &QDBusServiceWatcher::serviceOwnerChanged, this,
         [this](const QString&, const QString&, const QString& owner) { ownerChanged(owner); });
     connect(&m_poll, &QTimer::timeout, this, &KWinCaptureSource::refresh);
@@ -43,8 +47,12 @@ KWinCaptureSource::KWinCaptureSource(const QDBusConnection& bus, QObject* parent
 }
 KWinCaptureSource::~KWinCaptureSource()
 {
-    m_fps = 0;
-    configureCapture();
+    // Stop after any already queued Configure, even if its reply is still pending.
+    if (!m_owner.isEmpty() && m_state.providerAvailable && m_guard->allowed()) {
+        auto call = method(m_owner, Ipc::CapturePath, Ipc::CaptureInterface, "Configure");
+        call << 0 << m_options;
+        m_bus.asyncCall(call, 1500);
+    }
 }
 void KWinCaptureSource::ownerChanged(const QString& owner)
 {
@@ -53,11 +61,12 @@ void KWinCaptureSource::ownerChanged(const QString& owner)
             m_owner, Ipc::CapturePath, Ipc::CaptureInterface, "Sample", this, SLOT(screenSample(QByteArray)));
     }
     ++m_generation;
+    resetConfiguration();
     m_owner = owner;
     m_reading = false;
-    captureState(owner.isEmpty(), false,
-        owner.isEmpty() ? QStringLiteral("KWin integration unavailable")
-                        : QStringLiteral("Checking KWin integration"));
+    captureState(owner.isEmpty(),
+        { .status = owner.isEmpty() ? QStringLiteral("KWin integration unavailable")
+                                    : QStringLiteral("Checking KWin integration") });
     if (!owner.isEmpty()) {
         m_bus.connect(
             owner, Ipc::CapturePath, Ipc::CaptureInterface, "Sample", this, SLOT(screenSample(QByteArray)));
@@ -80,7 +89,7 @@ void KWinCaptureSource::refresh()
             return;
         if (reply.isError()) {
             m_reading = false;
-            captureState(false, false, QStringLiteral("Cannot check for legacy lighting controllers"));
+            captureState(false, { .status = QStringLiteral("Cannot check for legacy lighting controllers") });
             return;
         }
         QStringList lighting;
@@ -89,11 +98,11 @@ void KWinCaptureSource::refresh()
                 lighting.append(name);
         if (lighting.isEmpty()) {
             m_reading = false;
-            captureState(true, false, QStringLiteral("Ambient capture disabled"));
+            captureState(true, { .status = QStringLiteral("Ambient capture disabled") });
         } else if (lighting != QStringList { QStringLiteral("ambientled") }) {
             m_reading = false;
-            captureState(
-                false, false, QStringLiteral("Unload old ambientled effects before starting klightingd"));
+            captureState(false,
+                { .status = QStringLiteral("Unload old ambientled effects before starting klightingd") });
         } else {
             auto* probe = new QDBusPendingCallWatcher(
                 m_bus.asyncCall(method(m_owner, Ipc::CapturePath, Ipc::CaptureInterface, "Snapshot"), 1500),
@@ -105,29 +114,40 @@ void KWinCaptureSource::refresh()
                     return;
                 m_reading = false;
                 const bool compatible
-                    = !result.isError() && result.value().value("protocol").toInt() == Ipc::Version;
-                captureState(compatible, compatible && result.value().value("available").toBool(),
-                    compatible ? result.value().value("status").toString()
-                               : QStringLiteral("Old ambientled is still loaded; unload it to let klightingd "
-                                                "control lighting"));
+                    = !result.isError() && compatibleComponent(Component::Capture, result.value());
+                const auto snapshot = result.value();
+                CaptureState state;
+                state.info = result.isError() ? QVariantMap() : identityInfo(snapshot);
+                state.providerAvailable = compatible && snapshot.value("providerAvailable", true).toBool();
+                state.screenAvailable = state.providerAvailable
+                    && snapshot.value("screenAvailable", snapshot.value("available")).toBool();
+                state.enabled = state.providerAvailable && snapshot.value("enabled", m_fps > 0).toBool();
+                state.ready
+                    = state.screenAvailable && snapshot.value("ready", snapshot.value("available")).toBool();
+                state.status = compatible
+                    ? snapshot.value("status").toString()
+                    : QStringLiteral(
+                          "Old ambientled is still loaded; unload it to let klightingd control lighting");
+                captureState(compatible, state);
             });
         }
     });
 }
 void KWinCaptureSource::screenSample(const QByteArray& rgba)
 {
-    if (m_capture && m_safe && m_fps > 0 && rgba.size() == Ipc::SampleBytes)
+    if (m_state.ready && m_guard->allowed() && m_fps > 0 && rgba.size() == Ipc::SampleBytes)
         Q_EMIT sample(rgba);
 }
-void KWinCaptureSource::captureState(bool safe, bool available, const QString& status)
+void KWinCaptureSource::captureState(bool safe, const CaptureState& state)
 {
-    const bool changed = m_safe != safe || m_capture != available || m_status != status;
-    m_safe = safe;
-    m_capture = available;
-    m_status = status;
-    if (changed) {
+    if (!safe || !state.providerAvailable
+        || m_state.info.value("instanceId") != state.info.value("instanceId"))
+        resetConfiguration();
+    const bool changed = m_state != state;
+    m_state = state;
+    m_guard->setState(safe, safe ? QString() : state.status);
+    if (changed)
         Q_EMIT this->changed();
-    }
     configureCapture();
 }
 void KWinCaptureSource::requestCapture(int fps, const QVariantMap& options)
@@ -141,10 +161,37 @@ void KWinCaptureSource::requestCapture(int fps, const QVariantMap& options)
 }
 void KWinCaptureSource::configureCapture()
 {
-    if (m_owner.isEmpty() || !m_capture || !m_safe)
+    if (m_owner.isEmpty() || !m_state.providerAvailable || !m_guard->allowed() || m_configuring)
         return;
+    // Original protocol-1 providers lack instance IDs; retain polling recovery for them.
+    if (!m_state.info.value("instanceId").toString().isEmpty() && m_configuredFps == m_fps
+        && m_configuredOptions == m_options)
+        return;
+    m_configuring = true;
+    const int epoch = m_configurationEpoch, fps = m_fps;
+    const auto options = m_options;
     auto call = method(m_owner, Ipc::CapturePath, Ipc::CaptureInterface, "Configure");
-    call << m_fps << m_options;
-    m_bus.asyncCall(call, 1500);
+    call << fps << options;
+    auto* pending = new QDBusPendingCallWatcher(m_bus.asyncCall(call, 1500), this);
+    connect(pending, &QDBusPendingCallWatcher::finished, this, [this, pending, epoch, fps, options] {
+        const QDBusPendingReply<> reply = *pending;
+        pending->deleteLater();
+        if (epoch != m_configurationEpoch)
+            return;
+        m_configuring = false;
+        m_configuredFps = reply.isError() ? -1 : fps;
+        if (!reply.isError())
+            m_configuredOptions = options;
+        // Send a newer request immediately; otherwise retry errors at the next poll.
+        if (m_fps != fps || m_options != options)
+            configureCapture();
+    });
+}
+void KWinCaptureSource::resetConfiguration()
+{
+    ++m_configurationEpoch;
+    m_configuring = false;
+    m_configuredFps = -1;
+    m_configuredOptions.clear();
 }
 }

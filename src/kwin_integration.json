@@ -4,7 +4,7 @@
         "Description": "Window and keyboard state for the klighting service",
         "Version": "0.27.0",
         "License": "GPL-3.0-or-later",
-        "EnabledByDefault": true,
+        "EnabledByDefault": false,
         "Authors": [{"Name": "Evgenii Iulin", "Email": "mail@alltiptop.me"}]
     }
 }

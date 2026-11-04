@@ -27,90 +27,129 @@ namespace
         return QString::fromLatin1(operation) + QLatin1String(": ")
             + QString::fromLatin1(libusb_error_name(result));
     }
-    QByteArray rangePacket(int first, int last, const QColor& color, uchar intensity)
+    QByteArray rangePacket(int first, int last, QRgb color)
     {
         QByteArray report(10, '\0');
         report[0] = 5;
         qToLittleEndian<quint16>(first, report.data() + 2);
         qToLittleEndian<quint16>(last, report.data() + 4);
-        report[6] = char(color.red());
-        report[7] = char(color.green());
-        report[8] = char(color.blue());
-        report[9] = char(intensity);
+        report[6] = char(qRed(color));
+        report[7] = char(qGreen(color));
+        report[8] = char(qBlue(color));
+        report[9] = char(qAlpha(color));
         return report;
+    }
+    QList<QRgb> lampColors(const LedFrame& frame, const QList<bool>& keyboardLamps)
+    {
+        if (!frame.color.isValid() || frame.brightness > 3 || keyboardLamps.isEmpty()
+            || keyboardLamps.size() > 512)
+            return { };
+        if (!frame.stripColors.isEmpty()) {
+            if (frame.stripColors.size() != 12 || keyboardLamps.size() != 100)
+                return { };
+            for (int lamp = 0; lamp < 100; ++lamp)
+                if (keyboardLamps[lamp] != (lamp < KeyboardLampCount)
+                    || (lamp >= KeyboardLampCount && !frame.stripColors[lamp - KeyboardLampCount].isValid()))
+                    return { };
+        }
+        if (!frame.keyColors.isEmpty()) {
+            if (frame.keyColors.size() != KeyboardLampCount || keyboardLamps.size() != 100)
+                return { };
+            for (int lamp = 0; lamp < keyboardLamps.size(); ++lamp) {
+                if (keyboardLamps[lamp] != (lamp < KeyboardLampCount)
+                    || (lamp < KeyboardLampCount && !frame.keyColors[lamp].isValid()))
+                    return { };
+            }
+        }
+        QList<QRgb> colors;
+        colors.reserve(keyboardLamps.size());
+        // rgb() converts the color space once and discards source alpha.
+        // Enabled intensity stays 255: asusd already applies Low/Med/High.
+        const QRgb uniform = frame.color.rgb();
+        for (int lamp = 0; lamp < keyboardLamps.size(); ++lamp) {
+            const bool enabled
+                = frame.brightness > 0 && (keyboardLamps[lamp] ? frame.keyboard : frame.lightbar);
+            QRgb color = 0;
+            if (enabled) {
+                if (lamp >= KeyboardLampCount && !frame.stripColors.isEmpty())
+                    color = frame.stripColors[lamp - KeyboardLampCount].rgb();
+                else if (lamp < KeyboardLampCount && !frame.keyColors.isEmpty())
+                    color = frame.keyColors[lamp].rgb();
+                else
+                    color = uniform;
+            }
+            colors.append(color);
+        }
+        return colors;
+    }
+    QList<QByteArray> packetsForColors(const QList<QRgb>& colors, bool perElement)
+    {
+        if (colors.isEmpty())
+            return { };
+        QList<QByteArray> reports;
+        int first = 0;
+        for (int next = 1; next <= colors.size(); ++next) {
+            if (next < colors.size() && colors[next] == colors[first])
+                continue;
+            reports.append(rangePacket(first, next - 1, colors[first]));
+            first = next;
+        }
+        // For scattered per-key colors, MultiUpdate carries eight lamps per report.
+        // Retain RangeUpdate for uniform colors and small numbers of ranges.
+        const int batches = (colors.size() + 7) / 8;
+        if (perElement && reports.size() > batches) {
+            reports.clear();
+            for (int first = 0; first < colors.size(); first += 8) {
+                QByteArray report(51, '\0');
+                report[0] = 4;
+                const int count = std::min(8, int(colors.size()) - first);
+                report[1] = char(count);
+                for (int i = 0; i < count; ++i) {
+                    const int lamp = first + i;
+                    qToLittleEndian<quint16>(lamp, report.data() + 3 + 2 * i);
+                    const auto rgb = colors[lamp];
+                    report[19 + 4 * i] = char(qRed(rgb));
+                    report[20 + 4 * i] = char(qGreen(rgb));
+                    report[21 + 4 * i] = char(qBlue(rgb));
+                    report[22 + 4 * i] = char(qAlpha(rgb));
+                }
+                reports.append(report);
+            }
+            reports.last()[2] = 1;
+            return reports;
+        }
+        // Commit the complete frame once, including black ranges for disabled zones.
+        reports.last()[1] = 1;
+        return reports;
     }
 }
 QList<QByteArray> lampArrayPackets(const LedFrame& frame, const QList<bool>& keyboardLamps)
 {
-    if (!frame.color.isValid() || frame.brightness > 3 || keyboardLamps.isEmpty()
-        || keyboardLamps.size() > 512)
-        return { };
-    if (!frame.stripColors.isEmpty()) {
-        if (frame.stripColors.size() != 12 || keyboardLamps.size() != 100)
-            return { };
-        for (int lamp = 0; lamp < 100; ++lamp)
-            if (keyboardLamps[lamp] != (lamp < KeyboardLampCount)
-                || (lamp >= KeyboardLampCount && !frame.stripColors[lamp - KeyboardLampCount].isValid()))
-                return { };
-    }
-    if (!frame.keyColors.isEmpty()) {
-        if (frame.keyColors.size() != KeyboardLampCount || keyboardLamps.size() != 100)
-            return { };
-        for (int lamp = 0; lamp < keyboardLamps.size(); ++lamp) {
-            if (keyboardLamps[lamp] != (lamp < KeyboardLampCount)
-                || (lamp < KeyboardLampCount && !frame.keyColors[lamp].isValid()))
-                return { };
-        }
-    }
-    QList<QByteArray> reports;
-    const auto enabled = [&](int lamp) {
-        return frame.brightness > 0 && (keyboardLamps[lamp] ? frame.keyboard : frame.lightbar);
-    };
-    const auto color = [&](int lamp) {
-        if (!enabled(lamp))
-            return QColor(Qt::black);
-        if (lamp >= KeyboardLampCount && !frame.stripColors.isEmpty())
-            return frame.stripColors[lamp - KeyboardLampCount];
-        return !frame.keyColors.isEmpty() && lamp < KeyboardLampCount ? frame.keyColors[lamp] : frame.color;
-    };
-    int first = 0;
-    for (int next = 1; next <= keyboardLamps.size(); ++next) {
-        if (next < keyboardLamps.size() && enabled(next) == enabled(first) && color(next) == color(first))
-            continue;
-        const bool on = enabled(first);
-        // asusd already applies Low/Med/High through the hardware backlight.
-        // Scaling intensity again would dim the ambient RGB a second time.
-        reports.append(rangePacket(first, next - 1, color(first), on ? 255 : 0));
-        first = next;
-    }
-    // For scattered per-key colors, MultiUpdate carries eight lamps per report.
-    // Retain RangeUpdate for uniform colors and small numbers of ranges.
-    const int batches = (keyboardLamps.size() + 7) / 8;
-    if ((!frame.keyColors.isEmpty() || !frame.stripColors.isEmpty()) && reports.size() > batches) {
-        reports.clear();
-        for (int first = 0; first < keyboardLamps.size(); first += 8) {
-            QByteArray report(51, '\0');
-            report[0] = 4;
-            const int count = std::min(8, int(keyboardLamps.size()) - first);
-            report[1] = char(count);
-            for (int i = 0; i < count; ++i) {
-                const int lamp = first + i;
-                qToLittleEndian<quint16>(lamp, report.data() + 3 + 2 * i);
-                const auto rgb = color(lamp);
-                report[19 + 4 * i] = char(rgb.red());
-                report[20 + 4 * i] = char(rgb.green());
-                report[21 + 4 * i] = char(rgb.blue());
-                report[22 + 4 * i] = enabled(lamp) ? char(255) : 0;
-            }
-            reports.append(report);
-        }
-        reports.last()[2] = 1;
-        return reports;
-    }
-    // Commit the complete frame once, including black ranges for disabled zones.
-    reports.last()[1] = 1;
-    return reports;
+    return packetsForColors(
+        lampColors(frame, keyboardLamps), !frame.keyColors.isEmpty() || !frame.stripColors.isEmpty());
 }
+LampArrayWriteResult LampArrayOutput::write(
+    const LedFrame& frame, const QList<bool>& keyboardLamps, const std::function<QString(QByteArray)>& send)
+{
+    auto colors = lampColors(frame, keyboardLamps);
+    if (colors.isEmpty()) {
+        reset();
+        return { QStringLiteral("Invalid LampArray frame") };
+    }
+    if (m_lastColors == colors)
+        return { };
+    const auto reports = packetsForColors(colors, !frame.keyColors.isEmpty() || !frame.stripColors.isEmpty());
+    for (const auto& report : reports) {
+        const auto error = send(report);
+        if (!error.isEmpty()) {
+            reset(); // A partial write or failed commit leaves hardware state unknown.
+            return { error };
+        }
+    }
+    m_lastColors = std::move(colors); // Only a successful final commit establishes this state.
+    return { { }, true };
+}
+void LampArrayOutput::reset() { m_lastColors.clear(); }
 
 // Owned and used only by the USB worker. Never opens a hidraw node: on affected
 // kernels that starts interrupt-IN polling on this feature-only interface and
@@ -119,9 +158,10 @@ class LampArrayDevice
 {
 public:
     ~LampArrayDevice() { close(); }
-    QString write(const LedFrame& frame)
+    LampArrayWriteResult write(const LedFrame& frame)
     {
         QString error;
+        bool written = false;
         if (!m_handle)
             error = open();
         if (error.isEmpty()
@@ -136,28 +176,24 @@ public:
                 QThread::msleep(100);
         }
         if (error.isEmpty()) {
-            const auto reports = lampArrayPackets(frame, m_keyboard);
-            if (reports.isEmpty())
-                error = QStringLiteral("Invalid LampArray frame");
-            for (auto report : reports) {
-                if (!error.isEmpty())
-                    break;
-                if (QThread::currentThread()->isInterruptionRequested()) {
-                    error = QStringLiteral("USB operation cancelled");
-                    break;
-                }
-                error = feature(report);
-            }
+            const auto result = m_output.write(frame, m_keyboard, [this](QByteArray report) {
+                if (QThread::currentThread()->isInterruptionRequested())
+                    return QStringLiteral("USB operation cancelled");
+                return feature(report);
+            });
+            error = result.error;
+            written = result.written;
         }
         if (!error.isEmpty()) {
             const auto cleanup = close();
             if (!cleanup.isEmpty())
                 error += QLatin1String("; ") + cleanup;
         }
-        return error;
+        return { error, written };
     }
     QString close()
     {
+        m_output.reset();
         QStringList errors;
         if (m_handle) {
             if (m_controlled) {
@@ -204,6 +240,7 @@ private:
     }
     QString open()
     {
+        m_output.reset();
         if (readFile(QStringLiteral("/sys/class/dmi/id/board_name")).trimmed() != "G615LW")
             return QStringLiteral("LampArray transport supports only G615LW");
         QString usbPath;
@@ -320,6 +357,7 @@ private:
     libusb_context* m_context = nullptr;
     libusb_device_handle* m_handle = nullptr;
     QList<bool> m_keyboard;
+    LampArrayOutput m_output;
     bool m_claimed = false, m_detached = false, m_controlled = false;
     bool m_keyMappingMatches = true, m_stripMappingMatches = true;
 };
@@ -340,8 +378,9 @@ void LampArrayTransport::dispatch(const LedFrame* frame, quint64 operation)
 {
     const std::optional<LedFrame> copy = frame ? std::optional(*frame) : std::nullopt;
     QMetaObject::invokeMethod(m_worker, [this, copy, operation] {
-        const auto error = copy ? m_device->write(*copy) : m_device->close();
-        QMetaObject::invokeMethod(this, [this, operation, error] { Q_EMIT finished(operation, error); });
+        const auto result = copy ? m_device->write(*copy) : LampArrayWriteResult { m_device->close() };
+        QMetaObject::invokeMethod(
+            this, [this, operation, result] { Q_EMIT finished(operation, result.error, result.written); });
     });
 }
 void LampArrayTransport::shutdown()
@@ -349,7 +388,7 @@ void LampArrayTransport::shutdown()
     if (!m_thread.isRunning())
         return;
     m_thread.requestInterruption();
-    // Only teardown waits. Regular frame transfers never block the compositor.
+    // Only teardown waits. Regular frame transfers never block the service event thread.
     QMetaObject::invokeMethod(m_worker, [this] { m_device->close(); }, Qt::BlockingQueuedConnection);
     m_thread.quit();
     m_thread.wait();

@@ -2,7 +2,6 @@
 #include "settings_controller.h"
 #include "color.h"
 #include <KApplicationTrader>
-#include <KConfigGroup>
 #include <KService>
 #include <QCoreApplication>
 #include <QDBusConnection>
@@ -18,7 +17,6 @@ namespace Ambient
 SettingsController::SettingsController(QObject* parent)
     : QObject(parent)
     , m_document(std::make_shared<Document>())
-    , m_config(KSharedConfig::openConfig("kwinrc"))
     , m_driver(m_document->driver)
     , m_effect(new EffectControl(this))
     , m_service(new ServiceControl(this))
@@ -270,7 +268,6 @@ void SettingsController::load()
 {
     if (busy())
         return;
-    m_config->reparseConfiguration();
     const auto& fallback = m_fallback;
     const auto collection = loadPresets(fallback, &m_error);
     m_readable = collection.has_value();
@@ -299,7 +296,6 @@ void SettingsController::save()
 {
     if (busy())
         return;
-    m_config->reparseConfiguration();
     if (!m_readable) {
         m_error = tr("Cannot save unreadable preset files. Repair them and reset.");
         Q_EMIT documentController()->changed();

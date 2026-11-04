@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+#pragma once
+namespace Ambient::Build
+{
+inline constexpr char Id[] = "@KLIGHTING_BUILD_ID@";
+inline constexpr char Version[] = "@PROJECT_VERSION@";
+inline constexpr char ServiceMetadata[] = "@KDE_INSTALL_FULL_DATADIR@/klighting/klighting-service.json";
+inline constexpr char DesktopPlugin[] = "@KDE_INSTALL_FULL_QTPLUGINDIR@/kwin/plugins/klighting_integration.so";
+inline constexpr char CapturePlugin[] = "@KDE_INSTALL_FULL_QTPLUGINDIR@/kwin/effects/plugins/ambientled.so";
+}

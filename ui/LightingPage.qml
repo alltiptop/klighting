@@ -46,6 +46,22 @@ SettingsPage {
                 text: page.controller.service.status
             }
 
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
+                text: page.controller.service.diagnostics
+                type: Kirigami.MessageType.Warning
+                visible: text.length > 0
+            }
+
+            QQC2.Button {
+                enabled: !page.controller.service.busy
+                objectName: "RetryDesktopIntegration"
+                text: qsTranslate("AmbientLed.LightingPage", "Retry desktop integration")
+                visible: page.controller.service.desktopCanRetry
+
+                onClicked: page.controller.service.retryDesktopIntegration()
+            }
+
             QQC2.CheckBox {
                 checked: page.controller.effect.enabled
                 enabled: page.controller.effect.available && !page.controller.effect.busy

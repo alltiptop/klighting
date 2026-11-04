@@ -39,7 +39,7 @@ private:
     void pump();
     void restore();
     void sendRestore(bool setting = false);
-    void transferFinished(quint64 operation, const QString& error);
+    void transferFinished(quint64 operation, const QString& error, bool frameWritten);
     bool readPower(const QVariant& value);
     std::unique_ptr<LedTransport> m_transport;
     QDBusConnection m_bus;

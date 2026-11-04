@@ -25,6 +25,7 @@ public:
     virtual void release(quint64 operation) = 0;
     virtual void shutdown() = 0;
 Q_SIGNALS:
-    void finished(quint64 operation, const QString& error);
+    // Duplicates still complete the operation, but do not count as USB frames.
+    void finished(quint64 operation, const QString& error, bool frameWritten);
 };
 }

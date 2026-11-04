@@ -267,6 +267,34 @@
         <source>Settings saved, but the lighting service could not apply them: %1</source>
         <translation>Les paramètres sont enregistrés, mais le service d’éclairage n’a pas pu les appliquer : %1</translation>
     </message>
+    <message>
+        <source>Could not retry desktop integration: %1</source>
+        <translation>Impossible de réessayer l’intégration au bureau : %1</translation>
+    </message>
+    <message>
+        <source>Lighting service is running with an incompatible protocol or capabilities. Restart it after updating.</source>
+        <translation>Le service d’éclairage fonctionne avec un protocole ou des fonctionnalités incompatibles. Redémarrez-le après la mise à jour.</translation>
+    </message>
+    <message>
+        <source>%1 has an incompatible protocol or capabilities. %2</source>
+        <translation>%1 utilise un protocole ou des fonctionnalités incompatibles. %2</translation>
+    </message>
+    <message>
+        <source>%1 does not report its build. %2</source>
+        <translation>%1 ne communique pas son identifiant de compilation. %2</translation>
+    </message>
+    <message>
+        <source>%1 is using build %2; installed build is %3. %4</source>
+        <translation>%1 utilise la compilation %2 ; la compilation installée est %3. %4</translation>
+    </message>
+    <message>
+        <source>Restart the lighting service to use the installed build.</source>
+        <translation>Redémarrez le service d’éclairage pour utiliser la compilation installée.</translation>
+    </message>
+    <message>
+        <source>Log out and back in to use the installed KWin plugin.</source>
+        <translation>Déconnectez-vous puis reconnectez-vous pour utiliser le module KWin installé.</translation>
+    </message>
 </context>
 <context>
     <name>Ambient::SettingsController</name>
@@ -1192,6 +1220,10 @@
         <location line="+4"/>
         <source>Blue channel</source>
         <translation>Canal bleu</translation>
+    </message>
+    <message>
+        <source>Retry desktop integration</source>
+        <translation>Réessayer l’intégration au bureau</translation>
     </message>
 </context>
 <context>

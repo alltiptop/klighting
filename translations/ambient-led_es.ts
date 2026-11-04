@@ -267,6 +267,34 @@
         <source>Settings saved, but the lighting service could not apply them: %1</source>
         <translation>La configuración se ha guardado, pero el servicio de iluminación no pudo aplicarla: %1</translation>
     </message>
+    <message>
+        <source>Could not retry desktop integration: %1</source>
+        <translation>No se pudo reintentar la integración con el escritorio: %1</translation>
+    </message>
+    <message>
+        <source>Lighting service is running with an incompatible protocol or capabilities. Restart it after updating.</source>
+        <translation>El servicio de iluminación se ejecuta con un protocolo o funciones incompatibles. Reinícialo después de actualizar.</translation>
+    </message>
+    <message>
+        <source>%1 has an incompatible protocol or capabilities. %2</source>
+        <translation>%1 tiene un protocolo o funciones incompatibles. %2</translation>
+    </message>
+    <message>
+        <source>%1 does not report its build. %2</source>
+        <translation>%1 no informa de su compilación. %2</translation>
+    </message>
+    <message>
+        <source>%1 is using build %2; installed build is %3. %4</source>
+        <translation>%1 usa la compilación %2; la compilación instalada es %3. %4</translation>
+    </message>
+    <message>
+        <source>Restart the lighting service to use the installed build.</source>
+        <translation>Reinicia el servicio de iluminación para usar la compilación instalada.</translation>
+    </message>
+    <message>
+        <source>Log out and back in to use the installed KWin plugin.</source>
+        <translation>Cierra la sesión y vuelve a iniciarla para usar el complemento de KWin instalado.</translation>
+    </message>
 </context>
 <context>
     <name>Ambient::SettingsController</name>
@@ -1192,6 +1220,10 @@
         <location line="+4"/>
         <source>Blue channel</source>
         <translation>Canal azul</translation>
+    </message>
+    <message>
+        <source>Retry desktop integration</source>
+        <translation>Reintentar la integración con el escritorio</translation>
     </message>
 </context>
 <context>
