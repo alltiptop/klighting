@@ -1,0 +1,51 @@
+name: Build and tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plasma:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    container:
+      image: archlinux:base-devel@sha256:767de6eaa40dcfeda5263a48737ea03a782caabdf3a403b6e6a203c7fd333681
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install the fixed Arch snapshot
+        run: |
+          set -euo pipefail
+          printf '%s\n' 'Server = https://archive.archlinux.org/repos/2026/09/17/$repo/os/$arch' > /etc/pacman.d/mirrorlist
+          pacman -Syyuu --noconfirm --needed base-devel cmake ninja pkgconf clang python \
+            extra-cmake-modules qt6-base qt6-declarative qt6-tools kwin kcoreaddons \
+            kconfig kcmutils kguiaddons ki18n kservice kwindowsystem kirigami \
+            qqc2-desktop-style libusb wayland libglvnd libepoxy libdrm \
+            vulkan-headers vulkan-icd-loader dbus gettext
+          useradd --create-home --uid 1001 builder
+          chown -R builder:builder "$GITHUB_WORKSPACE"
+      - name: Check, build and test without root or hardware
+        run: runuser -u builder -- bash .github/scripts/build.sh
+      - name: Preserve logs and package versions
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: plasma-build-and-tests
+          path: |
+            build-ci/artifacts/
+            build-ci/Testing/Temporary/LastTest.log
+          if-no-files-found: warn
+          retention-days: 14
