@@ -9,6 +9,9 @@ fi
 
 mkdir -p build-ci/artifacts
 pacman -Q > build-ci/artifacts/packages.txt
+cp /opt/klighting-ci/package-sizes.txt build-ci/artifacts/package-sizes.txt
+ccache --zero-stats
+trap 'ccache --show-stats > build-ci/artifacts/ccache.txt' EXIT
 clang_version=$(clang-format --version)
 qt_version=$(/usr/lib/qt6/bin/qtpaths --qt-version)
 printf '%s\n' "$clang_version" "Qt tools $qt_version" | tee build-ci/artifacts/formatters.txt
@@ -23,7 +26,8 @@ fi
 
 python3 tools/check.py > build-ci/artifacts/source-check.log 2>&1
 cmake -S . -B build-ci -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-    -DBUILD_TESTING=ON -DBUILD_KWIN_EFFECT=ON > build-ci/artifacts/configure.log 2>&1
+    -DBUILD_TESTING=ON -DBUILD_KWIN_EFFECT=ON \
+    -DCMAKE_CXX_COMPILER_LAUNCHER=ccache > build-ci/artifacts/configure.log 2>&1
 cmake --build build-ci --parallel 2 > build-ci/artifacts/build.log 2>&1
 ctest --test-dir build-ci --output-on-failure \
     --output-junit artifacts/tests.xml > build-ci/artifacts/tests.log 2>&1

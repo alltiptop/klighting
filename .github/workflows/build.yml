@@ -17,8 +17,6 @@ jobs:
   plasma:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    container:
-      image: archlinux:base-devel@sha256:767de6eaa40dcfeda5263a48737ea03a782caabdf3a403b6e6a203c7fd333681
     defaults:
       run:
         shell: bash
@@ -26,27 +24,45 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
-      - name: Install the fixed Arch snapshot
+      - name: Check CI image inputs
+        run: python3 -I -B -m unittest discover -s .github/tests -p 'test_ci_context.py'
+      - name: Prepare the dependency-only image context
+        id: context
         run: |
           set -euo pipefail
-          printf '%s\n' 'Server = https://archive.archlinux.org/repos/2026/10/01/$repo/os/$arch' > /etc/pacman.d/mirrorlist
-          driver_packages=()
-          for manifest in src/drivers/*/dependencies.arch; do
-            [[ -f "$manifest" ]] || continue
-            while IFS= read -r package || [[ -n "$package" ]]; do
-              [[ "$package" =~ ^[a-z0-9][a-z0-9@._+-]*$ ]] || { echo "Invalid package in $manifest" >&2; exit 1; }
-              driver_packages+=("$package")
-            done < "$manifest"
-          done
-          pacman -Syyuu --noconfirm --needed base-devel cmake ninja pkgconf clang python \
-            extra-cmake-modules qt6-base qt6-declarative qt6-tools kwin kcoreaddons \
-            kconfig kcmutils kguiaddons ki18n kservice kwindowsystem kirigami \
-            qqc2-desktop-style wayland libglvnd libepoxy libdrm \
-            vulkan-headers vulkan-icd-loader dbus gettext "${driver_packages[@]}"
-          useradd --create-home --uid 1001 builder
-          chown -R builder:builder "$GITHUB_WORKSPACE"
+          context_key=$(python3 -I -B .github/scripts/prepare_ci_context.py "$RUNNER_TEMP/ci-context")
+          printf 'key=%s\n' "$context_key" >> "$GITHUB_OUTPUT"
+      - name: Set up the image builder
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+      - name: Build or restore the prepared CI image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: "false"
+        with:
+          context: ${{ runner.temp }}/ci-context
+          load: true
+          push: false
+          tags: klighting-ci:local
+          cache-from: type=gha,scope=klighting-ci,version=2
+          cache-to: type=gha,scope=klighting-ci,version=2,mode=min,ignore-error=true
+      - name: Restore compiler cache
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: ${{ runner.temp }}/klighting-ccache
+          key: ccache-${{ runner.os }}-${{ runner.arch }}-${{ steps.context.outputs.key }}-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ runner.os }}-${{ runner.arch }}-${{ steps.context.outputs.key }}-
       - name: Check, build and test without root or hardware
-        run: runuser -u builder -- bash .github/scripts/build.sh
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/klighting-ccache" build-ci/artifacts
+          docker image inspect klighting-ci:local --format '{{.Id}} {{.Size}}' > build-ci/artifacts/image.txt
+          docker run --rm --network=none --cap-drop=ALL --security-opt=no-new-privileges \
+            --user "$(id -u):$(id -g)" \
+            --volume "$GITHUB_WORKSPACE:/workspace" \
+            --volume "$RUNNER_TEMP/klighting-ccache:/ccache" \
+            --env CCACHE_DIR=/ccache --env CCACHE_BASEDIR=/workspace --env CCACHE_MAXSIZE=500M \
+            klighting-ci:local bash .github/scripts/build.sh
       - name: Preserve logs and package versions
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

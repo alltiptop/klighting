@@ -57,12 +57,23 @@ physical mapping or firmware behavior.
 
 ## Continuous integration
 
-The build workflow uses a pinned Arch image and the 2026-10-01 package archive,
-with clang-format 23.1.1, Qt 6.11.2 and KWin 6.7.5. Checks, the full KWin build and CTest run
-as an unprivileged user. Package versions and failure logs are retained as artifacts.
-Update the archive date and tool baseline together after validating the new stack.
-Driver dependencies come from each module's `dependencies.arch` (one package name per
-line); keep package discovery in its own CMake file. No central CI edits are needed.
+The build workflow prepares an image from [.github/ci/Dockerfile](.github/ci/Dockerfile),
+using pinned `archlinux:base` and the 2026-10-01 package archive: clang-format 23.1.1,
+Qt 6.11.2 and KWin 6.7.5. Explicit tools replace the `base-devel` group; package caches,
+manuals, documentation and wallpapers are excluded. KWin's runtime dependencies remain necessary
+for native plugin checks, and UI tests use offscreen rendering without a Plasma session.
+
+BuildKit caches the prepared image in Actions; no registry publication is needed.
+The first run or an evicted cache installs packages; subsequent runs reuse the image
+layers. Its tiny build context contains only the Dockerfile, install script and merged
+package list. Driver packages come from each module's `dependencies.arch`; new manifests
+automatically affect the image without central edits. Update the snapshot and tool
+baseline together after validating the new stack.
+
+Checks, the full KWin build, CTest and bundle validation run as an unprivileged user
+without network access. A separate 500 MB `ccache` persists across runs with matching
+image inputs. Image size, installed package sizes/versions, cache statistics and failure
+logs are retained as artifacts. Both caches can be discarded without affecting correctness.
 
 Dependency vulnerability scanning is limited to dependencies managed by this
 project. Currently all external application libraries come from the distribution;
