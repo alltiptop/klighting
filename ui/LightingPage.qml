@@ -209,7 +209,7 @@ SettingsPage {
 
             FormHint {
                 text: qsTranslate("AmbientLed.LightingPage",
-                                  "Pausing freezes colors and stops capture and notifications. Lightbar rules are independent. Low battery uses KDE’s threshold.")
+                                  "Pausing freezes base colors, stops capture and hides indicators. Lightbar rules are independent. Low battery uses KDE’s threshold.")
                 visible: page.controller.selectedDevice >= 0
             }
 

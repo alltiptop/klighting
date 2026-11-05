@@ -128,7 +128,7 @@ ColumnLayout {
                                                                                "Different assignments selected. Editing one effect keeps the others.") :
                                                                            qsTranslate(
                                                                                "AmbientLed.AssignedEffects",
-                                                                               "Effects blend from top to bottom. Inactive notifications are transparent.")
+                                                                               "Effects blend from top to bottom. Inactive indicators are transparent.")
         wrapMode: Text.Wrap
     }
 
@@ -389,7 +389,10 @@ ColumnLayout {
                                                                                        row.modelData.type
                                                                                        === "notifications"
                                                                                        ? notificationsForm :
-                                                                                         ambientForm
+                                                                                         row.modelData.type
+                                                                                         === "microphone"
+                                                                                         ? microphoneForm :
+                                                                                           ambientForm
 
                                 Component {
                                     id: brightnessForm
@@ -417,6 +420,21 @@ ColumnLayout {
                                             const id = row.editId();
                                             if (id)
                                                 root.controller.setAmbient(key, value, id);
+                                        }
+                                    }
+                                }
+
+                                Component {
+                                    id: microphoneForm
+
+                                    MicrophoneForm {
+                                        controller: root.controller
+                                        options: row.options
+
+                                        onEdited: (key, value) => {
+                                            const id = row.editId();
+                                            if (id)
+                                                root.controller.setMicrophone(key, value, id);
                                         }
                                     }
                                 }
@@ -474,7 +492,8 @@ ColumnLayout {
                                     checked: row.modelData.above
                                     objectName: "AssignedEffectAboveLayers"
                                     text: qsTranslate("AmbientLed.AssignedEffects", "Show above all layers")
-                                    visible: row.modelData.type === "notifications"
+                                    visible: row.modelData.type === "notifications" || row.modelData.type
+                                             === "microphone"
 
                                     onToggled: {
                                         root.expandedAbove = checked;
@@ -574,6 +593,10 @@ ColumnLayout {
                             name: qsTranslate("AmbientLed.AssignedEffects", "New Ambient")
                         },
                         {
+                            type: "microphone",
+                            name: qsTranslate("AmbientLed.AssignedEffects", "New Microphone")
+                        },
+                        {
                             type: "notifications",
                             name: qsTranslate("AmbientLed.AssignedEffects", "New Notifications")
                         }
@@ -614,7 +637,7 @@ ColumnLayout {
     QQC2.Label {
         Layout.fillWidth: true
         text: qsTranslate("AmbientLed.AssignedEffects",
-                          "These notifications override every layer, including unlit keys.")
+                          "These effects override every layer in this device profile, including unlit keys.")
         visible: root.assignmentState.items.some(e => e.above)
         wrapMode: Text.Wrap
     }

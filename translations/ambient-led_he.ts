@@ -469,6 +469,14 @@
         <source>New Brightness preset</source>
         <translation>הגדרת בהירות חדשה</translation>
     </message>
+    <message>
+        <source>Microphone</source>
+        <translation>מיקרופון</translation>
+    </message>
+    <message>
+        <source>New Microphone preset</source>
+        <translation>ערכת מיקרופון חדשה</translation>
+    </message>
 </context>
 <context>
     <name>AmbientLed.AmbientForm</name>
@@ -618,8 +626,8 @@
     </message>
     <message>
         <location line="+3"/>
-        <source>Effects blend from top to bottom. Inactive notifications are transparent.</source>
-        <translation>האפקטים משתלבים מלמעלה למטה. התראות לא פעילות שקופות.</translation>
+        <source>Effects blend from top to bottom. Inactive indicators are transparent.</source>
+        <translation>האפקטים מתמזגים מלמעלה למטה. מחוונים לא פעילים שקופים.</translation>
     </message>
     <message>
         <location line="+74"/>
@@ -719,13 +727,17 @@
     </message>
     <message>
         <location line="+9"/>
-        <source>These notifications override every layer, including unlit keys.</source>
-        <translation>התראות אלה עוקפות כל שכבה, כולל מקשים כבויים.</translation>
+        <source>These effects override every layer in this device profile, including unlit keys.</source>
+        <translation>אפקטים אלה מופיעים מעל כל השכבות בפרופיל התקן זה, כולל מקשים שאינם מוארים.</translation>
     </message>
     <message>
         <location line="-58"/>
         <source>New Brightness</source>
         <translation>בהירות חדשה</translation>
+    </message>
+    <message>
+        <source>New Microphone</source>
+        <translation>מיקרופון חדש</translation>
     </message>
 </context>
 <context>
@@ -925,6 +937,10 @@
         <source>Import Effect Preset…</source>
         <translation>ייבוא ערכת אפקט…</translation>
     </message>
+    <message>
+        <source>Microphone</source>
+        <translation>מיקרופון</translation>
+    </message>
 </context>
 <context>
     <name>AmbientLed.HexColor</name>
@@ -1045,6 +1061,14 @@
         <source>; Notifications</source>
         <translation>; התראות</translation>
     </message>
+    <message>
+        <source>; Microphone</source>
+        <translation>; מיקרופון</translation>
+    </message>
+    <message>
+        <source>; Microphone above all layers</source>
+        <translation>; מיקרופון מעל כל השכבות</translation>
+    </message>
 </context>
 <context>
     <name>AmbientLed.LayerEditor</name>
@@ -1163,8 +1187,8 @@
     </message>
     <message>
         <location line="+7"/>
-        <source>Pausing freezes colors and stops capture and notifications. Lightbar rules are independent. Low battery uses KDE’s threshold.</source>
-        <translation>השהיה מקפיאה צבעים ועוצרת לכידה והתראות. כללי פס התאורה עצמאיים. סף הסוללה החלשה נקבע ב־KDE.</translation>
+        <source>Pausing freezes base colors, stops capture and hides indicators. Lightbar rules are independent. Low battery uses KDE’s threshold.</source>
+        <translation>השהיה מקפיאה את צבעי הבסיס, עוצרת את הלכידה ומסתירה מחוונים. כללי פס התאורה נפרדים. סוללה חלשה נקבעת לפי הסף של KDE.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -1224,6 +1248,49 @@
     <message>
         <source>Retry desktop integration</source>
         <translation>ניסיון חוזר לשילוב עם שולחן העבודה</translation>
+    </message>
+</context>
+<context>
+    <name>AmbientLed.MicrophoneForm</name>
+    <message>
+        <source>Backend: %1</source>
+        <translation>מנגנון: %1</translation>
+    </message>
+    <message>
+        <source>Color:</source>
+        <translation>צבע:</translation>
+    </message>
+    <message>
+        <source>Default input: %1</source>
+        <translation>כניסת ברירת מחדל: %1</translation>
+    </message>
+    <message>
+        <source>Microphone color</source>
+        <translation>צבע המיקרופון</translation>
+    </message>
+    <message>
+        <source>Microphone indication does not require Ambient screen capture.</source>
+        <translation>חיווי המיקרופון אינו דורש לכידת מסך של Ambient.</translation>
+    </message>
+    <message>
+        <source>Microphone mute state unknown</source>
+        <translation>מצב השתקת המיקרופון אינו ידוע</translation>
+    </message>
+    <message>
+        <source>Microphone muted</source>
+        <translation>המיקרופון מושתק</translation>
+    </message>
+    <message>
+        <source>Microphone status unavailable</source>
+        <translation>מצב המיקרופון אינו זמין</translation>
+    </message>
+    <message>
+        <source>Microphone unmuted</source>
+        <translation>המיקרופון אינו מושתק</translation>
+    </message>
+    <message>
+        <source>Shows this color when the system default input is unmuted, even when no application records. Muted or unknown state is transparent; this is not a privacy guarantee.</source>
+        <translation>מציג צבע זה כאשר כניסת ברירת המחדל של המערכת אינה מושתקת, גם כשאף יישום אינו מקליט. כשהכניסה מושתקת או שמצבה אינו ידוע, האפקט שקוף; אין בכך הבטחה לפרטיות.</translation>
     </message>
 </context>
 <context>

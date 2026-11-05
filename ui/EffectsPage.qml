@@ -67,6 +67,17 @@ SidebarPage {
                 }
 
                 QQC2.MenuItem {
+                    icon.name: "audio-input-microphone"
+                    objectName: "AddMicrophoneEffect"
+                    text: qsTranslate("AmbientLed.EffectsPage", "Microphone")
+
+                    onTriggered: {
+                        if (page.controller.addEffect("microphone", false))
+                            page.showEditor();
+                    }
+                }
+
+                QQC2.MenuItem {
                     icon.name: "notifications"
                     objectName: "AddNotificationsEffect"
                     text: qsTranslate("AmbientLed.EffectsPage", "Notifications")

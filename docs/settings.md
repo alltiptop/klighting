@@ -27,8 +27,10 @@ supported driver's hardware power setting; screen colors are streamed separately
 **Refresh** repeats discovery and reads lightbar settings without applying edits.
 
 The Ambient enable switch is hidden for monochrome devices with fewer than four
-nonzero brightness levels (Off is separate). Monochrome devices convert output
-using the selected RGB average or red/green/blue channel.
+nonzero brightness levels (Off is separate). On monochrome devices, **Brightness source**
+selects the RGB average or a red/green/blue channel. With only On/Off brightness,
+averaging red can round down to Off; use white or select **Red channel** for a red
+indicator.
 
 Default cannot be deleted; its layers and device cards can. Removing a device card
 requires confirmation and removes its settings from every layer of that preset.
@@ -36,9 +38,10 @@ A device absent from Default can still participate in matching application prese
 
 Device-wide effect pauses and lightbar-off policies are independent, for battery
 power and low charge. Pausing Ambient holds its last color; paused notifications
-are transparent. Turning off the lightbar sends black to all its elements even
-when effects are paused. The backend stays in control instead of restoring the
-factory animation. Returning to AC resumes normal operation.
+and microphone indicators are transparent. Turning off the lightbar sends black
+to all its elements even when effects are paused. The backend stays in control
+instead of restoring the factory animation. Returning to AC resumes normal
+operation.
 
 Low battery follows KDE's `powerdevilrc` `BatteryManagement/BatteryLowLevel`
 (default 10%), with UPower's warning level as fallback if percentage is unavailable.
@@ -89,7 +92,7 @@ only while the settings window is active; it is not a separate hardware test mod
 ## Effect presets
 
 **Effects** contains individual saved effect presets, not a list of available types.
-Ambient and Notifications each have independent battery/low-charge pause settings.
+Ambient, Notifications and Microphone each have independent battery/low-charge pause settings.
 
 **Brightness** scales the result of earlier effects without changing its hue:
 100% leaves it unchanged; 0% turns it off. Place it after Solid Color or Ambient.
@@ -105,11 +108,20 @@ limits output; brightness-only devices use their available discrete levels.
   works on a 32×18 sample; it does not average every screen pixel. A dark screen
   retains the configured minimum, while hardware brightness Off remains Off.
 - **Solid Color:** a constant RGB color, composited with the assignment's opacity.
+- **Microphone:** a constant color while the system default input's mute switch is
+  unmuted, including when no application records. Muted, unknown or unavailable
+  removes the overlay and reveals the current underlay. Audio-server configuration
+  changes can briefly remove the overlay while the default input is rechecked.
+  Application-local and physical mute are visible only when exported by the audio
+  server.
 - **Notifications:** color, blink/pulse pattern, period and cycle count. Filters use
   application desktop ID/name, category, event ID and urgency metadata; notification
   bodies are not parsed. Missing metadata cannot establish a match. Multiple
-  notification effects can target the same keys. **Show above all layers** places a
-  notification last in composition. Power connection is also a trigger.
+  notification effects can target the same keys. Power connection is also a trigger.
+
+**Show above all layers** places Microphone and Notifications assignments in the
+final composition group, after the active layer. Assignments within that group
+blend in list order; a later assignment can cover an earlier one.
 
 Notifications use KDE's notification watcher API over D-Bus. Screen capture is
 needed only for unpaused, assigned Ambient effects. If none needs it, readback

@@ -6,6 +6,25 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 include(CTest)
 option(BUILD_KWIN_EFFECT "Build the native KWin effect" ON)
+set(KLIGHTING_PULSEAUDIO "AUTO" CACHE STRING "PulseAudio microphone observer: AUTO, ON or OFF")
+option(KLIGHTING_REQUIRE_AUDIO_TESTS "Require private audio-server integration tests" OFF)
+set_property(CACHE KLIGHTING_PULSEAUDIO PROPERTY STRINGS AUTO ON OFF)
+if(NOT KLIGHTING_PULSEAUDIO MATCHES "^(AUTO|ON|OFF)$")
+    message(FATAL_ERROR "KLIGHTING_PULSEAUDIO must be AUTO, ON or OFF")
+endif()
+set(KLIGHTING_HAVE_PULSEAUDIO OFF)
+if(NOT KLIGHTING_PULSEAUDIO STREQUAL "OFF")
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(PULSEAUDIO QUIET IMPORTED_TARGET libpulse)
+    endif()
+    if(PULSEAUDIO_FOUND)
+        set(KLIGHTING_HAVE_PULSEAUDIO ON)
+    elseif(KLIGHTING_PULSEAUDIO STREQUAL "ON")
+        message(FATAL_ERROR "KLIGHTING_PULSEAUDIO=ON requires libpulse development files and pkg-config")
+    endif()
+endif()
+message(STATUS "Microphone PulseAudio protocol: ${KLIGHTING_HAVE_PULSEAUDIO} (${KLIGHTING_PULSEAUDIO})")
 
 find_package(ECM 6.26 REQUIRED NO_MODULE)
 list(APPEND CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
@@ -39,15 +58,26 @@ add_dependencies(ambient_probe klighting_drivers)
 qt_add_executable(klighting-plugin-check tools/check_plugins.cpp)
 target_link_libraries(klighting-plugin-check PRIVATE Qt6::Core)
 
-add_library(lighting_runtime STATIC src/lighting_runtime.cpp)
+add_library(lighting_runtime STATIC src/lighting_runtime.cpp src/microphone_effect.cpp)
 target_link_libraries(lighting_runtime PUBLIC ambient_core)
 qt_add_library(integration_startup_guard STATIC src/integration_startup_guard.cpp)
 target_include_directories(integration_startup_guard PUBLIC src)
 target_link_libraries(integration_startup_guard PUBLIC Qt6::Core)
 set_target_properties(integration_startup_guard PROPERTIES
     CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN YES)
-qt_add_library(integration_sources STATIC src/desktop_source.h src/capture_source.h src/integration_sources.h)
+qt_add_library(integration_sources STATIC src/desktop_source.h src/capture_source.h
+    src/microphone_source.h src/integration_sources.h)
 target_link_libraries(integration_sources PUBLIC ambient_core)
+qt_add_library(audio_sources STATIC src/audio_sources.cpp)
+target_link_libraries(audio_sources PRIVATE integration_sources Qt6::Core)
+target_compile_options(audio_sources PRIVATE -Wall -Wextra -Wpedantic)
+set_target_properties(audio_sources PROPERTIES
+    CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN YES)
+if(KLIGHTING_HAVE_PULSEAUDIO)
+    target_sources(audio_sources PRIVATE src/pulse_microphone_source.cpp)
+    target_link_libraries(audio_sources PRIVATE PkgConfig::PULSEAUDIO)
+    target_compile_definitions(audio_sources PRIVATE KLIGHTING_HAVE_PULSEAUDIO=1)
+endif()
 qt_add_library(kwin_sources STATIC src/kwin_sources.cpp src/kwin_desktop_source.cpp src/kwin_capture_source.cpp)
 target_link_libraries(kwin_sources PUBLIC integration_sources integration_startup_guard component_info Qt6::DBus)
 add_library(lighting_service STATIC
@@ -59,7 +89,7 @@ set_target_properties(lighting_runtime lighting_service integration_sources kwin
 target_compile_options(lighting_runtime PRIVATE -Wall -Wextra -Wpedantic)
 target_compile_options(lighting_service PRIVATE -Wall -Wextra -Wpedantic)
 qt_add_executable(klightingd src/daemon_main.cpp)
-target_link_libraries(klightingd PRIVATE lighting_service kwin_sources)
+target_link_libraries(klightingd PRIVATE lighting_service kwin_sources audio_sources)
 install(TARGETS klightingd RUNTIME DESTINATION ${KDE_INSTALL_BINDIR})
 configure_file(services/org.klighting.Service.service.in org.klighting.Service.service @ONLY)
 configure_file(services/klightingd.service.in klightingd.service @ONLY)
@@ -171,6 +201,59 @@ if(BUILD_TESTING)
     qt_add_executable(application_settings_tests tests/test_application_settings.cpp)
     target_link_libraries(application_settings_tests PRIVATE ambient_core Qt6::Test)
     add_test(NAME application_settings_tests COMMAND application_settings_tests)
+    if(KLIGHTING_HAVE_PULSEAUDIO)
+        qt_add_executable(pulse_microphone_source_fake_tests
+            tests/test_pulse_microphone_source_fake.cpp src/pulse_microphone_source.cpp)
+        target_link_libraries(pulse_microphone_source_fake_tests PRIVATE
+            integration_sources Qt6::Test)
+        target_include_directories(pulse_microphone_source_fake_tests SYSTEM PRIVATE
+            ${PULSEAUDIO_INCLUDE_DIRS})
+        target_compile_options(pulse_microphone_source_fake_tests PRIVATE
+            ${PULSEAUDIO_CFLAGS_OTHER})
+        add_test(NAME pulse_microphone_source_fake_tests COMMAND pulse_microphone_source_fake_tests)
+        set_tests_properties(pulse_microphone_source_fake_tests PROPERTIES TIMEOUT 30)
+        find_program(PULSEAUDIO_EXECUTABLE pulseaudio)
+        find_program(PACTL_EXECUTABLE pactl)
+        if(PULSEAUDIO_EXECUTABLE AND PACTL_EXECUTABLE)
+            qt_add_executable(pulse_microphone_source_tests tests/test_pulse_microphone_source.cpp)
+            target_link_libraries(pulse_microphone_source_tests PRIVATE
+                audio_sources integration_sources Qt6::Test)
+            target_compile_definitions(pulse_microphone_source_tests PRIVATE
+                KLIGHTING_PULSEAUDIO_EXECUTABLE="${PULSEAUDIO_EXECUTABLE}"
+                KLIGHTING_PACTL_EXECUTABLE="${PACTL_EXECUTABLE}")
+            add_test(NAME pulse_microphone_source_tests COMMAND pulse_microphone_source_tests)
+            set_tests_properties(pulse_microphone_source_tests PROPERTIES TIMEOUT 45)
+            message(STATUS "Private PulseAudio integration tests: enabled")
+        else()
+            message(STATUS "Private PulseAudio integration tests: omitted (pulseaudio or pactl missing)")
+        endif()
+        find_program(PIPEWIRE_EXECUTABLE pipewire)
+        find_program(PIPEWIRE_PULSE_EXECUTABLE pipewire-pulse)
+        find_program(PW_DUMP_EXECUTABLE pw-dump)
+        find_program(PW_METADATA_EXECUTABLE pw-metadata)
+        if(PIPEWIRE_EXECUTABLE AND PIPEWIRE_PULSE_EXECUTABLE AND PACTL_EXECUTABLE
+            AND PW_DUMP_EXECUTABLE AND PW_METADATA_EXECUTABLE)
+            qt_add_executable(pipewire_pulse_microphone_source_tests
+                tests/test_pipewire_pulse_microphone_source.cpp)
+            target_link_libraries(pipewire_pulse_microphone_source_tests PRIVATE
+                audio_sources integration_sources Qt6::Test)
+            target_compile_definitions(pipewire_pulse_microphone_source_tests PRIVATE
+                KLIGHTING_PIPEWIRE_EXECUTABLE="${PIPEWIRE_EXECUTABLE}"
+                KLIGHTING_PIPEWIRE_PULSE_EXECUTABLE="${PIPEWIRE_PULSE_EXECUTABLE}"
+                KLIGHTING_PACTL_EXECUTABLE="${PACTL_EXECUTABLE}"
+                KLIGHTING_PW_DUMP_EXECUTABLE="${PW_DUMP_EXECUTABLE}"
+                KLIGHTING_PW_METADATA_EXECUTABLE="${PW_METADATA_EXECUTABLE}")
+            add_test(NAME pipewire_pulse_microphone_source_tests COMMAND pipewire_pulse_microphone_source_tests)
+            set_tests_properties(pipewire_pulse_microphone_source_tests PROPERTIES TIMEOUT 45)
+            message(STATUS "Private pipewire-pulse integration tests: enabled")
+        else()
+            message(STATUS "Private pipewire-pulse integration tests: omitted (server or client tools missing)")
+        endif()
+        if(KLIGHTING_REQUIRE_AUDIO_TESTS AND NOT TARGET pulse_microphone_source_tests
+            AND NOT TARGET pipewire_pulse_microphone_source_tests)
+            message(FATAL_ERROR "Audio integration tests require a private PulseAudio or pipewire-pulse server and client tools")
+        endif()
+    endif()
     qt_add_executable(component_info_tests tests/test_component_info.cpp)
     target_link_libraries(component_info_tests PRIVATE component_info Qt6::Test)
     target_compile_definitions(component_info_tests PRIVATE

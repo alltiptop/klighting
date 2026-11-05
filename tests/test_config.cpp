@@ -40,6 +40,34 @@ private Q_SLOTS:
         QVERIFY(config->sync());
     }
     void cleanup() { lighting.reset(); }
+    void microphoneDiagnosticsDoNotBecomeServiceErrors()
+    {
+        lighting->info.insert("microphoneBackend", "fixture");
+        lighting->info.insert("microphoneAvailable", false);
+        lighting->info.insert("microphoneMuteKnown", false);
+        lighting->info.insert("microphoneReason", "Synthetic backend unavailable");
+        ServiceControl control;
+        QTRY_COMPARE(control.microphoneStatus()["backend"].toString(), QString("fixture"));
+        QVERIFY(!control.microphoneStatus()["available"].toBool());
+        QCOMPARE(control.microphoneStatus()["reason"].toString(), QString("Synthetic backend unavailable"));
+        QCOMPARE(control.status(), QString("Lighting service is running."));
+        QVERIFY(control.error().isEmpty());
+        lighting->info.insert("microphoneAvailable", true);
+        lighting->info.insert("microphoneMuteKnown", true);
+        lighting->info.insert("microphoneMuted", false);
+        lighting->info.insert("microphoneSourceName", "fixture-input");
+        lighting->info.insert("microphoneDescription", "Synthetic input");
+        lighting->info.insert("microphoneReason", "");
+        control.refresh();
+        QTRY_VERIFY(control.microphoneStatus()["muteKnown"].toBool());
+        QCOMPARE(control.microphoneStatus()["description"].toString(), QString("Synthetic input"));
+        QCOMPARE(control.microphoneStatus()["sourceName"].toString(), QString("fixture-input"));
+        QVERIFY(!control.microphoneStatus()["muted"].toBool());
+        lighting.reset();
+        control.refresh();
+        QTRY_VERIFY(!control.running());
+        QVERIFY(control.microphoneStatus().isEmpty());
+    }
     void manualDesktopRetryReportsFailuresAndRefreshesAvailability()
     {
         lighting->canRetry = true;
@@ -339,6 +367,25 @@ private Q_SLOTS:
         c.editDeviceSelection(mixed, "brightness", { { "id", brightness }, { "value", 35 } });
         QCOMPARE(first->assignedEffectOptions(brightness)["brightness"].toInt(), 35);
         QCOMPARE(mono->assignedEffectOptions(brightness)["brightness"].toInt(), 35);
+        const auto microphone = c.editDeviceSelection(mixed, "new", { { "type", "microphone" } });
+        QVERIFY(!microphone.isEmpty());
+        c.editDeviceSelection(
+            mixed, "microphone", { { "id", microphone }, { "key", "color" }, { "value", "#123456" } });
+        c.editDeviceSelection(
+            mixed, "microphone", { { "id", microphone }, { "key", "pauseOnBattery" }, { "value", true } });
+        c.editDeviceSelection(mixed, "update",
+            { { "id", microphone }, { "wasAbove", false }, { "above", true }, { "opacity", 45 } });
+        for (auto* editor : { first, mono }) {
+            QCOMPARE(
+                editor->assignedEffectOptions(microphone)["microphoneColor"].toString(), QString("#123456"));
+            QVERIFY(editor->assignedEffectOptions(microphone)["pauseOnBattery"].toBool());
+        }
+        const auto micState = c.deviceSelectionEffects(mixed)["items"].toList().last().toMap();
+        QCOMPARE(micState["id"].toString(), microphone);
+        QVERIFY(micState["above"].toBool());
+        QCOMPARE(micState["opacity"].toInt(), 45);
+        c.editDeviceSelection(mixed, "update",
+            { { "id", microphone }, { "wasAbove", true }, { "above", false }, { "opacity", 45 } });
         // An invalid destination invalidates the entire operation.
         auto before = c.collection();
         auto invalid = mixed;
@@ -836,6 +883,94 @@ private Q_SLOTS:
         const auto saved = c.collection();
         c.load();
         QCOMPARE(c.collection(), saved);
+    }
+    void microphoneEditsStayPendingAndResetDefaults()
+    {
+        SettingsController c;
+        const auto original = c.collection();
+        QVERIFY(c.addEffect("microphone"));
+        c.setSection("effects");
+        QVERIFY(c.representsDefaults());
+        c.setMicrophone("color", "#102030");
+        c.setMicrophone("pauseOnBattery", true);
+        QVERIFY(!c.representsDefaults());
+        QVERIFY(c.dirty());
+        QCOMPARE(lighting->reloads, 0);
+        c.load();
+        QCOMPARE(c.collection(), original);
+        QVERIFY(c.addEffect("microphone"));
+        c.setSection("effects");
+        c.setMicrophone("color", "#102030");
+        c.setMicrophone("pauseOnLowBattery", true);
+        c.defaults();
+        QVERIFY(c.representsDefaults());
+        QCOMPARE(c.effectPreset()["microphoneColor"].toString(), QString("#ff0000"));
+        QVERIFY(!c.effectPreset()["pauseOnLowBattery"].toBool());
+        const auto savedId = c.effectPreset()["id"].toString();
+        c.setMicrophone("color", "#c05020");
+        for (const auto* bad : { "invalid", "transparent", "#80102030" })
+            c.setMicrophone("color", bad);
+        QCOMPARE(c.effectPreset()["microphoneColor"].toString(), QString("#c05020"));
+        c.addAssignedEffect(-1, { 14 }, savedId);
+        c.updateAssignedEffect(-1, { 14 }, savedId, false, true, 60);
+        QCOMPARE(c.collection().presets[0].effectOverrides[14], (EffectList { { savedId, 60 } }));
+        QCOMPARE(c.keyPreview(-1)[14].toMap()["microphoneId"].toString(), savedId);
+        QVERIFY(c.keyPreview(-1)[14].toMap()["microphoneAbove"].toBool());
+        const auto local = c.addLocalEffect(-1, { 15 }, "microphone");
+        QVERIFY(!local.isEmpty());
+        c.setMicrophone("color", "#203040", local);
+        c.setMicrophone("pauseOnBattery", true, local);
+        c.save();
+        QVERIFY2(c.error().isEmpty(), qPrintable(c.error()));
+        const auto saved = c.collection();
+        c.load();
+        QCOMPARE(c.collection(), saved);
+        QTemporaryDir dir;
+        c.exportFile(QUrl::fromLocalFile(dir.filePath("microphone.json")));
+        c.setMicrophone("color", "#556677", savedId); // Exercise a conflicting shared definition.
+        c.importFile(QUrl::fromLocalFile(dir.filePath("microphone.json")));
+        QVERIFY2(c.error().isEmpty(), qPrintable(c.error()));
+        const auto& imported = c.collection().presets.last();
+        const auto importedShared = imported.effectOverrides[14].first().id;
+        const auto importedLocal = imported.localEffects.first().id;
+        QVERIFY(importedShared != savedId);
+        QCOMPARE(importedLocal, local);
+        QVERIFY(scopedEffectId(imported, importedLocal) != scopedEffectId(saved.presets[0], local));
+        QCOMPARE(c.collection().effects.last().microphone.color, QColor("#c05020"));
+        QCOMPARE(imported.localEffects.first().microphone.color, QColor("#203040"));
+        QVERIFY(imported.localEffects.first().pauseOnBattery);
+        const auto importedAssignments = imported.effects[15];
+        QVERIFY(std::any_of(importedAssignments.cbegin(), importedAssignments.cend(),
+            [&](const auto& entry) { return entry.id == importedLocal; }));
+    }
+    void microphoneSurvivesGradientReplacement()
+    {
+        const auto path = qgetenv("AMBIENT_LED_DRIVER_PATH");
+        const auto restore = qScopeGuard([&] { qputenv("AMBIENT_LED_DRIVER_PATH", path); });
+        qputenv("AMBIENT_LED_DRIVER_PATH", path + ":" + MULTI_DRIVER_DIR);
+        SettingsController c;
+        QVERIFY(c.addDevice("test-strips:one"));
+        const auto local = c.addLocalEffect(-1, { 7 }, "microphone");
+        QVERIFY(!local.isEmpty());
+        QVERIFY(c.addEffect("microphone"));
+        const auto shared = c.effectPreset()["id"].toString();
+        c.addAssignedEffect(-1, { 7 }, shared);
+        c.updateAssignedEffect(-1, { 7 }, shared, false, false, 35);
+        QVERIFY(c.setGradient(-1, -1, FirstStripId, 7, 1, "#ff0000", "#0000ff", 100, false));
+        auto items = c.selectionEffects(-1, { 7 })["items"].toList();
+        QCOMPARE(items.size(), 3);
+        QCOMPARE(items[0].toMap()["id"].toString(), QString(InlineColorId));
+        QCOMPARE(items[0].toMap()["color"].toString(), QString("#ff0000"));
+        QCOMPARE(items[1].toMap()["id"].toString(), local);
+        QCOMPARE(items[2].toMap()["id"].toString(), shared);
+        QCOMPARE(items[2].toMap()["opacity"].toInt(), 35);
+        QVERIFY(c.setGradient(-1, 0, FirstStripId, 7, 1, "#00ff00", "#0000ff", 100, true, DefaultEffectId));
+        items = c.selectionEffects(-1, { 7 })["items"].toList();
+        QCOMPARE(items.size(), 4);
+        QCOMPARE(items[0].toMap()["type"].toString(), QString("ambient"));
+        QCOMPARE(items[1].toMap()["color"].toString(), QString("#00ff00"));
+        QCOMPARE(items[2].toMap()["id"].toString(), local);
+        QCOMPARE(items[3].toMap()["id"].toString(), shared);
     }
     void sharedEffectEditsUseIdentity()
     {

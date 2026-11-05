@@ -20,6 +20,7 @@ QtObject {
     readonly property var effect: controller.effect
     readonly property var effectPresets: controller.effectPresets
     property int revision: 0
+    readonly property var service: controller.service
     required property var targets
 
     signal contentChanged
@@ -94,6 +95,14 @@ QtObject {
     function setBrightness(value, id) {
         apply("brightness", {
                   id: id,
+                  value: value
+              });
+    }
+
+    function setMicrophone(key, value, id) {
+        apply("microphone", {
+                  id: id,
+                  key: key,
                   value: value
               });
     }

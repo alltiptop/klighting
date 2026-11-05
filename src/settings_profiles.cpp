@@ -395,8 +395,8 @@ QString SettingsController::editDeviceSelection(
     const auto type = action == "new"                             ? arguments.value("type").toString()
         : id == QLatin1String(InlineColorId) || action == "color" ? QStringLiteral("solid")
                                                                   : options.value("type").toString();
-    const bool supported
-        = type == "solid" || type == "brightness" || type == "ambient" || type == "notifications";
+    const bool supported = type == "solid" || type == "brightness" || type == "ambient"
+        || type == "notifications" || type == "microphone";
     if (!supported && action != "remove" && action != "clear")
         return { };
     const bool above = arguments.value("above").toBool();
@@ -507,6 +507,8 @@ QString SettingsController::editDeviceSelection(
                 editor->setBrightness(value.toInt(), id);
             else if (action == "ambient")
                 editor->setAmbient(key, value.toInt(), id);
+            else if (action == "microphone")
+                editor->setMicrophone(key, value, id);
             else if (action == "notifications")
                 editor->setNotification(key, value, id);
         }

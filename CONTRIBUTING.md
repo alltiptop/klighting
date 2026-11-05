@@ -15,6 +15,16 @@ Controls desktop style; libusb-1.0; and KWin's development dependencies (Wayland
 libepoxy, libdrm, Vulkan headers/loader). Dependencies are installed separately;
 configuration never downloads them. Native KWin plugins must be rebuilt after KWin updates.
 
+Validate audio-enabled and audio-disabled builds in separate directories with
+`KLIGHTING_PULSEAUDIO=ON` and `OFF`. With `BUILD_TESTING=ON` and the audio backend enabled,
+the private PulseAudio integration test requires `pulseaudio` and `pactl`; the
+pipewire-pulse test requires `pipewire`, `pipewire-pulse`, `pactl`, `pw-dump` and
+`pw-metadata`. Under those conditions, `KLIGHTING_REQUIRE_AUDIO_TESTS=ON` makes
+configuration fail unless at least one of these integration tests is available.
+Without that requirement, configuration reports omitted tests.
+Audio tests use private servers and synthetic sources; they must not discover
+host hardware or control the default audio session.
+
 Use the build commands in [README](README.md#build). A core-only build
 builds `klightingd` and exercises drivers, presets, desktop input adapters, power
 and notification logic without KWin headers:
@@ -62,6 +72,9 @@ using pinned `archlinux:base` and the 2026-10-01 package archive: clang-format 2
 Qt 6.11.2 and KWin 6.7.5. Explicit tools replace the `base-devel` group; package caches,
 manuals, documentation and wallpapers are excluded. KWin's runtime dependencies remain necessary
 for native plugin checks, and UI tests use offscreen rendering without a Plasma session.
+
+The desktop matrix tests PulseAudio and pipewire-pulse separately because their
+distribution server packages conflict.
 
 BuildKit caches the prepared image in Actions; no registry publication is needed.
 The first run or an evicted cache installs packages; subsequent runs reuse the image

@@ -194,6 +194,8 @@ bool SettingsController::representsDefaults() const
                 && !m_collection.effects[m_selectedEffect].pauseOnLowBattery
                 && (m_collection.effects[m_selectedEffect].type == "notifications"
                         ? m_collection.effects[m_selectedEffect].notification == NotificationOptions()
+                        : m_collection.effects[m_selectedEffect].type == "microphone"
+                        ? m_collection.effects[m_selectedEffect].microphone == MicrophoneOptions()
                         : m_collection.effects[m_selectedEffect].type == "solid"
                         ? m_collection.effects[m_selectedEffect].solidColor == QColor(Qt::white)
                         : m_collection.effects[m_selectedEffect].ambient == AmbientOptions()));
@@ -330,6 +332,8 @@ void SettingsController::defaults()
             effect.pauseOnBattery = effect.pauseOnLowBattery = false;
             if (effect.type == "notifications")
                 effect.notification = NotificationOptions();
+            else if (effect.type == "microphone")
+                effect.microphone = MicrophoneOptions();
             else if (effect.type == "solid")
                 effect.solidColor = Qt::white;
             else if (effect.type == "brightness")
@@ -633,8 +637,8 @@ QVariantList SettingsController::keyPreview(int layer) const
             style = keyStyle(base, editable ? id : DefaultAssignment);
         const auto list
             = selectionEffects(layer, editable ? QVariantList { id } : QVariantList())["items"].toList();
-        QString notificationId;
-        bool above = false, ambient = false;
+        QString notificationId, microphoneId;
+        bool above = false, microphoneAbove = false, ambient = false;
         double brightness = 1.0;
         bool hasColor = style.mode == KeyMode::Off || style.color.alpha() > 0;
         for (const auto& value : list) {
@@ -644,6 +648,9 @@ QVariantList SettingsController::keyPreview(int layer) const
             if (entry["type"] == "notifications") {
                 notificationId = entry["id"].toString();
                 above |= entry["above"].toBool();
+            } else if (entry["type"] == "microphone") {
+                microphoneId = entry["id"].toString();
+                microphoneAbove |= entry["above"].toBool();
             } else if (entry["type"] == "brightness") {
                 if (!hasColor)
                     style.color = Qt::white;
@@ -681,7 +688,8 @@ QVariantList SettingsController::keyPreview(int layer) const
             brightness = 1.0;
         }
         result << QVariantMap { { "id", id }, { "notificationId", notificationId },
-            { "notificationAbove", above }, { "mode", int(style.mode) },
+            { "notificationAbove", above }, { "microphoneId", microphoneId },
+            { "microphoneAbove", microphoneAbove }, { "mode", int(style.mode) },
             { "assignmentMode", inherited ? int(KeyMode::Inherit) : int(style.mode) },
             { "color", style.color.name() }, { "opacity", qRound(style.color.alphaF() * 100) },
             { "brightness", brightness }, { "effectId", style.effectId }, { "inherited", inherited } };

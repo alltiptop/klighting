@@ -13,13 +13,15 @@ only the integration points affected by the change.
 - **Computation and scheduling:** [LightingRuntime](../../../src/lighting_runtime.h)
   owns lighting in `klightingd`. [EffectPalette](../../../src/effect_palette.h) handles
   Ambient, solid colors and brightness filters; [NotificationEffects](../../../src/notification_effect.h)
-  handles transient overlays. Extend these built-in components for ordinary effects;
-  no effect plugin framework is needed.
+  handles transient overlays. Use [microphone evaluation](../../../src/microphone_effect.h)
+  for state-driven mute indicators. Extend these built-in components for ordinary
+  effects; no effect plugin framework is needed.
 - **Inputs:** [LightingService](../../../src/lighting_service.cpp) connects runtime
-  requirements to capture, desktop, notification and power sources.
-  [CaptureSource](../../../src/capture_source.h) and [DesktopSource](../../../src/desktop_source.h)
-  are independent boundaries. KWin's [AmbientEffect](../../../src/ambient_effect.h)
-  only samples the screen; hardware, presets and effect animations stay in the daemon.
+  requirements to capture, desktop, notification, microphone and power sources.
+  [CaptureSource](../../../src/capture_source.h), [DesktopSource](../../../src/desktop_source.h)
+  and [MicrophoneSource](../../../src/microphone_source.h) are independent boundaries.
+  KWin's [AmbientEffect](../../../src/ambient_effect.h) only samples the screen;
+  hardware, presets and effect animations stay in the daemon.
   Keep expensive inputs inactive when unused. Screen sampling and LED output have
   separate cadences; capture failure must not stop unrelated effects or device control.
   Stop settled animation without dropping pending input or final output. Account
@@ -43,9 +45,10 @@ only the integration points affected by the change.
 - **Data and composition:** For option/schema changes, update [presets.h](../../../src/presets.h),
   [serialization/validation](../../../src/presets.cpp) and the relevant
   [preset evaluation](../../../src/preset_runtime.cpp). Preserve shared and profile-local
-  references through import/export. Base plus one active layer composes ordered effects
-  with opacity; above-layer notifications apply last. Missing assignments may inherit,
-  but an explicitly empty list stays off. Let device adaptation limit final output
+  references through import/export. Preserve the
+  [composition order](../../../docs/architecture.md#composition-and-scheduling),
+  including above-layer assignments. Missing assignments may inherit, but an
+  explicitly empty list stays off. Let device adaptation limit final output
   without rewriting the saved effect for each device.
 - **Device boundary:** Effects and their editors depend on capabilities and layout
   data from the public driver contract, never a concrete driver's private code, model

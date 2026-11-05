@@ -1,8 +1,9 @@
 # klighting
 
 Keyboard and lightbar lighting for KDE Plasma, with screen-driven Ambient colors,
-Solid Color, notification effects, key layers and application presets. Multiple
-devices run through native Qt driver plugins. The KDE settings entry is **Lighting**.
+Solid Color, notification effects, microphone mute indicators, key layers and
+application presets. Multiple devices run through native Qt driver plugins.
+The KDE settings entry is **Lighting**.
 
 See [driver modules](src/drivers/) for supported hardware and module-specific requirements.
 
@@ -70,6 +71,19 @@ sudo dnf install gcc-c++ cmake ninja-build pkgconf-pkg-config gettext \
 
 For the service without KWin or its settings UI, add `-DBUILD_KWIN_EFFECT=OFF`.
 See [Contributing](CONTRIBUTING.md#build-and-checks) for development checks.
+
+The microphone observer uses `libpulse` with PulseAudio or PipeWire's
+`pipewire-pulse` compatibility server. `KLIGHTING_PULSEAUDIO` accepts `AUTO`
+(detect development files), `ON` (require them), or `OFF` (exclude the backend).
+Use `-DKLIGHTING_PULSEAUDIO=ON` for distribution builds. An audio-enabled daemon
+also needs `libpulse` at runtime.
+Install the client development package before configuring an audio-enabled build:
+
+| Distribution | Command |
+| --- | --- |
+| Arch Linux / Manjaro | `sudo pacman -S --needed libpulse` |
+| Ubuntu / Debian | `sudo apt install libpulse-dev` |
+| Fedora | `sudo dnf install pulseaudio-libs-devel` |
 
 ```sh
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo

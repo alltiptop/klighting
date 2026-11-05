@@ -104,6 +104,29 @@ private Q_SLOTS:
         QQmlExpression expression(QQmlEngine::contextForObject(button), button, "Accessible.name");
         QCOMPARE(expression.evaluate().toString(),
             expected(language, "AmbientLed.HexColor", "Choose %1").arg("RGB"));
+        QQmlComponent microphone(
+            &engine, QUrl::fromLocalFile(QString(SOURCE_DIR) + "/ui/MicrophoneForm.qml"));
+        const auto controller = [](const QVariantMap& state) {
+            return QVariantMap { { "service", QVariantMap { { "microphoneStatus", state } } } };
+        };
+        std::unique_ptr<QObject> form(microphone.createWithInitialProperties(
+            { { "controller", controller({ }) }, { "options", QVariantMap { { "type", "microphone" } } } }));
+        QVERIFY2(form, qPrintable(microphone.errorString()));
+        auto* status = form->findChild<QObject*>("MicrophoneStatus");
+        auto* reason = form->findChild<QObject*>("MicrophoneReason");
+        QVERIFY(status && reason);
+        const QList<QPair<QVariantMap, QString>> states { { { }, "Microphone status unavailable" },
+            { { { "available", true } }, "Microphone mute state unknown" },
+            { { { "available", true }, { "muteKnown", true }, { "muted", true } }, "Microphone muted" },
+            { { { "available", true }, { "muteKnown", true }, { "muted", false } }, "Microphone unmuted" } };
+        for (const auto& [state, source] : states) {
+            form->setProperty("controller", controller(state));
+            QCOMPARE(
+                status->property("text").toString(), expected(language, "AmbientLed.MicrophoneForm", source));
+        }
+        form->setProperty("controller", controller({ { "reason", "<b>Synthetic unavailable reason</b>" } }));
+        QCOMPARE(reason->property("text").toString(), QString("<b>Synthetic unavailable reason</b>"));
+        QCOMPARE(reason->property("textFormat").toInt(), int(Qt::PlainText));
     }
     void preferenceFallbackAndLifetime()
     {
