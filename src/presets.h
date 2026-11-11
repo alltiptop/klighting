@@ -65,12 +65,18 @@ struct NotificationOptions {
     QString trigger = QStringLiteral("notification");
     bool operator==(const NotificationOptions&) const = default;
 };
+struct MicrophoneOptions {
+    QColor color = QColor("#ff0000");
+    bool operator==(const MicrophoneOptions&) const = default;
+};
+bool supportsEffectOverride(const QString& type);
 inline constexpr auto DefaultEffectId = "ambient-default";
 struct EffectPreset {
     QString id = QStringLiteral("ambient-default"), name = QStringLiteral("Ambient");
     QString type = QStringLiteral("ambient");
     AmbientOptions ambient;
     NotificationOptions notification;
+    MicrophoneOptions microphone;
     QColor solidColor = Qt::white;
     int brightness = 100;
     bool pauseOnBattery = false, pauseOnLowBattery = false;

@@ -215,7 +215,7 @@ LightingColors lightingColors(const DeviceProfile& p, const KeyboardStyles& styl
                     color.redF() * factor, color.greenF() * factor, color.blueF() * factor, color.alphaF());
                 continue;
             }
-            // Color opacity tints Ambient. Transient notifications retain their own color.
+            // Color opacity tints Ambient. Status overlays retain their own color.
             QColor overlay = effect.color.isValid() ? effect.color
                 : palette.contains(effectId)        ? blendColor(palette.value(effectId), style.color)
                                                     : pulses.value(effectId, QColor(Qt::transparent));

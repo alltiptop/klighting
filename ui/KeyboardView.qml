@@ -135,7 +135,15 @@ Item {
                                                                                                     qsTranslate(
                                                                                                         "AmbientLed.KeyboardView",
                                                                                                         "; Notifications")) :
-                                                                                              "")
+                                                                                              "") + (style.microphoneId
+                                                                                                     ? (style.microphoneAbove
+                                                                                                        ? qsTranslate(
+                                                                                                              "AmbientLed.KeyboardView",
+                                                                                                              "; Microphone above all layers") :
+                                                                                                          qsTranslate(
+                                                                                                              "AmbientLed.KeyboardView",
+                                                                                                              "; Microphone")) :
+                                                                                                       "")
             QQC2.ToolTip.visible: hovered
             enabled: keyboardLayout.editable
             focusPolicy: Qt.StrongFocus
@@ -185,6 +193,20 @@ Item {
             }
 
             onClicked: keyboardLayout.toggle(modelData.id, true)
+
+            Kirigami.Icon {
+                anchors.left: parent.left
+                anchors.margins: 3
+                anchors.top: parent.top
+                color: key.lightingColor
+                height: width
+                isMask: true
+                objectName: "KeyMicrophoneIcon"
+                opacity: 0.65
+                source: "audio-input-microphone"
+                visible: !!key.style.microphoneId
+                width: Math.min(12, parent.width / 4)
+            }
 
             Kirigami.Icon {
                 anchors.margins: 3

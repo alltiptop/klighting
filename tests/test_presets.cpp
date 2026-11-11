@@ -284,6 +284,57 @@ private Q_SLOTS:
         QVERIFY(!savePresets(c, &error));
         QVERIFY(!QFile::exists(presetDirectory() + "/settings-v2.json"));
     }
+    void microphonePresetsPreserveReferencesAndValidateColors()
+    {
+        EffectPreset effect;
+        effect.id = "microphone";
+        effect.name = "Microphone";
+        effect.type = "microphone";
+        effect.microphone.color = QColor("#c05020");
+        effect.pauseOnBattery = true;
+        QString error;
+        auto json = effectPresetJson(effect);
+        QCOMPARE(json["version"].toInt(), 1);
+        QCOMPARE(json["options"].toObject(), (QJsonObject { { "color", "#c05020" } }));
+        auto parsed = parseEffectPreset(QJsonDocument(json).toJson(), &error);
+        QVERIFY2(parsed, qPrintable(error));
+        QCOMPARE(*parsed, effect);
+        json["options"] = QJsonObject();
+        parsed = parseEffectPreset(QJsonDocument(json).toJson(), &error);
+        QVERIFY(parsed);
+        QCOMPARE(parsed->microphone, MicrophoneOptions());
+        for (const auto& bad : QJsonArray { "invalid", "#80ff0000", "transparent", 1, true, QJsonValue::Null,
+                 QJsonObject(), QJsonArray() }) {
+            json["options"] = QJsonObject { { "color", bad } };
+            QVERIFY(!parseEffectPreset(QJsonDocument(json).toJson(), &error));
+        }
+        for (const auto& bad : QJsonArray { 1, true, "red", QJsonValue::Null, QJsonArray() }) {
+            json["options"] = bad;
+            QVERIFY(!parseEffectPreset(QJsonDocument(json).toJson(), &error));
+        }
+        auto c = defaultCollection("fixture");
+        c.effects.append(effect);
+        auto local = effect;
+        local.id = "local-microphone";
+        local.microphone.color = Qt::green;
+        c.presets[0].localEffects.append(local);
+        c.presets[0].effects[9] = { { DefaultEffectId }, { effect.id, 40 } };
+        c.presets[0].effectOverrides[9] = { { local.id, 60 } };
+        QVERIFY2(savePresets(c, &error), qPrintable(error));
+        QCOMPARE(*loadPresets(defaultCollection("fixture"), &error), c);
+        QTemporaryDir dir;
+        QVERIFY(exportPreset(c.presets[0], c.effects, dir.filePath("preset.json"), &error));
+        const auto bundle = importPreset(dir.filePath("preset.json"), &error);
+        QVERIFY2(bundle, qPrintable(error));
+        QCOMPARE(bundle->keyboard, c.presets[0]);
+        QVERIFY(bundle->effects.contains(effect));
+        QVERIFY(exportEffectPreset(effect, dir.filePath("effect.json"), &error));
+        QCOMPARE(*importEffectPreset(dir.filePath("effect.json"), &error), effect);
+        for (const auto* type : { "solid", "brightness", "ambient" }) {
+            c.presets[0].localEffects[0].type = type;
+            QVERIFY(!savePresets(c, &error));
+        }
+    }
     void brightnessPresetsRoundTripWithDefaultAndStrictRange()
     {
         EffectPreset effect;

@@ -15,6 +15,7 @@ class ServiceControl : public QObject
     Q_PROPERTY(bool desktopCanRetry READ desktopCanRetry NOTIFY changed)
     Q_PROPERTY(QString status READ status NOTIFY changed)
     Q_PROPERTY(QString diagnostics READ diagnostics NOTIFY changed)
+    Q_PROPERTY(QVariantMap microphoneStatus READ microphoneStatus NOTIFY changed)
 public:
     explicit ServiceControl(QObject* parent = nullptr);
     explicit ServiceControl(const InstallationPaths& paths, QObject* parent = nullptr);
@@ -25,6 +26,7 @@ public:
     QString status() const { return m_status; }
     QString error() const { return m_error; }
     QString diagnostics() const { return m_diagnostics; }
+    QVariantMap microphoneStatus() const { return m_microphoneStatus; }
     void reload();
     void refresh();
     Q_INVOKABLE void retryDesktopIntegration();
@@ -37,6 +39,7 @@ private:
     const InstallationPaths m_paths;
     QTimer m_timer;
     QString m_status, m_error, m_diagnostics;
+    QVariantMap m_microphoneStatus;
     bool m_busy = false, m_running = false, m_reading = false;
     bool m_desktopCanRetry = false;
     bool m_compatible = false;

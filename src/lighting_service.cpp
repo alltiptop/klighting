@@ -26,6 +26,9 @@ LightingService::LightingService(const DeviceEnvironment& environment, const QSt
         connect(m_sources.capture.get(), &CaptureSource::sample, this,
             [this](const QByteArray& rgba) { m_runtime.sample(rgba, m_brightness, m_saturation); });
     }
+    if (m_sources.microphone)
+        connect(m_sources.microphone.get(), &MicrophoneSource::changed, this,
+            [this] { m_runtime.setMicrophoneState(m_sources.microphone->state()); });
     connect(&m_power, &PowerSource::stateChanged, this, [this] { m_runtime.setPowerState(m_power.state()); });
     connect(&m_power, &PowerSource::powerConnected, this,
         [this] { m_runtime.notify({ { }, { }, { }, { }, 1, QStringLiteral("power-connected") }); });
@@ -104,6 +107,8 @@ void LightingService::updateRequirements()
         return;
     }
     m_notifications.setEnabled(m_runtime.notificationsEnabled());
+    if (m_sources.microphone)
+        m_sources.microphone->setEnabled(m_runtime.microphoneEnabled());
     if (m_sources.capture)
         m_sources.capture->requestCapture(m_runtime.captureFps(), m_captureOptions);
 }
@@ -118,6 +123,15 @@ QVariantMap LightingService::Status() const
     const auto desktop = m_sources.desktop ? m_sources.desktop->state()
                                            : DesktopState { ProviderState::Unavailable, { }, { }, { } };
     const auto capture = m_sources.capture ? m_sources.capture->state() : CaptureState();
+    const auto microphone = m_sources.microphone ? m_sources.microphone->state() : MicrophoneState();
+    status.insert("microphoneBackend", microphone.backend);
+    status.insert("microphoneAvailable", microphone.available);
+    status.insert("microphoneMuteKnown", microphone.muteKnown);
+    status.insert("microphoneMuted", microphone.muted);
+    status.insert("microphoneSourceName", microphone.sourceName);
+    status.insert("microphoneDescription", microphone.description);
+    status.insert("microphoneReason",
+        m_sources.microphone ? microphone.reason : QStringLiteral("No microphone observer"));
     status.insert("desktopInfo", m_sources.desktop ? m_sources.desktop->info() : QVariantMap());
     status.insert("captureInfo", capture.info);
     status.insert("desktopAvailable", desktop.provider == ProviderState::Available);

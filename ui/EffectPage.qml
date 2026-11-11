@@ -146,8 +146,11 @@ KCMUtils.AbstractKCM {
                                                                               === "notifications"
                                                                               ? notificationsEditor :
                                                                                 page.controller.effectPreset.type
-                                                                                === "solid" ? solidEditor :
-                                                                                              ambientEditor
+                                                                                === "microphone"
+                                                                                ? microphoneEditor :
+                                                                                  page.controller.effectPreset.type
+                                                                                  === "solid" ? solidEditor :
+                                                                                                ambientEditor
     }
 
     Component {
@@ -177,6 +180,25 @@ KCMUtils.AbstractKCM {
             controller: page.controller
             navigator: page.navigator
             recorder: page.recorder
+        }
+    }
+
+    Component {
+        id: microphoneEditor
+
+        SettingsPage {
+            controller: page.controller
+            navigator: page.navigator
+            objectName: "MicrophoneEditor"
+            recorder: page.recorder
+            title: qsTranslate("AmbientLed.EffectsPage", "Microphone")
+
+            MicrophoneForm {
+                controller: page.controller
+                options: page.controller.effectPreset
+
+                onEdited: (key, value) => page.controller.setMicrophone(key, value)
+            }
         }
     }
 

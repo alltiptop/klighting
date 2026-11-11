@@ -17,8 +17,10 @@ kwindowsystem
 libdrm
 libepoxy
 libglvnd
+libpulse
 ninja
 pkgconf
+pulseaudio
 python
 qqc2-desktop-style
 qt6-base

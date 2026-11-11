@@ -6,6 +6,7 @@
 #include "kwin_sources.h"
 #include "lighting_ipc.h"
 #include "lighting_service.h"
+#include "microphone_source.h"
 #include <KConfig>
 #include <KConfigGroup>
 #include <QDBusConnectionInterface>
@@ -73,6 +74,28 @@ public:
     void update(const CaptureState& state)
     {
         current = state;
+        Q_EMIT changed();
+    }
+};
+class Microphone : public MicrophoneSource
+{
+public:
+    bool enabled = false;
+    QList<bool> transitions;
+    MicrophoneState current;
+    MicrophoneState state() const override { return current; }
+    void setEnabled(bool requested) override
+    {
+        if (enabled == requested)
+            return;
+        enabled = requested;
+        transitions.append(requested);
+        current = { };
+        Q_EMIT changed();
+    }
+    void update(const MicrophoneState& snapshot)
+    {
+        current = snapshot;
         Q_EMIT changed();
     }
 };
@@ -188,6 +211,111 @@ private Q_SLOTS:
         qApp->setProperty("test.devices", QStringList { "one" });
         for (const auto* key : { "uniform", "colors", "frames", "enabled" })
             qApp->setProperty((QString("test.one.") + key).toUtf8(), QVariant());
+    }
+    void microphoneObservationIsOnDemandAndFailureDoesNotStopLighting()
+    {
+        auto c = collection();
+        QVERIFY(persist(c));
+        auto microphone = std::make_unique<Microphone>();
+        auto* input = microphone.get();
+        auto capture = std::make_unique<Capture>();
+        auto* screen = capture.get();
+        LightingService service({ }, { MULTI_DRIVER_DIR },
+            { .capture = std::move(capture), .microphone = std::move(microphone) });
+        QVERIFY(service.Status()["running"].toBool());
+        QVERIFY(!input->enabled);
+        QCOMPARE(screen->fps, 0);
+        EffectPreset effect;
+        effect.id = "microphone";
+        effect.type = "microphone";
+        effect.microphone.color = Qt::green;
+        c.effects.append(effect);
+        c.presets[0].effects[DefaultAssignment].append({ effect.id });
+        QVERIFY(persist(c));
+        QVERIFY(service.Reload().isEmpty());
+        QVERIFY(input->enabled);
+        QCOMPARE(color(), "#ff0000");
+        const MicrophoneState active { true, true, false, "fixture", "synthetic-default", "Test input", { } };
+        input->update(active);
+        QCOMPARE(color(), "#00ff00");
+        const auto status = service.Status();
+        QCOMPARE(status["microphoneBackend"].toString(), "fixture");
+        QVERIFY(status["microphoneAvailable"].toBool());
+        QVERIFY(status["microphoneMuteKnown"].toBool());
+        QVERIFY(!status["microphoneMuted"].toBool());
+        QCOMPARE(status["microphoneSourceName"].toString(), "synthetic-default");
+        QCOMPARE(status["microphoneDescription"].toString(), "Test input");
+        input->update({ false, false, false, "fixture", { }, { }, "Test server disconnected" });
+        QCOMPARE(color(), "#ff0000");
+        QVERIFY(service.Status()["running"].toBool());
+        QVERIFY(!service.Status()["microphoneAvailable"].toBool());
+        QVERIFY(!service.Status()["microphoneMuteKnown"].toBool());
+        QCOMPARE(service.Status()["microphoneReason"].toString(), "Test server disconnected");
+        QCOMPARE(service.Status()["error"].toString(), status["error"].toString());
+        QCOMPARE(screen->fps, 0);
+        input->update(active);
+        QCOMPARE(color(), "#00ff00");
+        c.presets[0].effects[DefaultAssignment].removeLast();
+        QVERIFY(persist(c));
+        QVERIFY(service.Reload().isEmpty());
+        QVERIFY(!input->enabled);
+        QCOMPARE(color(), "#ff0000");
+        c.presets[0].effects[DefaultAssignment].append({ effect.id });
+        QVERIFY(persist(c));
+        QVERIFY(service.Reload().isEmpty());
+        QVERIFY(input->enabled);
+        QCOMPARE(color(), "#ff0000"); // Reactivation waits for a fresh source snapshot.
+        QCOMPARE(input->transitions, (QList<bool> { true, false, true }));
+        input->update(active);
+        QCOMPARE(color(), "#00ff00");
+    }
+    void microphoneFollowsSelectedProfileAndLockLifecycle()
+    {
+        auto c = collection();
+        auto editor = c.presets[0];
+        editor.id = "editor";
+        EffectPreset effect;
+        effect.id = "microphone";
+        effect.type = "microphone";
+        effect.microphone.color = Qt::green;
+        c.effects.append(effect);
+        editor.effects[DefaultAssignment] = { { InlineColorId, 100, QColor(Qt::blue) }, { effect.id } };
+        c.presets.append(editor);
+        c.rules = { { "Editor", "editor", "editor", true } };
+        QVERIFY(persist(c));
+        auto desktop = std::make_unique<Desktop>();
+        auto* session = desktop.get();
+        auto microphone = std::make_unique<Microphone>();
+        auto* input = microphone.get();
+        LightingService service({ }, { MULTI_DRIVER_DIR },
+            { .desktop = std::move(desktop), .microphone = std::move(microphone) });
+        QVERIFY(!input->enabled); // Unknown lock state cannot activate observation.
+        session->update("terminal", { }, false);
+        QTRY_COMPARE(color(), "#ff0000");
+        QVERIFY(!input->enabled);
+        session->update("editor", { }, false);
+        QVERIFY(input->enabled);
+        QCOMPARE(color(), "#0000ff");
+        input->update({ true, true, false });
+        QCOMPARE(color(), "#00ff00");
+        session->update("terminal", { }, false);
+        QVERIFY(!input->enabled);
+        QCOMPARE(color(), "#ff0000");
+        session->update("editor", { }, false);
+        QVERIFY(input->enabled);
+        QCOMPARE(color(), "#0000ff");
+        input->update({ true, true, false });
+        QCOMPARE(color(), "#00ff00");
+        session->update("editor", { }, true);
+        QVERIFY(!input->enabled);
+        QVERIFY(!service.Status()["running"].toBool());
+        session->update("editor", { }, false);
+        QVERIFY(input->enabled);
+        QTRY_COMPARE(color(), "#0000ff");
+        input->update({ true, true, true });
+        QCOMPARE(color(), "#0000ff");
+        input->update({ true, true, false });
+        QCOMPARE(color(), "#00ff00");
     }
     void serviceMigratesCaptureSettingsAndKeepsWorkingAfterInvalidReload()
     {

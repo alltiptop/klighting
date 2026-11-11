@@ -27,6 +27,7 @@ fi
 python3 tools/check.py > build-ci/artifacts/source-check.log 2>&1
 cmake -S . -B build-ci -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
     -DBUILD_TESTING=ON -DBUILD_KWIN_EFFECT=ON \
+    -DKLIGHTING_PULSEAUDIO=ON -DKLIGHTING_REQUIRE_AUDIO_TESTS=ON \
     -DCMAKE_CXX_COMPILER_LAUNCHER=ccache > build-ci/artifacts/configure.log 2>&1
 cmake --build build-ci --parallel 2 > build-ci/artifacts/build.log 2>&1
 ctest --test-dir build-ci --output-on-failure \
