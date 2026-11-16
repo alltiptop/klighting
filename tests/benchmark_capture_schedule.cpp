@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "capture_schedule.h"
-#include "component_info.h"
+#include "ipc/component_info.h"
+#include "kwin/capture_schedule.h"
 #include <QCommandLineParser>
 #include <QCoreApplication>
 #include <QElapsedTimer>

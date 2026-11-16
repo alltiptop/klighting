@@ -1,7 +1,7 @@
 # Contributing to klighting
 
 Start with the [architecture map](docs/architecture.md). Public driver contracts are
-in [device_driver.h](src/device_driver.h) and the [driver guide](docs/device-drivers.md).
+in [device_driver.h](src/devices/api/device_driver.h) and the [driver guide](docs/device-drivers.md).
 Keep all model-specific code, tests, fixtures, documentation, translations, dependencies
 and installation rules in its driver directory. Shared build/install/CI mechanisms
 discover module declarations; adding a model must not require editing a central list.

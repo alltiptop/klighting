@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "component_info.h"
+#include "ipc/component_info.h"
 #include <QPluginLoader>
 #include <QProcess>
 #include <QTemporaryDir>

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "application_settings.h"
+#include "config/application_settings.h"
 #include <KConfig>
 #include <KConfigGroup>
 #include <QDir>

@@ -4,23 +4,44 @@ klighting runs lighting in the user-session service `klightingd`, with optional 
 integrations and a shared Qt Quick/Kirigami settings editor.
 Effects stay built into the host; device drivers are independently loadable Qt plugins.
 
-| Area | Entry points | Responsibility |
-| --- | --- | --- |
-| Driver contract | `src/device_driver.h` | Device discovery, geometry, capabilities, frames and explicit controls; Qt Core/Gui only |
-| Device management | `driver_loader.*`, `device_manager.*` | Validate modules/layouts, preserve per-instance settings, own backends and apply power policy |
-| Preset data/storage | `presets.h`, `presets.cpp` | Bounded JSON validation, references, import/export and atomic file publication |
-| Preset evaluation | `preset_runtime.cpp`, `keyboard_profile.*` | Key conditions, one active layer, assignment expansion and shared/local references |
-| Effects | `effect_palette.*`, `color.*`, `notification_effect.*`, `microphone_effect.*` | Dominant color, smoothing, brightness/temperature, static colors, pulses and mute indicators |
-| Platform inputs | `notification_source.*`, `power_source.*` | Asynchronous D-Bus input; authenticate notification sender and track power changes |
-| Runtime/service | `lighting_runtime.*`, `lighting_service.*`, `daemon_main.cpp` | Own drivers, presets, composition and timers; reload settings over session D-Bus |
-| Source contracts | `desktop_source.h`, `capture_source.h`, `microphone_source.h`, `integration_sources.h` | Independent desktop/capture/microphone states and an optional hardware ownership guard, without platform library types |
-| Audio observation | `audio_sources.*`, `pulse_microphone_source.*` | Read-only default-input mute observation over the PulseAudio protocol; private static target linked only into the daemon |
-| KWin desktop integration | `kwin_integration.cpp`, `kwin_desktop_source.*` | The sole current desktop provider; independent of Ambient |
-| Ambient capture | `ambient_effect.*`, `frame_sampler.*`, `capture_channel.*`, `kwin_capture_source.*` | Optional small asynchronous GPU captures; no drivers or preset evaluation |
-| Settings facade | `settings_controller.*` | Pending collection, presets, layers, application rules, load/save and preview |
-| Effect editing | `settings_effects.cpp` | Shared/local effects, ordered assignments and retained legacy gradients |
-| Device settings | `settings_devices.cpp` | Selection/discovery and asynchronous lightbar controls |
-| KDE integration | `ambient_config.*`, `effect_control.*`, `ui/` | KCM state, effect enablement and one editor shared by native sections/standalone host |
+## Source layout
+
+Files are grouped by responsibility. Headers stay beside their implementations;
+cross-directory includes name the path below `src/`, for example
+`presets/presets.h`. Includes within one directory use the local filename.
+
+| Directory | Responsibility |
+| --- | --- |
+| `src/config/` | Application settings storage and shared lighting defaults |
+| `src/devices/api/` | Public `DeviceDriver` contract: discovery, geometry, capabilities, frames and controls |
+| `src/devices/` | Module loading, layout validation, backend ownership and device policy |
+| `src/drivers/` | Independently loadable hardware modules with their own tests and resources |
+| `src/presets/` | Preset data, JSON validation/storage, profile evaluation and copy/paste transfer |
+| `src/effects/` | Color processing, palettes, notification animation and microphone indicators |
+| `src/service/` | Daemon entry point, lighting composition, scheduling and service orchestration |
+| `src/sources/` | Input contracts, notification observation and power state |
+| `src/sources/audio/` | PulseAudio protocol observer and its factory, linked only into the daemon |
+| `src/sources/kwin/` | Daemon-side desktop/capture clients; no KWin library dependency |
+| `src/ipc/` | Shared protocol identifiers, component identity, daemon peer and startup guard |
+| `src/kwin/` | Compositor-side desktop plugin and Ambient GPU capture, with their metadata |
+| `src/settings/` | KCM templates, settings controllers, effect/device/profile editing and translations |
+| `ui/` | Shared Qt Quick/Kirigami editor components |
+
+The existing CMake targets remain the compilation and dependency boundaries.
+Organizational directories do not each need another library or `CMakeLists.txt`;
+their sources are listed explicitly in the root build file. Driver modules keep
+their own build files because they are independently discoverable plugins.
+Include paths and dependencies are target-scoped, following the
+[CMake buildsystem model](https://cmake.org/cmake/help/latest/manual/cmake-buildsystem.7.html)
+and [Qt's CMake guidance](https://doc.qt.io/qt-6/cmake-get-started.html).
+
+Keep platform adapters and editor dependencies out of preset/effect evaluation.
+The service consumes source contracts; KWin-specific server APIs stay in
+`src/kwin/`. The `ambient_driver_api` target exposes only `src/devices/api/`.
+The existing ASUS G615LW backend also uses shared LED timing defaults from
+`config/settings.h`, so its target declares that host include dependency explicitly.
+The public include spelling `device_driver.h` and installed
+`ambient-led/device_driver.h` path remain stable.
 
 The public `DeviceDriver` interface is the extension boundary. Its API version and
 Qt/compiler ABI must match; native modules are trusted code. No effects/settings

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 #include "aura_protocol.h"
+#include "config/settings.h"
 #include "led_transport.h"
-#include "settings.h"
 #include <QDBusConnection>
 #include <QElapsedTimer>
 #include <QObject>

@@ -10,7 +10,7 @@
 - [In-tree modules](#in-tree-modules)
 - [External build](#minimal-external-build)
 
-The public contract is [`src/device_driver.h`](../src/device_driver.h): Qt Core/Gui
+The public contract is [`src/devices/api/device_driver.h`](../src/devices/api/device_driver.h): Qt Core/Gui
 and C++20, independent of KWin, KDE settings, effects, presets and hardware services. Effects
 remain built into the host. Each driver module can enumerate multiple physical
 devices; enabled devices run together, with independent backends and presets.

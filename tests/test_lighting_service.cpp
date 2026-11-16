@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "application_settings.h"
-#include "component_info.h"
-#include "kwin_capture_source.h"
-#include "kwin_desktop_source.h"
-#include "kwin_sources.h"
-#include "lighting_ipc.h"
-#include "lighting_service.h"
-#include "microphone_source.h"
+#include "config/application_settings.h"
+#include "ipc/component_info.h"
+#include "ipc/lighting_ipc.h"
+#include "service/lighting_service.h"
+#include "sources/kwin/kwin_capture_source.h"
+#include "sources/kwin/kwin_desktop_source.h"
+#include "sources/kwin/kwin_sources.h"
+#include "sources/microphone_source.h"
 #include <KConfig>
 #include <KConfigGroup>
 #include <QDBusConnectionInterface>

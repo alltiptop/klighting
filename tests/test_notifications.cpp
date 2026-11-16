@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "effect_palette.h"
-#include "notification_source.h"
+#include "effects/effect_palette.h"
+#include "sources/notification_source.h"
 #include <QDBusPendingCallWatcher>
 #include <QDBusPendingReply>
 #include <QDBusVirtualObject>

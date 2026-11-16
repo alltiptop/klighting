@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "application_settings.h"
-#include "lighting_ipc.h"
-#include "service_control.h"
-#include "settings_controller.h"
+#include "config/application_settings.h"
+#include "ipc/lighting_ipc.h"
+#include "settings/service_control.h"
+#include "settings/settings_controller.h"
 #include <KConfigGroup>
 #include <QApplication>
 #include <QDBusConnection>

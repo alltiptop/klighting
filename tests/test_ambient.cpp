@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "color.h"
-#include "effect_names.h"
-#include "effect_palette.h"
+#include "effects/color.h"
+#include "effects/effect_palette.h"
 #include "fixtures/keyboard.h"
-#include "keyboard_profile.h"
-#include "presets.h"
+#include "ipc/effect_names.h"
+#include "presets/keyboard_profile.h"
+#include "presets/presets.h"
 #include <QtTest>
 using namespace Ambient;
 static QByteArray colorSample(std::initializer_list<std::pair<QColor, int>> patches)

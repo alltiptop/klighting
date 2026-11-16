@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "asusd_client.h"
-#include "color.h"
-#include "effect_names.h"
-#include "effect_palette.h"
+#include "config/settings.h"
+#include "effects/color.h"
+#include "effects/effect_palette.h"
 #include "g615lw_layout.h"
-#include "keyboard_profile.h"
+#include "ipc/effect_names.h"
 #include "lamp_array.h"
-#include "settings.h"
+#include "presets/keyboard_profile.h"
 #include <QDBusMessage>
 #include <QDBusVirtualObject>
 #include <QFile>

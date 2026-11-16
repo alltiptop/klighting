@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
-#include "lighting_ipc.h"
+#include "ipc/lighting_ipc.h"
 #include <KConfigGroup>
 #include <KSharedConfig>
 #include <QDBusConnection>

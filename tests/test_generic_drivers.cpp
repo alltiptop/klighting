@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "driver_loader.h"
+#include "devices/driver_loader.h"
 #include "linux_leds.h"
 #include "usb_lamps.h"
 #include <QDir>

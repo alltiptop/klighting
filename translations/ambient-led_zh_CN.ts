@@ -4,7 +4,7 @@
 <context>
     <name>Ambient::ConditionRecorder</name>
     <message>
-        <location filename="../src/condition_recorder.cpp" line="+57"/>
+        <location filename="../src/settings/condition_recorder.cpp" line="+57"/>
         <source>Hold the keys together, then release them. Esc cancels.</source>
         <translation>同时按住组合键，然后松开。Esc 取消。</translation>
     </message>
@@ -17,7 +17,7 @@
 <context>
     <name>Ambient::EffectControl</name>
     <message>
-        <location filename="../src/effect_control.cpp" line="+63"/>
+        <location filename="../src/settings/effect_control.cpp" line="+63"/>
         <source>KWin is unavailable: %1</source>
         <translation>KWin 不可用：%1</translation>
     </message>
@@ -87,7 +87,7 @@
 <context>
     <name>Ambient::KeyConditions</name>
     <message>
-        <location filename="../src/preset_runtime.cpp" line="+12"/>
+        <location filename="../src/presets/preset_runtime.cpp" line="+12"/>
         <source>Shift (Either / locked)</source>
         <translation>Shift (任意侧 / 锁定)</translation>
     </message>
@@ -215,7 +215,7 @@
 <context>
     <name>Ambient::ProfileTransfer</name>
     <message>
-        <location filename="../src/preset_transfer.cpp" line="+111"/>
+        <location filename="../src/presets/preset_transfer.cpp" line="+111"/>
         <source>Only Base effects will be copied. Key assignments and modifier layers are not supported by this device.</source>
         <translation>仅复制 Base 效果。此设备不支持按键分配和修饰键图层。</translation>
     </message>
@@ -248,7 +248,7 @@
 <context>
     <name>Ambient::ServiceControl</name>
     <message>
-        <location filename="../src/service_control.cpp" line="+34"/>
+        <location filename="../src/settings/service_control.cpp" line="+34"/>
         <source>Lighting service is stopped. Apply settings to start it.</source>
         <translation>灯光服务已停止。请应用设置以启动服务。</translation>
     </message>
@@ -299,7 +299,7 @@
 <context>
     <name>Ambient::SettingsController</name>
     <message>
-        <location filename="../src/settings_effects.cpp" line="+230"/>
+        <location filename="../src/settings/settings_effects.cpp" line="+230"/>
         <location line="+304"/>
         <source>Solid Color</source>
         <translation>纯色</translation>
@@ -316,13 +316,13 @@
         <translation>通知</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+388"/>
-        <location filename="../src/settings_effects.cpp" line="-482"/>
+        <location filename="../src/settings/settings_controller.cpp" line="+388"/>
+        <location filename="../src/settings/settings_effects.cpp" line="-482"/>
         <source>%1 copy</source>
         <translation>%1 副本</translation>
     </message>
     <message>
-        <location filename="../src/settings_effects.cpp" line="+1"/>
+        <location filename="../src/settings/settings_effects.cpp" line="+1"/>
         <source>New Notifications preset</source>
         <translation>新建通知预设</translation>
     </message>
@@ -342,17 +342,17 @@
         <translation>键盘预设“%1”正在使用此效果。请先更改其分配。</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="-91"/>
+        <location filename="../src/settings/settings_controller.cpp" line="-91"/>
         <source>Cannot save unreadable preset files. Repair them and reset.</source>
         <translation>无法保存不可读的预设文件。请修复文件后重置。</translation>
     </message>
     <message>
-        <location filename="../src/presets.cpp" line="+672"/>
+        <location filename="../src/presets/presets.cpp" line="+672"/>
         <source>Presets changed on disk. Reset before saving to preserve those changes.</source>
         <translation>磁盘上的预设已更改。请先重置再保存，以保留这些更改。</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+91"/>
+        <location filename="../src/settings/settings_controller.cpp" line="+91"/>
         <source>New preset</source>
         <translation>新建预设</translation>
     </message>
@@ -372,7 +372,7 @@
         <translation>导入将超过 64 个效果预设的上限。</translation>
     </message>
     <message>
-        <location filename="../src/settings_effects.cpp" line="+239"/>
+        <location filename="../src/settings/settings_effects.cpp" line="+239"/>
         <source>Default Ambient</source>
         <translation>默认环境光</translation>
     </message>
@@ -395,7 +395,7 @@
         <translation>此键盘未提供 F9–F12 灯光区域。</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+67"/>
+        <location filename="../src/settings/settings_controller.cpp" line="+67"/>
         <source>%1 (Left)</source>
         <translation>%1（左）</translation>
     </message>
@@ -440,7 +440,7 @@
         <translation>此窗口没有应用程序类。</translation>
     </message>
     <message>
-        <location filename="../src/settings_devices.cpp" line="+246"/>
+        <location filename="../src/settings/settings_devices.cpp" line="+246"/>
         <source>Reading lightbar settings…</source>
         <translation>正在读取灯带设置…</translation>
     </message>
@@ -460,7 +460,7 @@
         <translation>无法保存灯带设置：%1</translation>
     </message>
     <message>
-        <location filename="../src/settings_effects.cpp" line="-521"/>
+        <location filename="../src/settings/settings_effects.cpp" line="-521"/>
         <source>Brightness</source>
         <translation>亮度</translation>
     </message>

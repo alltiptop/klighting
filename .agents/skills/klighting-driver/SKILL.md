@@ -7,7 +7,7 @@ description: Guides adding or changing klighting hardware drivers, discovery, la
 
 This skill is repository-local; resolve links relative to its installed directory.
 Identify the verified protocol, capabilities and device identity before choosing a
-driver boundary. Use the [public contract](../../../src/device_driver.h) and the
+driver boundary. Use the [public contract](../../../src/devices/api/device_driver.h) and the
 relevant sections of the [driver guide](../../../docs/device-drivers.md).
 
 - Keep a model or verified compatible family in `src/drivers/<vendor-model>/`.
@@ -44,7 +44,7 @@ relevant sections of the [driver guide](../../../docs/device-drivers.md).
   interchangeable. Describe only verified geometry and capabilities. Use `DeviceClaims`
   for competing adapters and the existing options for input codes, brightness steps
   and channel limits; do not add model-specific branches to the editor.
-  [DeviceManager](../../../src/device_manager.cpp) replaces a backend when its options
+  [DeviceManager](../../../src/devices/device_manager.cpp) replaces a backend when its options
   or description change; keep discovery results stable when the device is unchanged.
 - Use one backend per enabled instance. Keep blocking hardware I/O off the service
   event thread; deliver callbacks on the owning Qt thread. Bound pending work and
@@ -62,8 +62,8 @@ relevant sections of the [driver guide](../../../docs/device-drivers.md).
   from an actual hardware frame. Document protocol-specific commit and recovery
   behavior inside the module; do not assume other protocols match.
 - Keep driver options in `DeviceInstance::options`, shared by backend and controls.
-  For legacy settings, inspect [driver_loader.cpp](../../../src/driver_loader.cpp) and
-  [application_settings.cpp](../../../src/application_settings.cpp): metadata declares
+  For legacy settings, inspect [driver_loader.cpp](../../../src/devices/driver_loader.cpp) and
+  [application_settings.cpp](../../../src/config/application_settings.cpp): metadata declares
   imported options, discovery only reads them, and service Reload owns migration.
   Do not introduce a KDE dependency into the driver to read host configuration.
 

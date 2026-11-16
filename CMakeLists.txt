@@ -31,7 +31,7 @@ list(APPEND CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
 include(KDEInstallDirs6)
 find_package(Qt6 6.10 REQUIRED COMPONENTS Core Gui DBus LinguistTools)
 qt_standard_project_setup(REQUIRES 6.10)
-qt_add_library(component_info STATIC src/component_info.cpp)
+qt_add_library(component_info STATIC src/ipc/component_info.cpp)
 target_include_directories(component_info PUBLIC src PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
 target_link_libraries(component_info PUBLIC Qt6::DBus)
 set_target_properties(component_info PROPERTIES CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN YES)
@@ -39,17 +39,26 @@ find_package(KF6CoreAddons REQUIRED)
 find_package(KF6Config REQUIRED)
 
 add_library(ambient_driver_api INTERFACE)
-target_include_directories(ambient_driver_api INTERFACE src)
+target_include_directories(ambient_driver_api INTERFACE src/devices/api)
 target_link_libraries(ambient_driver_api INTERFACE Qt6::Core Qt6::Gui)
 
 add_library(ambient_core STATIC
-    src/device_manager.cpp src/color.cpp src/notification_effect.cpp src/effect_palette.cpp src/keyboard_profile.cpp src/presets.cpp src/preset_runtime.cpp src/preset_transfer.cpp src/driver_loader.cpp src/application_settings.cpp)
+    src/config/application_settings.cpp
+    src/devices/device_manager.cpp
+    src/devices/driver_loader.cpp
+    src/effects/color.cpp
+    src/effects/effect_palette.cpp
+    src/effects/notification_effect.cpp
+    src/presets/keyboard_profile.cpp
+    src/presets/presets.cpp
+    src/presets/preset_runtime.cpp
+    src/presets/preset_transfer.cpp)
 target_include_directories(ambient_core PUBLIC src)
 target_link_libraries(ambient_core PUBLIC ambient_driver_api KF6::ConfigCore)
 target_compile_options(ambient_core PRIVATE -Wall -Wextra -Wpedantic)
 set_target_properties(ambient_core PROPERTIES CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN YES)
 
-install(FILES src/device_driver.h DESTINATION "${KDE_INSTALL_INCLUDEDIR}/ambient-led")
+install(FILES src/devices/api/device_driver.h DESTINATION "${KDE_INSTALL_INCLUDEDIR}/ambient-led")
 
 add_executable(ambient_probe tools/probe.cpp)
 target_link_libraries(ambient_probe PRIVATE ambient_core Qt6::DBus)
@@ -58,37 +67,40 @@ add_dependencies(ambient_probe klighting_drivers)
 qt_add_executable(klighting-plugin-check tools/check_plugins.cpp)
 target_link_libraries(klighting-plugin-check PRIVATE Qt6::Core)
 
-add_library(lighting_runtime STATIC src/lighting_runtime.cpp src/microphone_effect.cpp)
+add_library(lighting_runtime STATIC src/service/lighting_runtime.cpp src/effects/microphone_effect.cpp)
 target_link_libraries(lighting_runtime PUBLIC ambient_core)
-qt_add_library(integration_startup_guard STATIC src/integration_startup_guard.cpp)
+qt_add_library(integration_startup_guard STATIC src/ipc/integration_startup_guard.cpp)
 target_include_directories(integration_startup_guard PUBLIC src)
 target_link_libraries(integration_startup_guard PUBLIC Qt6::Core)
 set_target_properties(integration_startup_guard PROPERTIES
     CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN YES)
-qt_add_library(integration_sources STATIC src/desktop_source.h src/capture_source.h
-    src/microphone_source.h src/integration_sources.h)
+qt_add_library(integration_sources STATIC src/sources/desktop_source.h src/sources/capture_source.h
+    src/sources/microphone_source.h src/sources/integration_sources.h)
 target_link_libraries(integration_sources PUBLIC ambient_core)
-qt_add_library(audio_sources STATIC src/audio_sources.cpp)
+qt_add_library(audio_sources STATIC src/sources/audio/audio_sources.cpp)
 target_link_libraries(audio_sources PRIVATE integration_sources Qt6::Core)
 target_compile_options(audio_sources PRIVATE -Wall -Wextra -Wpedantic)
 set_target_properties(audio_sources PROPERTIES
     CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN YES)
 if(KLIGHTING_HAVE_PULSEAUDIO)
-    target_sources(audio_sources PRIVATE src/pulse_microphone_source.cpp)
+    target_sources(audio_sources PRIVATE src/sources/audio/pulse_microphone_source.cpp)
     target_link_libraries(audio_sources PRIVATE PkgConfig::PULSEAUDIO)
     target_compile_definitions(audio_sources PRIVATE KLIGHTING_HAVE_PULSEAUDIO=1)
 endif()
-qt_add_library(kwin_sources STATIC src/kwin_sources.cpp src/kwin_desktop_source.cpp src/kwin_capture_source.cpp)
+qt_add_library(kwin_sources STATIC
+    src/sources/kwin/kwin_sources.cpp
+    src/sources/kwin/kwin_desktop_source.cpp
+    src/sources/kwin/kwin_capture_source.cpp)
 target_link_libraries(kwin_sources PUBLIC integration_sources integration_startup_guard component_info Qt6::DBus)
 add_library(lighting_service STATIC
-    src/lighting_service.cpp
-    src/notification_source.cpp src/power_source.cpp)
+    src/service/lighting_service.cpp
+    src/sources/notification_source.cpp src/sources/power_source.cpp)
 target_link_libraries(lighting_service PUBLIC lighting_runtime integration_sources component_info Qt6::DBus)
 set_target_properties(lighting_runtime lighting_service integration_sources kwin_sources PROPERTIES
     CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN YES)
 target_compile_options(lighting_runtime PRIVATE -Wall -Wextra -Wpedantic)
 target_compile_options(lighting_service PRIVATE -Wall -Wextra -Wpedantic)
-qt_add_executable(klightingd src/daemon_main.cpp)
+qt_add_executable(klightingd src/service/daemon_main.cpp)
 target_link_libraries(klightingd PRIVATE lighting_service kwin_sources audio_sources)
 install(TARGETS klightingd RUNTIME DESTINATION ${KDE_INSTALL_BINDIR})
 configure_file(services/org.klighting.Service.service.in org.klighting.Service.service @ONLY)
@@ -108,35 +120,45 @@ if(BUILD_KWIN_EFFECT)
     find_package(KF6I18n REQUIRED)
     set(BUILD_SHARED_LIBS ON)
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
-    add_library(daemon_peer STATIC src/daemon_peer.cpp)
+    add_library(daemon_peer STATIC src/ipc/daemon_peer.cpp)
+    target_include_directories(daemon_peer PUBLIC src)
     target_link_libraries(daemon_peer PUBLIC Qt6::DBus)
     set_target_properties(daemon_peer PROPERTIES CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN YES)
-    kcoreaddons_add_plugin(klighting_integration SOURCES src/kwin_integration.cpp
+    kcoreaddons_add_plugin(klighting_integration SOURCES src/kwin/kwin_integration.cpp
         INSTALL_NAMESPACE "kwin/plugins")
     target_link_libraries(klighting_integration PRIVATE daemon_peer integration_startup_guard component_info KWin::kwin)
     target_include_directories(klighting_integration PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
-    set_property(SOURCE src/kwin_integration.cpp APPEND PROPERTY OBJECT_DEPENDS
+    set_property(SOURCE src/kwin/kwin_integration.cpp APPEND PROPERTY OBJECT_DEPENDS
         "${CMAKE_CURRENT_BINARY_DIR}/generated/kwin_integration_build.json")
     target_link_options(klighting_integration PRIVATE "LINKER:-z,defs" "LINKER:-z,now")
     set_target_properties(klighting_integration PROPERTIES PREFIX ""
         CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN YES)
     kcoreaddons_add_plugin(ambientled
-        SOURCES src/main.cpp src/ambient_effect.cpp src/frame_sampler.cpp src/capture_channel.cpp
+        SOURCES src/kwin/main.cpp src/kwin/ambient_effect.cpp src/kwin/frame_sampler.cpp src/kwin/capture_channel.cpp
         INSTALL_NAMESPACE "kwin/effects/plugins")
     set_target_properties(ambientled PROPERTIES PREFIX "" CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN YES)
     set_property(TARGET ambientled APPEND PROPERTY AUTOMOC_MACRO_NAMES KWIN_EFFECT_FACTORY_SUPPORTED)
     target_link_libraries(ambientled PRIVATE ambient_core daemon_peer component_info KWin::kwin)
     target_include_directories(ambientled PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
-    set_property(SOURCE src/main.cpp APPEND PROPERTY OBJECT_DEPENDS
+    set_property(SOURCE src/kwin/main.cpp APPEND PROPERTY OBJECT_DEPENDS
         "${CMAKE_CURRENT_BINARY_DIR}/generated/metadata_build.json")
     # Missing symbols in native plugins otherwise fail inside the compositor.
     target_link_options(ambientled PRIVATE "LINKER:-z,defs" "LINKER:-z,now")
     target_compile_options(ambientled PRIVATE -Wall -Wextra -Wpedantic)
-    add_library(ambient_settings STATIC src/translations.cpp src/settings_controller.cpp src/settings_effects.cpp src/settings_devices.cpp src/settings_profiles.cpp src/effect_control.cpp src/service_control.cpp src/condition_recorder.cpp src/layer_key_tracker.cpp)
+    add_library(ambient_settings STATIC
+        src/settings/translations.cpp
+        src/settings/settings_controller.cpp
+        src/settings/settings_effects.cpp
+        src/settings/settings_devices.cpp
+        src/settings/settings_profiles.cpp
+        src/settings/effect_control.cpp
+        src/settings/service_control.cpp
+        src/settings/condition_recorder.cpp
+        src/settings/layer_key_tracker.cpp)
     target_link_libraries(ambient_settings PUBLIC ambient_core component_info KF6::I18n KF6::GuiAddons KF6::Service Qt6::Quick Qt6::DBus)
     set_target_properties(ambient_settings PROPERTIES CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN YES)
     target_compile_options(ambient_settings PRIVATE -Wall -Wextra -Wpedantic)
-    target_sources(ambient_settings PRIVATE src/ambient_config.cpp)
+    target_sources(ambient_settings PRIVATE src/settings/ambient_config.cpp)
     target_link_libraries(ambient_settings PUBLIC KF6::KCMUtilsQuick)
     set(AMBIENT_TS_FILES)
     foreach(language IN ITEMS ru fr it es uk pl de zh_CN ar he)
@@ -151,7 +173,7 @@ if(BUILD_KWIN_EFFECT)
         OPTIONS -no-obsolete -locations relative)
     set(AMBIENT_PLUGIN kcm_ambientled)
     set(AMBIENT_METADATA "${CMAKE_CURRENT_SOURCE_DIR}/kcm_ambientled.json")
-    configure_file(src/config_plugin.cpp.in kcm_ambientled.cpp @ONLY)
+    configure_file(src/settings/config_plugin.cpp.in kcm_ambientled.cpp @ONLY)
     kcmutils_add_qml_kcm(kcm_ambientled SOURCES "${CMAKE_CURRENT_BINARY_DIR}/kcm_ambientled.cpp")
     set_target_properties(kcm_ambientled PROPERTIES PREFIX "")
     target_link_libraries(kcm_ambientled PRIVATE ambient_settings)
@@ -167,8 +189,8 @@ if(BUILD_KWIN_EFFECT)
         string(TOUPPER "${initial}" initial)
         string(SUBSTRING "${section}" 1 -1 remaining)
         set(AMBIENT_PAGE "${initial}${remaining}Page")
-        configure_file(src/config_plugin.cpp.in "${AMBIENT_PLUGIN}.cpp" @ONLY)
-        configure_file(src/config_section.qml.in "sections/${section}/main.qml" @ONLY)
+        configure_file(src/settings/config_plugin.cpp.in "${AMBIENT_PLUGIN}.cpp" @ONLY)
+        configure_file(src/settings/config_section.qml.in "sections/${section}/main.qml" @ONLY)
         kcoreaddons_add_plugin(${AMBIENT_PLUGIN}
             SOURCES "${CMAKE_CURRENT_BINARY_DIR}/${AMBIENT_PLUGIN}.cpp"
             INSTALL_NAMESPACE "plasma/kcms/systemsettings")
@@ -203,7 +225,7 @@ if(BUILD_TESTING)
     add_test(NAME application_settings_tests COMMAND application_settings_tests)
     if(KLIGHTING_HAVE_PULSEAUDIO)
         qt_add_executable(pulse_microphone_source_fake_tests
-            tests/test_pulse_microphone_source_fake.cpp src/pulse_microphone_source.cpp)
+            tests/test_pulse_microphone_source_fake.cpp src/sources/audio/pulse_microphone_source.cpp)
         target_link_libraries(pulse_microphone_source_fake_tests PRIVATE
             integration_sources Qt6::Test)
         target_include_directories(pulse_microphone_source_fake_tests SYSTEM PRIVATE
@@ -338,11 +360,11 @@ if(BUILD_TESTING)
     set_tests_properties(lighting_service_tests PROPERTIES TIMEOUT 45)
     add_test(NAME ambient_tests COMMAND ${DBUS_RUN_SESSION} --config-file=${CMAKE_CURRENT_SOURCE_DIR}/tests/session-bus.conf -- $<TARGET_FILE:ambient_tests>)
     set_tests_properties(ambient_tests PROPERTIES TIMEOUT 30)
-    add_executable(notifications_tests tests/test_notifications.cpp src/notification_source.cpp)
+    add_executable(notifications_tests tests/test_notifications.cpp src/sources/notification_source.cpp)
     target_link_libraries(notifications_tests PRIVATE ambient_core Qt6::DBus Qt6::Test)
     add_test(NAME notifications_tests COMMAND ${DBUS_RUN_SESSION} --config-file=${CMAKE_CURRENT_SOURCE_DIR}/tests/session-bus.conf -- $<TARGET_FILE:notifications_tests>)
     set_tests_properties(notifications_tests PROPERTIES TIMEOUT 30)
-    add_executable(power_tests tests/test_power.cpp src/power_source.cpp)
+    add_executable(power_tests tests/test_power.cpp src/sources/power_source.cpp)
     target_link_libraries(power_tests PRIVATE ambient_core Qt6::DBus Qt6::Test)
     add_test(NAME power_tests COMMAND ${DBUS_RUN_SESSION} --config-file=${CMAKE_CURRENT_SOURCE_DIR}/tests/session-bus.conf -- $<TARGET_FILE:power_tests>)
     set_tests_properties(power_tests PROPERTIES TIMEOUT 30)
@@ -357,6 +379,8 @@ if(BUILD_TESTING)
                 LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/test-plugins")
         endforeach()
         qt_add_executable(plugin_loading_tests tests/test_plugin_loading.cpp)
+        # This native plugin test inherits QtQml through KWin but has no QML imports.
+        set_target_properties(plugin_loading_tests PROPERTIES QT_QML_MODULE_NO_IMPORT_SCAN TRUE)
         target_link_libraries(plugin_loading_tests PRIVATE component_info Qt6::Test KWin::kwin)
         target_compile_definitions(plugin_loading_tests PRIVATE
             EFFECT_PLUGIN_PATH="$<TARGET_FILE:ambientled>"
@@ -372,7 +396,7 @@ if(BUILD_TESTING)
             --config-file=${CMAKE_CURRENT_SOURCE_DIR}/tests/session-bus.conf -- $<TARGET_FILE:plugin_loading_tests>)
         set_tests_properties(plugin_loading_tests PROPERTIES TIMEOUT 20)
         find_package(Qt6 REQUIRED COMPONENTS QuickWidgets)
-        qt_add_executable(capture_ipc_tests tests/test_capture_ipc.cpp src/capture_channel.cpp)
+        qt_add_executable(capture_ipc_tests tests/test_capture_ipc.cpp src/kwin/capture_channel.cpp)
         target_include_directories(capture_ipc_tests PRIVATE src)
         target_link_libraries(capture_ipc_tests PRIVATE daemon_peer component_info ambient_driver_api Qt6::Test)
         add_test(NAME capture_ipc_tests COMMAND ${DBUS_RUN_SESSION}

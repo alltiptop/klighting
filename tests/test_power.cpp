@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "power_source.h"
+#include "sources/power_source.h"
 #include <KConfigGroup>
 #include <QDBusVirtualObject>
 #include <QTemporaryDir>

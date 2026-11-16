@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "lighting_runtime.h"
-#include "microphone_source.h"
+#include "service/lighting_runtime.h"
+#include "sources/microphone_source.h"
 #include <QCoreApplication>
 #include <QTemporaryDir>
 #include <QTest>

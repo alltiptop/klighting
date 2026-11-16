@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "asusd_client.h"
+#include "config/settings.h"
 #include "g615lw_layout.h"
 #include "lamp_array.h"
-#include "settings.h"
 #include <QDBusMessage>
 #include <QDBusPendingCallWatcher>
 #include <QDBusPendingReply>

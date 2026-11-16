@@ -4,7 +4,7 @@
 <context>
     <name>Ambient::ConditionRecorder</name>
     <message>
-        <location filename="../src/condition_recorder.cpp" line="+57"/>
+        <location filename="../src/settings/condition_recorder.cpp" line="+57"/>
         <source>Hold the keys together, then release them. Esc cancels.</source>
         <translation>اضغط المفاتيح معًا ثم حررها. Esc للإلغاء.</translation>
     </message>
@@ -17,7 +17,7 @@
 <context>
     <name>Ambient::EffectControl</name>
     <message>
-        <location filename="../src/effect_control.cpp" line="+63"/>
+        <location filename="../src/settings/effect_control.cpp" line="+63"/>
         <source>KWin is unavailable: %1</source>
         <translation>KWin غير متاح: %1</translation>
     </message>
@@ -87,7 +87,7 @@
 <context>
     <name>Ambient::KeyConditions</name>
     <message>
-        <location filename="../src/preset_runtime.cpp" line="+12"/>
+        <location filename="../src/presets/preset_runtime.cpp" line="+12"/>
         <source>Shift (Either / locked)</source>
         <translation>Shift (أي جانب / مقفل)</translation>
     </message>
@@ -215,7 +215,7 @@
 <context>
     <name>Ambient::ProfileTransfer</name>
     <message>
-        <location filename="../src/preset_transfer.cpp" line="+111"/>
+        <location filename="../src/presets/preset_transfer.cpp" line="+111"/>
         <source>Only Base effects will be copied. Key assignments and modifier layers are not supported by this device.</source>
         <translation>ستُنسخ تأثيرات Base فقط. لا يدعم هذا الجهاز تعيينات المفاتيح وطبقات مفاتيح التعديل.</translation>
     </message>
@@ -248,7 +248,7 @@
 <context>
     <name>Ambient::ServiceControl</name>
     <message>
-        <location filename="../src/service_control.cpp" line="+34"/>
+        <location filename="../src/settings/service_control.cpp" line="+34"/>
         <source>Lighting service is stopped. Apply settings to start it.</source>
         <translation>خدمة الإضاءة متوقفة. طبّق الإعدادات لتشغيلها.</translation>
     </message>
@@ -299,7 +299,7 @@
 <context>
     <name>Ambient::SettingsController</name>
     <message>
-        <location filename="../src/settings_effects.cpp" line="+230"/>
+        <location filename="../src/settings/settings_effects.cpp" line="+230"/>
         <location line="+304"/>
         <source>Solid Color</source>
         <translation>لون ثابت</translation>
@@ -316,13 +316,13 @@
         <translation>الإشعارات</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+388"/>
-        <location filename="../src/settings_effects.cpp" line="-482"/>
+        <location filename="../src/settings/settings_controller.cpp" line="+388"/>
+        <location filename="../src/settings/settings_effects.cpp" line="-482"/>
         <source>%1 copy</source>
         <translation>نسخة من %1</translation>
     </message>
     <message>
-        <location filename="../src/settings_effects.cpp" line="+1"/>
+        <location filename="../src/settings/settings_effects.cpp" line="+1"/>
         <source>New Notifications preset</source>
         <translation>إعداد مسبق جديد للإشعارات</translation>
     </message>
@@ -342,17 +342,17 @@
         <translation>يستخدم إعداد لوحة المفاتيح «%1» هذا التأثير. غيّر تعييناته أولًا.</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="-91"/>
+        <location filename="../src/settings/settings_controller.cpp" line="-91"/>
         <source>Cannot save unreadable preset files. Repair them and reset.</source>
         <translation>لا يمكن حفظ ملفات إعدادات مسبقة غير مقروءة. أصلحها ثم أعد الضبط.</translation>
     </message>
     <message>
-        <location filename="../src/presets.cpp" line="+672"/>
+        <location filename="../src/presets/presets.cpp" line="+672"/>
         <source>Presets changed on disk. Reset before saving to preserve those changes.</source>
         <translation>تغيّرت الإعدادات المسبقة على القرص. أعد الضبط قبل الحفظ للحفاظ على تلك التغييرات.</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+91"/>
+        <location filename="../src/settings/settings_controller.cpp" line="+91"/>
         <source>New preset</source>
         <translation>إعداد مسبق جديد</translation>
     </message>
@@ -372,7 +372,7 @@
         <translation>سيتجاوز الاستيراد حد 64 إعدادًا مسبقًا للتأثيرات.</translation>
     </message>
     <message>
-        <location filename="../src/settings_effects.cpp" line="+239"/>
+        <location filename="../src/settings/settings_effects.cpp" line="+239"/>
         <source>Default Ambient</source>
         <translation>الإضاءة المحيطية الافتراضية</translation>
     </message>
@@ -395,7 +395,7 @@
         <translation>لا توفر لوحة المفاتيح مناطق إضاءة F9–F12.</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+67"/>
+        <location filename="../src/settings/settings_controller.cpp" line="+67"/>
         <source>%1 (Left)</source>
         <translation>%1 (الأيسر)</translation>
     </message>
@@ -440,7 +440,7 @@
         <translation>هذه النافذة ليس لها فئة تطبيق.</translation>
     </message>
     <message>
-        <location filename="../src/settings_devices.cpp" line="+246"/>
+        <location filename="../src/settings/settings_devices.cpp" line="+246"/>
         <source>Reading lightbar settings…</source>
         <translation>جارٍ قراءة إعدادات شريط الإضاءة…</translation>
     </message>
@@ -460,7 +460,7 @@
         <translation>تعذّر حفظ إعداد الشريط: %1</translation>
     </message>
     <message>
-        <location filename="../src/settings_effects.cpp" line="-521"/>
+        <location filename="../src/settings/settings_effects.cpp" line="-521"/>
         <source>Brightness</source>
         <translation>السطوع</translation>
     </message>

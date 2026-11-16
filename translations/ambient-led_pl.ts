@@ -4,7 +4,7 @@
 <context>
     <name>Ambient::ConditionRecorder</name>
     <message>
-        <location filename="../src/condition_recorder.cpp" line="+57"/>
+        <location filename="../src/settings/condition_recorder.cpp" line="+57"/>
         <source>Hold the keys together, then release them. Esc cancels.</source>
         <translation>Przytrzymaj klawisze razem, a następnie puść. Esc anuluje.</translation>
     </message>
@@ -17,7 +17,7 @@
 <context>
     <name>Ambient::EffectControl</name>
     <message>
-        <location filename="../src/effect_control.cpp" line="+63"/>
+        <location filename="../src/settings/effect_control.cpp" line="+63"/>
         <source>KWin is unavailable: %1</source>
         <translation>KWin jest niedostępny: %1</translation>
     </message>
@@ -87,7 +87,7 @@
 <context>
     <name>Ambient::KeyConditions</name>
     <message>
-        <location filename="../src/preset_runtime.cpp" line="+12"/>
+        <location filename="../src/presets/preset_runtime.cpp" line="+12"/>
         <source>Shift (Either / locked)</source>
         <translation>Shift (dowolny / zablokowany)</translation>
     </message>
@@ -215,7 +215,7 @@
 <context>
     <name>Ambient::ProfileTransfer</name>
     <message>
-        <location filename="../src/preset_transfer.cpp" line="+111"/>
+        <location filename="../src/presets/preset_transfer.cpp" line="+111"/>
         <source>Only Base effects will be copied. Key assignments and modifier layers are not supported by this device.</source>
         <translation>Zostaną skopiowane tylko efekty Base. Urządzenie nie obsługuje przypisań klawiszy ani warstw modyfikatorów.</translation>
     </message>
@@ -248,7 +248,7 @@
 <context>
     <name>Ambient::ServiceControl</name>
     <message>
-        <location filename="../src/service_control.cpp" line="+34"/>
+        <location filename="../src/settings/service_control.cpp" line="+34"/>
         <source>Lighting service is stopped. Apply settings to start it.</source>
         <translation>Usługa podświetlenia jest zatrzymana. Zastosuj ustawienia, aby ją uruchomić.</translation>
     </message>
@@ -299,7 +299,7 @@
 <context>
     <name>Ambient::SettingsController</name>
     <message>
-        <location filename="../src/settings_effects.cpp" line="+230"/>
+        <location filename="../src/settings/settings_effects.cpp" line="+230"/>
         <location line="+304"/>
         <source>Solid Color</source>
         <translation>Jednolity kolor</translation>
@@ -316,13 +316,13 @@
         <translation>Powiadomienia</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+388"/>
-        <location filename="../src/settings_effects.cpp" line="-482"/>
+        <location filename="../src/settings/settings_controller.cpp" line="+388"/>
+        <location filename="../src/settings/settings_effects.cpp" line="-482"/>
         <source>%1 copy</source>
         <translation>Kopia %1</translation>
     </message>
     <message>
-        <location filename="../src/settings_effects.cpp" line="+1"/>
+        <location filename="../src/settings/settings_effects.cpp" line="+1"/>
         <source>New Notifications preset</source>
         <translation>Nowe ustawienie wstępne powiadomień</translation>
     </message>
@@ -342,17 +342,17 @@
         <translation>Efekt jest używany przez ustawienie klawiatury „%1”. Najpierw zmień przypisania.</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="-91"/>
+        <location filename="../src/settings/settings_controller.cpp" line="-91"/>
         <source>Cannot save unreadable preset files. Repair them and reset.</source>
         <translation>Nie można zapisać nieczytelnych plików ustawień. Napraw je i przywróć.</translation>
     </message>
     <message>
-        <location filename="../src/presets.cpp" line="+672"/>
+        <location filename="../src/presets/presets.cpp" line="+672"/>
         <source>Presets changed on disk. Reset before saving to preserve those changes.</source>
         <translation>Ustawienia zmieniono na dysku. Przywróć przed zapisem, aby zachować te zmiany.</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+91"/>
+        <location filename="../src/settings/settings_controller.cpp" line="+91"/>
         <source>New preset</source>
         <translation>Nowe ustawienie wstępne</translation>
     </message>
@@ -372,7 +372,7 @@
         <translation>Import przekroczyłby limit 64 ustawień wstępnych efektów.</translation>
     </message>
     <message>
-        <location filename="../src/settings_effects.cpp" line="+239"/>
+        <location filename="../src/settings/settings_effects.cpp" line="+239"/>
         <source>Default Ambient</source>
         <translation>Domyślny Ambient</translation>
     </message>
@@ -395,7 +395,7 @@
         <translation>Ta klawiatura nie udostępnia stref podświetlenia F9–F12.</translation>
     </message>
     <message>
-        <location filename="../src/settings_controller.cpp" line="+67"/>
+        <location filename="../src/settings/settings_controller.cpp" line="+67"/>
         <source>%1 (Left)</source>
         <translation>%1 (lewy)</translation>
     </message>
@@ -440,7 +440,7 @@
         <translation>To okno nie ma klasy programu.</translation>
     </message>
     <message>
-        <location filename="../src/settings_devices.cpp" line="+246"/>
+        <location filename="../src/settings/settings_devices.cpp" line="+246"/>
         <source>Reading lightbar settings…</source>
         <translation>Odczytywanie ustawień paska świetlnego…</translation>
     </message>
@@ -460,7 +460,7 @@
         <translation>Nie można zapisać ustawienia paska: %1</translation>
     </message>
     <message>
-        <location filename="../src/settings_effects.cpp" line="-521"/>
+        <location filename="../src/settings/settings_effects.cpp" line="-521"/>
         <source>Brightness</source>
         <translation>Jasność</translation>
     </message>

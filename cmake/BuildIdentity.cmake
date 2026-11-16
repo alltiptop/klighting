@@ -25,7 +25,7 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/klighting-service.json"
     DESTINATION "${KDE_INSTALL_DATADIR}/klighting")
 if(BUILD_KWIN_EFFECT)
     foreach(component IN ITEMS metadata kwin_integration)
-        file(READ "${PROJECT_SOURCE_DIR}/src/${component}.json" metadata)
+        file(READ "${PROJECT_SOURCE_DIR}/src/kwin/${component}.json" metadata)
         string(JSON metadata SET "${metadata}" X-KLighting "${component_metadata}")
         file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/${component}_build.json"
             CONTENT "${metadata}\n")

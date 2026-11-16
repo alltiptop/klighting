@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "integration_startup_guard.h"
+#include "ipc/integration_startup_guard.h"
 #include <QDir>
 #include <QFile>
 #include <QLockFile>

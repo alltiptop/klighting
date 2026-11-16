@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "component_info.h"
-#include "lighting_runtime.h"
+#include "ipc/component_info.h"
+#include "service/lighting_runtime.h"
 #include <QAbstractEventDispatcher>
 #include <QCommandLineParser>
 #include <QCoreApplication>

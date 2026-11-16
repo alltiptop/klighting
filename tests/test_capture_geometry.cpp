@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "capture_geometry.h"
+#include "kwin/capture_geometry.h"
 #include <QtTest>
 
 using namespace Ambient;

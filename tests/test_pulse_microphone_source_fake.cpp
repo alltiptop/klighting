@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "pulse_microphone_source.h"
+#include "sources/audio/pulse_microphone_source.h"
 #include <QTest>
 #include <memory>
 #include <pulse/pulseaudio.h>

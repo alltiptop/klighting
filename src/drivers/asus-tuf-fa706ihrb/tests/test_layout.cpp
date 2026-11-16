@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "device_manager.h"
+#include "devices/device_manager.h"
 #include <QTemporaryDir>
 #include <QtTest>
 #include <algorithm>

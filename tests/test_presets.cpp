@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "effect_palette.h"
-#include "preset_reader_p.h"
-#include "preset_transfer.h"
-#include "presets.h"
+#include "effects/effect_palette.h"
+#include "presets/preset_reader_p.h"
+#include "presets/preset_transfer.h"
+#include "presets/presets.h"
 #include <KConfigGroup>
 #include <KSharedConfig>
 #include <QDir>

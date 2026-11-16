@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "device_driver.h"
-#include "translations.h"
+#include "settings/translations.h"
 #include <KCMultiDialog>
 #include <KLocalizedString>
 #include <KPluginMetaData>

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "component_info.h"
-#include "lighting_ipc.h"
+#include "ipc/component_info.h"
+#include "ipc/lighting_ipc.h"
 #include <QTemporaryDir>
 #include <QtTest>
 using namespace Ambient;

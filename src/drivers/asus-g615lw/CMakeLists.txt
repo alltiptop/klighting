@@ -5,7 +5,9 @@ add_library(ambient_asus_g615lw STATIC
     aura_protocol.cpp asusd_client.cpp
     lamp_array.cpp led_transport.h
     g615lw_layout.cpp asus_controls.cpp)
-target_include_directories(ambient_asus_g615lw PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+# The backend's public header also uses the shared LED timing defaults.
+target_include_directories(ambient_asus_g615lw PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}/src")
 target_link_libraries(ambient_asus_g615lw PUBLIC ambient_driver_api Qt6::DBus PkgConfig::ASUS_G615LW_USB)
 target_compile_options(ambient_asus_g615lw PRIVATE -Wall -Wextra -Wpedantic)
 add_library(asus_g615lw MODULE asus_driver.cpp asus_translations.cpp)

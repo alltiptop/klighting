@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "driver_loader.h"
-#include "effect_names.h"
-#include "lighting_ipc.h"
+#include "devices/driver_loader.h"
+#include "ipc/effect_names.h"
+#include "ipc/lighting_ipc.h"
 #include <QCommandLineParser>
 #include <QCoreApplication>
 #include <QDBusConnection>

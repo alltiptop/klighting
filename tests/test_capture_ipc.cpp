@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "capture_channel.h"
-#include "component_info.h"
-#include "lighting_ipc.h"
+#include "ipc/component_info.h"
+#include "ipc/lighting_ipc.h"
+#include "kwin/capture_channel.h"
 #include <QDBusConnectionInterface>
 #include <QDBusMessage>
 #include <QDBusPendingCall>

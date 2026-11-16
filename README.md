@@ -106,7 +106,7 @@ reload commands, see [installation](docs/install.md). Rebuild after KWin updates
 
 ## Add a driver
 
-Implement [`DeviceDriver`](src/device_driver.h) in `src/drivers/<vendor-model>/`
+Implement [`DeviceDriver`](src/devices/api/device_driver.h) in `src/drivers/<vendor-model>/`
 or an external Qt `.so` module. Drivers own discovery, capabilities, geometry and
 hardware output; the host renders their layouts. Start with the
 [driver guide and standalone CMake example](docs/device-drivers.md).

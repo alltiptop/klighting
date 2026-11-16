@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "lamp_array.h"
+#include "config/settings.h"
 #include "g615lw_layout.h"
-#include "settings.h"
 #include <QDir>
 #include <QFile>
 #include <QLoggingCategory>

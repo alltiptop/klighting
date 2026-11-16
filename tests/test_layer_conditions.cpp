@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "condition_recorder.h"
-#include "layer_key_tracker.h"
+#include "settings/condition_recorder.h"
+#include "settings/layer_key_tracker.h"
 #include <KKeySequenceRecorder>
 #include <QApplication>
 #include <QDialog>

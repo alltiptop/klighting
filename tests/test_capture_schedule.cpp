@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "capture_schedule.h"
+#include "kwin/capture_schedule.h"
 #include <QtTest>
 
 using namespace Ambient;

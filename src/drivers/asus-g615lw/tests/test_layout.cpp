@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "application_settings.h"
-#include "device_manager.h"
+#include "config/application_settings.h"
+#include "devices/device_manager.h"
 #include <KConfig>
 #include <KConfigGroup>
 #include <QDir>
