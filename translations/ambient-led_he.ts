@@ -1578,8 +1578,8 @@
         <translation>להסיר את ההגדרה הזאת? למכשירים שמשתמשים בה לא תהיה הגדרת ברירת מחדל. ניתן לבטל שינויים שטרם נשמרו באמצעות איפוס.</translation>
     </message>
     <message>
-        <source>An empty Base inherits the same device's Base from Default. Your own layers still apply; Default's layers are not inherited. Assign a black Solid Color to keep this preset dark.</source>
-        <translation>בסיס ריק יורש את בסיס אותו התקן מתוך Default. השכבות שלך עדיין חלות; שכבות Default אינן עוברות בירושה. יש להקצות צבע אחיד שחור כדי להשאיר הגדרה זו חשוכה.</translation>
+        <source>Unassigned elements inherit the same device's Base from Default. Your own layers still apply; Default's layers are not inherited. Assign a black Solid Color to keep this preset dark.</source>
+        <translation>רכיבים ללא הקצאה יורשים את בסיס אותו התקן מתוך Default. השכבות שלך עדיין חלות; שכבות Default אינן עוברות בירושה. יש להקצות צבע אחיד שחור כדי להשאיר הגדרה זו חשוכה.</translation>
     </message>
 </context>
 <context>
@@ -1862,6 +1862,26 @@
 </context>
 <context>
     <name>AmbientLed.TriggerForm</name>
+    <message>
+        <source>Detects PipeWire capture and, with optional V4L2 support, cameras held open by your applications. An open camera may not be recording.</source>
+        <translation>מזהה לכידה דרך PipeWire, ועם תמיכה אופציונלית ב־V4L2 גם מצלמות שהיישומים שלך משאירים פתוחות. מצלמה פתוחה אינה בהכרח מקליטה.</translation>
+    </message>
+    <message>
+        <source>Microphone in use</source>
+        <translation>המיקרופון בשימוש</translation>
+    </message>
+    <message>
+        <source>Camera in use</source>
+        <translation>המצלמה בשימוש</translation>
+    </message>
+    <message>
+        <source>Screen capture</source>
+        <translation>לכידת מסך</translation>
+    </message>
+    <message>
+        <source>Detects active capture through PipeWire, including calls and previews. Direct capture outside PipeWire is not detected.</source>
+        <translation>מזהה לכידה פעילה דרך PipeWire, כולל שיחות ותצוגות מקדימות. לכידה ישירה מחוץ ל־PipeWire אינה מזוהה.</translation>
+    </message>
     <message>
         <source>Airplane mode</source>
         <translation>מצב טיסה</translation>

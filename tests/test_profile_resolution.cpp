@@ -80,11 +80,110 @@ private Q_SLOTS:
         QCOMPARE(colors(), (QVariantList { "#ffff00", "#0000ff", "#0000ff" }));
         runtime.setDesktop("empty", { { }, Qt::ControlModifier });
         QCOMPARE(colors(), (QVariantList { "#00ffff", "#0000ff", "#0000ff" }));
-        // Once Base has an assignment, its explicitly empty other keys remain off.
+        // A local assignment replaces only that element, not the rest of Default Base.
         c.presets[1].effects[7] = { { InlineColorId, 100, QColor(Qt::green) } };
         runtime.configure(c);
         runtime.setDesktop("empty", { });
-        QCOMPARE(colors(), (QVariantList { "#00ff00", "#000000", "#000000" }));
+        QCOMPARE(colors(), (QVariantList { "#00ff00", "#0000ff", "#0000ff" }));
+        c.presets[1].effects[42] = { }; // An explicitly cleared element still stays off.
+        runtime.configure(c);
+        QCOMPARE(colors(), (QVariantList { "#00ff00", "#000000", "#0000ff" }));
+        runtime.setDesktop("empty", { { }, Qt::ControlModifier });
+        QCOMPARE(colors(), (QVariantList { "#00ffff", "#000000", "#0000ff" }));
+        c.presets[0].effects[DefaultAssignment] = { { InlineColorId, 100, QColor(Qt::white) } };
+        runtime.configure(c);
+        QCOMPARE(colors(), (QVariantList { "#00ffff", "#000000", "#ffffff" }));
+    }
+    void partialBaseOverridesDefaultGradientAndStripAssignments()
+    {
+        auto c = collection();
+        c.presets[0].gradients = { { FirstStripId, 7, 1, Qt::red, Qt::blue } };
+        LightingPreset app;
+        app.id = "spectacle";
+        app.keyboardDeviceId = "test-strip";
+        app.defaultEffectId.clear();
+        EffectPreset green;
+        green.id = "green";
+        green.type = "solid";
+        green.solidColor = Qt::green;
+        app.localEffects = { green };
+        app.effects = { { DefaultAssignment, { } }, { 42, { { green.id } } } };
+        app.layers.clear();
+        c.presets.append(app);
+        c.rules = { { "Spectacle", "spectacle", app.id } };
+        const auto saved = c;
+        LightingRuntime runtime({ }, { MULTI_DRIVER_DIR });
+        start(runtime, c);
+        runtime.setDesktop("spectacle", { });
+        QCOMPARE(colors(), (QVariantList { "#ff0000", "#00ff00", "#0000ff" }));
+        runtime.setDesktop("spectacle", { { }, Qt::ShiftModifier });
+        QCOMPARE(colors(), (QVariantList { "#ff0000", "#00ff00", "#0000ff" }));
+        QCOMPARE(c, saved); // Resolution must not copy inherited assignments into the saved preset.
+        c.presets[0].gradients.clear();
+        c.presets[0].effects[FirstStripId] = { { InlineColorId, 100, QColor(Qt::yellow) } };
+        runtime.configure(c);
+        QCOMPARE(colors(), (QVariantList { "#ffff00", "#00ff00", "#ffff00" }));
+        c.presets[1].effects[DefaultAssignment] = { { InlineColorId, 100, QColor(Qt::cyan) } };
+        runtime.configure(c);
+        QCOMPARE(colors(), (QVariantList { "#00ffff", "#00ff00", "#00ffff" }));
+        c.presets[1].effects[FirstStripId] = { }; // Explicit strip off overrides the default assignment.
+        runtime.configure(c);
+        QCOMPARE(colors(), (QVariantList { "#000000", "#00ff00", "#000000" }));
+    }
+    void inheritedBaseKeepsOwnAboveLayerEffectsAndUniformAssignments()
+    {
+        auto c = collection();
+        EffectPreset indicator;
+        indicator.id = "indicator";
+        indicator.type = "solid";
+        indicator.solidColor = Qt::green;
+        c.effects.append(indicator);
+        auto app = c.presets[0];
+        app.id = "app";
+        app.effects = { { DefaultAssignment, { } } };
+        app.layers.clear();
+        app.effectOverrides[42] = { { indicator.id } };
+        c.presets.append(app);
+        c.rules = { { "App", "app", app.id } };
+        LightingRuntime runtime({ }, { MULTI_DRIVER_DIR });
+        start(runtime, c);
+        runtime.setDesktop("app", { { }, Qt::ShiftModifier });
+        QCOMPARE(colors(), (QVariantList { "#0000ff", "#00ff00", "#0000ff" }));
+        c.presets[1].effectOverrides.clear();
+        qApp->setProperty("test.one.globalColor", true);
+        runtime.configure(c);
+        QCOMPARE(color(), QColor(Qt::blue));
+        c.presets[1].effects[DefaultAssignment] = { { InlineColorId, 100, QColor(Qt::cyan) } };
+        runtime.configure(c);
+        QCOMPARE(color(), QColor(Qt::cyan));
+    }
+    void defaultOverridesBelongOnlyToInheritedElements()
+    {
+        auto c = collection();
+        EffectPreset green;
+        green.id = "green";
+        green.type = "solid";
+        green.solidColor = Qt::green;
+        c.effects.append(green);
+        c.presets[0].effectOverrides[42] = { { green.id } };
+        auto app = c.presets[0];
+        app.id = "app";
+        app.effects = { { DefaultAssignment, { } }, { 7, { { InlineColorId, 100, QColor(Qt::cyan) } } } };
+        app.effectOverrides.clear();
+        app.layers = { KeyboardLayer() };
+        app.layers[0].effects[42] = { { InlineColorId, 100, QColor(Qt::magenta) } };
+        c.presets.append(app);
+        c.rules = { { "App", "app", app.id } };
+        LightingRuntime runtime({ }, { MULTI_DRIVER_DIR });
+        start(runtime, c);
+        runtime.setDesktop("app", { });
+        QCOMPARE(colors(), (QVariantList { "#00ffff", "#00ff00", "#0000ff" }));
+        runtime.setDesktop("app", { { }, Qt::ShiftModifier });
+        QCOMPARE(colors(), (QVariantList { "#00ffff", "#ff00ff", "#0000ff" }));
+        c.presets[1].effects[42] = { };
+        runtime.configure(c);
+        runtime.setDesktop("app", { });
+        QCOMPARE(colors(), (QVariantList { "#00ffff", "#000000", "#0000ff" }));
     }
     void microphoneAssignmentsComposeAndRestoreCurrentLayer()
     {

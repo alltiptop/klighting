@@ -153,8 +153,8 @@ struct PresetCollection {
     std::optional<QList<DeviceConfiguration>> devices = std::nullopt;
     bool operator==(const PresetCollection&) const = default;
 };
-DeviceProfile resolvedDeviceProfile(
-    const PresetCollection& collection, int index, const DeviceConfiguration& device);
+DeviceProfile resolvedDeviceProfile(const PresetCollection& collection, int index,
+    const DeviceConfiguration& device, const DeviceDescription& description);
 QList<EffectPreset> runtimeEffects(const PresetCollection& collection);
 QString scopedEffectId(const DeviceProfile& preset, const QString& id);
 PresetCollection defaultCollection(const QString& deviceId = QStringLiteral("unknown-device"));

@@ -36,6 +36,15 @@ LightingService::LightingService(const DeviceEnvironment& environment, const QSt
                 if (QStringList { "volume", "muted", "playback" }.contains(effect.trigger.type))
                     m_runtime.setTriggerValue(effect.id, values.value(effect.trigger.type));
         });
+    if (m_sources.mediaActivity)
+        connect(m_sources.mediaActivity.get(), &MediaActivitySource::changed, this,
+            [this](const QVariantMap& values) {
+                m_mediaValues = values;
+                for (const auto& effect : m_runtime.triggerRequirements())
+                    if (QStringList { "microphone-active", "camera-active", "screen-capture" }.contains(
+                            effect.trigger.type))
+                        m_runtime.setTriggerValue(effect.id, values.value(effect.trigger.type));
+            });
     if (m_sources.microphone)
         connect(m_sources.microphone.get(), &MicrophoneSource::changed, this,
             [this] { m_runtime.setMicrophoneState(m_sources.microphone->state()); });
@@ -120,13 +129,20 @@ void LightingService::updateRequirements()
     const auto requirements = m_runtime.triggerRequirements();
     m_systemTriggers.configure(requirements);
     bool audio = false;
+    QSet<QString> mediaKinds;
     for (const auto& effect : requirements)
         if (QStringList { "volume", "muted", "playback" }.contains(effect.trigger.type)) {
             audio = true;
             m_runtime.setTriggerValue(effect.id, m_audioValues.value(effect.trigger.type));
+        } else if (QStringList { "microphone-active", "camera-active", "screen-capture" }.contains(
+                       effect.trigger.type)) {
+            mediaKinds.insert(effect.trigger.type);
+            m_runtime.setTriggerValue(effect.id, m_mediaValues.value(effect.trigger.type));
         }
     if (m_sources.audio)
         m_sources.audio->setEnabled(audio);
+    if (m_sources.mediaActivity)
+        m_sources.mediaActivity->setRequiredKinds(mediaKinds);
     if (m_sources.microphone)
         m_sources.microphone->setEnabled(m_runtime.microphoneEnabled());
     if (m_sources.capture)

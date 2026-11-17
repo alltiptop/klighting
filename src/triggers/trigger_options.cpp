@@ -7,8 +7,9 @@ namespace Ambient
 {
 QStringList triggerTypes()
 {
-    return { { }, "microphone", "volume", "muted", "playback", "power-profile", "display", "bluetooth",
-        "network", "touchpad", "airplane", "keyboard-brightness", "notification", "power-connected", "dbus" };
+    return { { }, "microphone", "microphone-active", "camera-active", "screen-capture", "volume", "muted",
+        "playback", "power-profile", "display", "bluetooth", "network", "touchpad", "airplane",
+        "keyboard-brightness", "notification", "power-connected", "dbus" };
 }
 bool eventTrigger(const TriggerOptions& t)
 {

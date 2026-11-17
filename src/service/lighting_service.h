@@ -31,7 +31,7 @@ private:
     NotificationSource m_notifications;
     SystemTriggerSource m_systemTriggers;
     IntegrationSources m_sources;
-    QVariantMap m_captureOptions, m_audioValues;
+    QVariantMap m_captureOptions, m_audioValues, m_mediaValues;
     QString m_error;
     double m_brightness = 1, m_saturation = 1;
     bool m_configured = false, m_desktopKnown = false;

@@ -1578,8 +1578,8 @@
         <translation>هل تريد إزالة هذا الإعداد المسبق؟ لن يكون للأجهزة التي تستخدمه إعداد مسبق افتراضي. يمكنك التراجع عن التغييرات المعلقة باستخدام إعادة الضبط.</translation>
     </message>
     <message>
-        <source>An empty Base inherits the same device's Base from Default. Your own layers still apply; Default's layers are not inherited. Assign a black Solid Color to keep this preset dark.</source>
-        <translation>ترث القاعدة الفارغة قاعدة الجهاز نفسه من Default. تبقى طبقاتك فعّالة دون وراثة طبقات Default. عيّن لونًا أسود ثابتًا لإبقاء هذا الإعداد مظلمًا.</translation>
+        <source>Unassigned elements inherit the same device's Base from Default. Your own layers still apply; Default's layers are not inherited. Assign a black Solid Color to keep this preset dark.</source>
+        <translation>ترث العناصر غير المعيّنة قاعدة الجهاز نفسه من Default. تبقى طبقاتك فعّالة دون وراثة طبقات Default. عيّن لونًا أسود ثابتًا لإبقاء هذا الإعداد مظلمًا.</translation>
     </message>
 </context>
 <context>
@@ -1862,6 +1862,26 @@
 </context>
 <context>
     <name>AmbientLed.TriggerForm</name>
+    <message>
+        <source>Detects PipeWire capture and, with optional V4L2 support, cameras held open by your applications. An open camera may not be recording.</source>
+        <translation>يكتشف الالتقاط عبر PipeWire، ومع دعم V4L2 الاختياري، الكاميرات التي تُبقيها تطبيقاتك مفتوحة. قد لا تكون الكاميرا المفتوحة قيد التسجيل.</translation>
+    </message>
+    <message>
+        <source>Microphone in use</source>
+        <translation>الميكروفون قيد الاستخدام</translation>
+    </message>
+    <message>
+        <source>Camera in use</source>
+        <translation>الكاميرا قيد الاستخدام</translation>
+    </message>
+    <message>
+        <source>Screen capture</source>
+        <translation>التقاط الشاشة</translation>
+    </message>
+    <message>
+        <source>Detects active capture through PipeWire, including calls and previews. Direct capture outside PipeWire is not detected.</source>
+        <translation>يكتشف الالتقاط النشط عبر PipeWire، بما في ذلك المكالمات والمعاينات. لا يُكتشف الالتقاط المباشر خارج PipeWire.</translation>
+    </message>
     <message>
         <source>Airplane mode</source>
         <translation>وضع الطيران</translation>

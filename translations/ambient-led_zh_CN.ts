@@ -1578,8 +1578,8 @@
         <translation>删除此预设？使用它的设备将不再有默认预设。您可以通过“重置”撤销尚未保存的更改。</translation>
     </message>
     <message>
-        <source>An empty Base inherits the same device's Base from Default. Your own layers still apply; Default's layers are not inherited. Assign a black Solid Color to keep this preset dark.</source>
-        <translation>空的基础层继承 Default 中同一设备的基础层。您自己的图层仍然生效，但不继承 Default 的图层。若要保持此预设熄灭，请指定黑色纯色。</translation>
+        <source>Unassigned elements inherit the same device's Base from Default. Your own layers still apply; Default's layers are not inherited. Assign a black Solid Color to keep this preset dark.</source>
+        <translation>未分配的元素继承 Default 中同一设备的基础层。您自己的图层仍然生效，但不继承 Default 的图层。若要保持此预设熄灭，请指定黑色纯色。</translation>
     </message>
 </context>
 <context>
@@ -1862,6 +1862,26 @@
 </context>
 <context>
     <name>AmbientLed.TriggerForm</name>
+    <message>
+        <source>Detects PipeWire capture and, with optional V4L2 support, cameras held open by your applications. An open camera may not be recording.</source>
+        <translation>检测通过 PipeWire 进行的捕获；启用可选的 V4L2 支持后，还会检测应用保持打开的摄像头。打开的摄像头不一定正在录制。</translation>
+    </message>
+    <message>
+        <source>Microphone in use</source>
+        <translation>麦克风使用中</translation>
+    </message>
+    <message>
+        <source>Camera in use</source>
+        <translation>摄像头使用中</translation>
+    </message>
+    <message>
+        <source>Screen capture</source>
+        <translation>屏幕捕获</translation>
+    </message>
+    <message>
+        <source>Detects active capture through PipeWire, including calls and previews. Direct capture outside PipeWire is not detected.</source>
+        <translation>检测通过 PipeWire 进行的活动捕获，包括通话和预览。无法检测绕过 PipeWire 的直接捕获。</translation>
+    </message>
     <message>
         <source>Airplane mode</source>
         <translation>飞行模式</translation>

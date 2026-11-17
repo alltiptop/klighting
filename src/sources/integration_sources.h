@@ -3,6 +3,7 @@
 #include "audio_state_source.h"
 #include "capture_source.h"
 #include "desktop_source.h"
+#include "media_activity_source.h"
 #include "microphone_source.h"
 #include <memory>
 
@@ -38,5 +39,6 @@ struct IntegrationSources {
     std::shared_ptr<HardwareControlGuard> hardwareGuard;
     std::unique_ptr<MicrophoneSource> microphone;
     std::unique_ptr<AudioStateSource> audio;
+    std::unique_ptr<MediaActivitySource> mediaActivity;
 };
 }

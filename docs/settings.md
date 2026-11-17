@@ -147,6 +147,9 @@ duration; repeated matching events do not extend it. Unknown/unavailable inputs 
 | Trigger | Observed value |
 | --- | --- |
 | Microphone | Mute state of the system default input, independently of recording activity |
+| Microphone in use | Active PipeWire capture from an audio input; speaker-monitor capture is excluded |
+| Camera in use | Active PipeWire camera capture, or an open camera in an observable application of the current user (optional V4L2 backend) |
+| Screen capture | Active PipeWire capture from a KWin screen/window stream or a source marked with the Screen role |
 | Volume / Sound muted | Default output volume in percent / output mute state, via PulseAudio or PipeWire-Pulse |
 | Audio playing | At least one uncorked playback stream; this does not measure audible samples |
 | Power profile | `performance`, `balanced` or `power-saver` from power-profiles-daemon |
@@ -160,6 +163,32 @@ duration; repeated matching events do not extend it. Unknown/unavailable inputs 
 | Power connected | Transition to external power |
 | D-Bus | A property or a signal's first argument; a signal with no arguments has value `true` |
 
+With the optional PipeWire observer, the three capture-activity triggers stay active
+while a source and its consumer are running with an active link, including calls, previews
+and recording. The last active consumer stopping clears the condition. Microphone activity
+is independent of mute or sample volume; virtual audio inputs also count. Camera sources are
+identified by the Camera role or V4L2/libcamera metadata; unidentified video sources are not
+assumed to be cameras or screens. A one-shot screenshot is not a sustained screen-capture
+stream. klighting observes metadata only and never requests camera or screen access or
+receives media buffers for these triggers. Ambient's native KWin sampling does not create
+a PipeWire capture stream and does not activate the screen-capture trigger.
+
+The optional V4L2 observer also detects cameras held open directly, for example by browsers
+that bypass PipeWire. It discovers video-capture devices through udev and checks readable
+process descriptors of the current user once per second, in a background worker. It handles
+already-open cameras and hotplug without a device/model list. Holding a camera open counts
+as use even before video streaming starts or while capture is paused. Other users' processes
+and processes hidden by permissions are outside this observer's scope. It does not open
+video devices, read frames, or request elevated privileges. It runs only for camera triggers.
+
+Both backends are independently optional (`KLIGHTING_PIPEWIRE` and `KLIGHTING_V4L2`). Camera
+use is true when either enabled backend confirms it and false when all enabled backends
+report absence; otherwise it is unknown. With neither available, camera state is unknown.
+Microphone-use and screen-capture detection still require PipeWire; direct ALSA capture and
+other capture paths outside its visible graph are not detected. Unknown state activates
+neither Yes nor No. PipeWire reconnects automatically, and observers stop when no active
+effect needs them.
+
 D-Bus uses separate bus, service, object-path, interface and member fields. It only observes:
 there are no commands, method invocation fields, property writes or service activation.
 Values are compared by type (boolean, number or text). An absent service, unavailable device,
@@ -167,6 +196,9 @@ invalid property or incomplete address leaves the effect inactive. Optional prov
 not be installed. D-Bus properties recover after service-owner changes; the filesystem,
 Bluetooth and touchpad observations refresh once per second while needed.
 
-An empty non-default Base inherits the same device's Base from Default. Own layers apply on
-top; Default's layers do not. Once any Base effect is assigned, empty individual assignments
-mean off. Assign black Solid Color if the entire preset should stay dark.
+Unassigned elements in a non-default preset inherit the same device's standard Base state
+from Default. Assigning one element replaces only that element; the rest keep inheriting.
+Own layers apply on top; Default's layers do not. Above-layer effects from Default are part
+of its inherited Base state and do not override the application's own assignments or layers.
+Explicitly empty key or strip assignments mean off. An empty default assignment leaves
+other elements inherited; assign black Solid Color if the entire preset should stay dark.

@@ -19,6 +19,21 @@ ColumnLayout {
             icon: "audio-input-microphone"
         },
         {
+            id: "microphone-active",
+            name: qsTranslate("AmbientLed.TriggerForm", "Microphone in use"),
+            icon: "audio-input-microphone"
+        },
+        {
+            id: "camera-active",
+            name: qsTranslate("AmbientLed.TriggerForm", "Camera in use"),
+            icon: "camera-web"
+        },
+        {
+            id: "screen-capture",
+            name: qsTranslate("AmbientLed.TriggerForm", "Screen capture"),
+            icon: "video-display"
+        },
+        {
             id: "volume",
             name: qsTranslate("AmbientLed.TriggerForm", "Volume"),
             icon: "audio-volume-high"
@@ -314,6 +329,20 @@ ColumnLayout {
             text: qsTranslate("AmbientLed.TriggerForm",
                               "Signals compare their first argument. A signal without arguments has the value true. Only observation is supported.")
         }
+    }
+
+    FormHint {
+        Layout.fillWidth: true
+        text: qsTranslate("AmbientLed.TriggerForm",
+                          "Detects active capture through PipeWire, including calls and previews. Direct capture outside PipeWire is not detected.")
+        visible: ["microphone-active", "screen-capture"].includes(root.kind)
+    }
+
+    FormHint {
+        Layout.fillWidth: true
+        text: qsTranslate("AmbientLed.TriggerForm",
+                          "Detects PipeWire capture and, with optional V4L2 support, cameras held open by your applications. An open camera may not be recording.")
+        visible: root.kind === "camera-active"
     }
 
     FormHint {

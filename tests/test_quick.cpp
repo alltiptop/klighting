@@ -1298,13 +1298,26 @@ private Q_SLOTS:
         auto* trigger = editorChild<QObject*>(editor, "EffectTrigger");
         auto* applicationFilter = editorChild<QQuickItem*>(editor, "NotificationApplication");
         QVERIFY(trigger && applicationFilter);
-        trigger->setProperty("currentIndex", 13);
-        QVERIFY(QMetaObject::invokeMethod(trigger, "activated", Q_ARG(int, 13)));
+        const QStringList captureTriggers { "microphone-active", "camera-active", "screen-capture" };
+        for (int i = 0; i < captureTriggers.size(); ++i) {
+            trigger->setProperty("currentIndex", i + 2);
+            QVERIFY(QMetaObject::invokeMethod(trigger, "activated", Q_ARG(int, i + 2)));
+            QCOMPARE(settings->property("effectPreset").toMap()["trigger"].toString(), captureTriggers[i]);
+            QVERIFY(!applicationFilter->isVisible());
+            auto* condition = editorChild<QObject*>(editor, "TriggerBoolean");
+            QVERIFY(condition);
+            condition->setProperty("currentIndex", 0);
+            QVERIFY(QMetaObject::invokeMethod(condition, "activated", Q_ARG(int, 0)));
+            QCOMPARE(
+                settings->property("effectPreset").toMap()["condition"].toMap()["value"], QVariant(false));
+        }
+        trigger->setProperty("currentIndex", 16);
+        QVERIFY(QMetaObject::invokeMethod(trigger, "activated", Q_ARG(int, 16)));
         QCOMPARE(
             settings->property("effectPreset").toMap()["trigger"].toString(), QString("power-connected"));
         QVERIFY(!applicationFilter->isVisible());
-        trigger->setProperty("currentIndex", 12);
-        QVERIFY(QMetaObject::invokeMethod(trigger, "activated", Q_ARG(int, 12)));
+        trigger->setProperty("currentIndex", 15);
+        QVERIFY(QMetaObject::invokeMethod(trigger, "activated", Q_ARG(int, 15)));
         QCOMPARE(settings->property("effectPreset").toMap()["trigger"].toString(), QString("notification"));
         QVERIFY(applicationFilter->isVisible());
         auto* pattern = editorChild<QObject*>(editor, "NotificationPattern");

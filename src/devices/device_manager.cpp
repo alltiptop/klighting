@@ -144,7 +144,8 @@ bool DeviceManager::selectPresets(const QString& windowClass, const ModifierStat
         const auto* profile = profileFor(m_collection.presets[index], output.configuration);
         if (output.preset.id != profile->id)
             output.lastPalette.clear();
-        output.preset = resolvedDeviceProfile(m_collection, index, output.configuration);
+        output.preset
+            = resolvedDeviceProfile(m_collection, index, output.configuration, output.instance.description);
         output.presetIndex = index;
         output.layer = layer;
         output.styles = deviceKeyStylesForLayer(output.preset, output.instance.description, layer);

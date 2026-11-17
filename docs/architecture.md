@@ -21,6 +21,7 @@ cross-directory includes name the path below `src/`, for example
 | `src/service/` | Daemon entry point, lighting composition, scheduling and service orchestration |
 | `src/sources/` | Input contracts, notification observation and power state |
 | `src/sources/audio/` | PulseAudio protocol observer and its factory, linked only into the daemon |
+| `src/sources/media/` | Optional PipeWire capture and V4L2 camera-use observers, linked only into the daemon |
 | `src/sources/kwin/` | Daemon-side desktop/capture clients; no KWin library dependency |
 | `src/ipc/` | Shared protocol identifiers, component identity, daemon peer and startup guard |
 | `src/kwin/` | Compositor-side desktop plugin and Ambient GPU capture, with their metadata |
@@ -56,11 +57,14 @@ profiles, including several instances of the same model. Base is always the
 underlay; at most one matching keyboard layer is selected. The combination with the
 most conditions wins, with the last row breaking ties. Effects blend in list order,
 including the [above-layer group](settings.md#effect-presets).
-Local effect IDs are scoped by device profile at runtime. An empty non-default device Base
-inherits the matching Default device's Base, including its local-effect references; Default
-modifier layers are never inherited. The selected preset's own layers still apply. Once Base
-contains any assignment, individual explicit empty lists stay off. A black solid effect can
-represent an intentionally dark preset.
+Local effect IDs are scoped by device profile at runtime. Unassigned elements in a non-default
+device Base inherit the matching Default device's standard state, including local-effect
+references, gradients and above-layer assignments. Default modifier layers are never inherited.
+The selected preset's Base assignments replace only their own elements, and its own layers
+and above-layer assignments apply afterward. Explicit empty key or strip lists stay off;
+an empty default list leaves unassigned elements inherited. A black solid effect can represent
+an intentionally dark preset. Resolution uses the device description to expand strip defaults
+and gradients and never materializes inherited assignments in the saved profile.
 
 Device management retains each resolved profile/layer, its styles, assignments and used
 effect IDs. Observed window/key state is always updated; unchanged selection reuses that
@@ -71,6 +75,23 @@ behavior (solid color, brightness or pulse). State triggers stay active while th
 matches; event triggers have a bounded lifetime and coalesce overlapping events. Static
 state-triggered output needs no animation timer. Unknown input never matches, even for
 negative conditions. Sources are enabled only while referenced, unpaused effects need them. Readiness changes can resend the current frame without resolving the profile again.
+
+`MediaActivitySource` supplies microphone, camera and screen-capture activity independently
+of Ambient's `CaptureSource`. Its PipeWire adapter uses a nonblocking Qt socket notifier,
+subscribes to registry/node/link metadata, and waits for the initial round trip before
+publishing absence. It never creates streams or links. Running sources with active links
+to running consumers determine activity; KWin stream names and explicit camera/screen
+metadata distinguish video inputs. Connection loss invalidates the snapshot, and bounded
+retries recover while the source is required. An optional V4L2 adapter discovers capture
+devices through libudev and checks open descriptors of observable processes belonging to
+the current user. It matches character-device numbers, without opening cameras or depending
+on model IDs, process names or device paths. A cancellable worker polls once per second,
+including device discovery for hotplug, only while a camera trigger is required. Metadata,
+output-only, memory-to-memory codec and touch nodes are excluded. The combined source reports
+camera use if either adapter confirms it; reporting absence requires valid negative snapshots
+from every enabled adapter. Disabling drops snapshots, and generations reject stale worker
+deliveries. Service-side caching replays current values
+when effect assignments change, without reconnecting or retaining stale state after disable.
 
 Continuous effect states are shared across devices using the same effect. One small
 32×18 GPU sample feeds the active Ambient calculations. Readback uses a fence/PBO and

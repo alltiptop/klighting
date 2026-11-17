@@ -445,25 +445,14 @@ const DeviceProfile* profileFor(const LightingPreset& preset, const DeviceConfig
             return profile;
     return nullptr;
 }
-DeviceProfile resolvedDeviceProfile(const PresetCollection& c, int index, const DeviceConfiguration& device)
+DeviceProfile resolvedDeviceProfile(const PresetCollection& c, int index, const DeviceConfiguration& device,
+    const DeviceDescription& description)
 {
     const auto* selected = profileFor(c.presets[index], device);
     if (!selected)
         return { };
     auto result = *selected;
     if (c.presets[index].id == c.defaultId)
-        return result;
-    const auto assigned = [](const EffectAssignments& assignments) {
-        return std::any_of(
-            assignments.cbegin(), assignments.cend(), [](const auto& list) { return !list.isEmpty(); });
-    };
-    // A completely empty Base inherits as a whole; individual empty key lists
-    // still mean off whenever this profile has any Base assignment of its own.
-    if (assigned(result.effects) || assigned(result.effectOverrides) || !result.gradients.isEmpty()
-        || std::any_of(result.base.cbegin(), result.base.cend(), [](const auto& style) {
-               return style.mode == KeyMode::Ambient
-                   || (style.mode == KeyMode::Static && style.color.alpha() > 0);
-           }))
         return result;
     const DeviceProfile* fallback = nullptr;
     for (const auto& scene : c.presets)
@@ -505,10 +494,39 @@ DeviceProfile resolvedDeviceProfile(const PresetCollection& c, int index, const 
     qualify(result);
     auto base = *fallback;
     qualify(base);
-    result.base = base.base;
-    result.effects = base.effects;
-    result.gradients = base.gradients;
-    result.effectOverrides = base.effectOverrides;
+    KeyboardLayer ownBase { { }, { }, result.base, result.effects, result.gradients };
+    // New profiles store an empty default list. It leaves unassigned elements inherited;
+    // explicit empty lists for individual keys or strips still turn those elements off.
+    if (ownBase.effects.value(DefaultAssignment).isEmpty())
+        ownBase.effects.remove(DefaultAssignment);
+    if (description.capabilities.testFlag(DeviceCapability::PerKeyColor)
+        || description.capabilities.testFlag(DeviceCapability::PerStripColor)) {
+        // Flatten only Default's standard state. Its above-layer assignments become
+        // part of the inherited Base, not overlays over the application's own layers.
+        const auto baseStyles = deviceKeyStylesForLayer(base, description, -1);
+        base.effects = deviceEffectsForLayer(base, description, -1, baseStyles);
+        base.base = baseStyles;
+        base.gradients.clear();
+        base.effectOverrides.clear();
+        const auto ownStyles = expandStyles(ownBase.styles, ownBase.gradients, description);
+        const auto ownEffects = expandedEffects(ownBase.effects, ownStyles, description);
+        ownBase.effects = ownEffects;
+        for (auto it = ownEffects.cbegin(); it != ownEffects.cend(); ++it)
+            if (!ownStyles.contains(it.key()) || ownStyles[it.key()].mode == KeyMode::Inherit)
+                ownBase.styles.insert(it.key(), { KeyMode::Static, Qt::transparent });
+        // Reuse layer composition to merge the two bases after expanding strip defaults
+        // and gradients. Only this temporary layer is used, never Default's modifiers.
+        base.layers = { ownBase };
+        result.base = deviceKeyStylesForLayer(base, description, 0);
+        result.effects = deviceEffectsForLayer(base, description, 0, result.base);
+        result.gradients.clear();
+    } else {
+        result.base = base.base;
+        auto inherited = base.effects.value(DefaultAssignment, { { base.defaultEffectId } });
+        inherited.append(base.effectOverrides.value(DefaultAssignment));
+        result.effects = { { DefaultAssignment, ownBase.effects.value(DefaultAssignment, inherited) } };
+        result.gradients = base.gradients;
+    }
     result.defaultEffectId = base.defaultEffectId;
     return result;
 }

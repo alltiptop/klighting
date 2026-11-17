@@ -8,6 +8,33 @@ class TriggersTest : public QObject
 {
     Q_OBJECT
 private Q_SLOTS:
+    void captureStatesRoundTripAndStayActive()
+    {
+        for (const auto* kind : { "microphone-active", "camera-active", "screen-capture" }) {
+            EffectPreset effect;
+            effect.id = "capture";
+            effect.type = "pulse";
+            effect.trigger.type = kind;
+            QString error;
+            const auto parsed = parseEffectPreset(QJsonDocument(effectPresetJson(effect)).toJson(), &error);
+            QVERIFY2(parsed, qPrintable(error));
+            QCOMPARE(*parsed, effect);
+            EffectTriggers triggers;
+            triggers.configure({ effect }, { effect.id }, { });
+            QVERIFY(!triggers.animating());
+            QVERIFY(triggers.setValue(effect.id, true));
+            triggers.advance(60001);
+            QVERIFY(triggers.animating());
+            QVERIFY(triggers.setValue(effect.id, false));
+            QVERIFY(!triggers.animating());
+            effect.trigger.value = false;
+            triggers.configure({ effect }, { effect.id }, { });
+            triggers.setValue(effect.id, false);
+            QVERIFY(triggers.animating());
+            triggers.setValue(effect.id, { });
+            QVERIFY(!triggers.animating());
+        }
+    }
     void unknownIsNeverActive()
     {
         TriggerOptions trigger;

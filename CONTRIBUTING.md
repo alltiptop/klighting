@@ -25,6 +25,18 @@ Without that requirement, configuration reports omitted tests.
 Audio tests use private servers and synthetic sources; they must not discover
 host hardware or control the default audio session.
 
+Capture-activity triggers optionally use `libpipewire-0.3` development files. Select
+`KLIGHTING_PIPEWIRE=AUTO` (default), `ON` (required) or `OFF`; no dependencies are downloaded.
+Validate enabled and disabled builds separately. The private activity-observer test uses
+`pipewire`, `pw-link` and `pw-dump` with synthetic nodes and no hardware discovery. Its video
+source fixtures exercise metadata classification without producing camera or screen frames.
+
+The independent V4L2 camera-use observer optionally needs `libudev` development files:
+`KLIGHTING_V4L2=AUTO` (default), `ON` (required) or `OFF`. It reads udev and process metadata,
+so neither `libv4l2` nor opening a video device is needed. Validate PipeWire-only,
+V4L2-only, both-enabled and both-disabled builds. V4L2 tests use synthetic process trees
+and harmless character-device metadata, never a camera or the host process list.
+
 Use the build commands in [README](README.md#build). A core-only build
 builds `klightingd` and exercises drivers, presets, desktop input adapters, power
 and notification logic without KWin headers:

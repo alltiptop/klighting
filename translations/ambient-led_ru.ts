@@ -1578,8 +1578,8 @@
         <translation>Удалить этот пресет? Устройства, использующие его, останутся без пресета по умолчанию. Несохранённые изменения можно отменить кнопкой «Сбросить».</translation>
     </message>
     <message>
-        <source>An empty Base inherits the same device's Base from Default. Your own layers still apply; Default's layers are not inherited. Assign a black Solid Color to keep this preset dark.</source>
-        <translation>Пустая база наследуется из Default для того же устройства. Собственные слои продолжают действовать; слои Default не наследуются. Чтобы оставить этот пресет тёмным, назначьте чёрный однотонный цвет.</translation>
+        <source>Unassigned elements inherit the same device's Base from Default. Your own layers still apply; Default's layers are not inherited. Assign a black Solid Color to keep this preset dark.</source>
+        <translation>Неназначенные элементы наследуют базовое состояние того же устройства из Default. Собственные слои продолжают действовать; слои Default не наследуются. Чтобы оставить этот пресет тёмным, назначьте чёрный однотонный цвет.</translation>
     </message>
 </context>
 <context>
@@ -1862,6 +1862,26 @@
 </context>
 <context>
     <name>AmbientLed.TriggerForm</name>
+    <message>
+        <source>Detects PipeWire capture and, with optional V4L2 support, cameras held open by your applications. An open camera may not be recording.</source>
+        <translation>Определяет захват через PipeWire, а при наличии поддержки V4L2 — камеры, открытые вашими приложениями. Открытая камера может не вести запись.</translation>
+    </message>
+    <message>
+        <source>Microphone in use</source>
+        <translation>Микрофон используется</translation>
+    </message>
+    <message>
+        <source>Camera in use</source>
+        <translation>Камера используется</translation>
+    </message>
+    <message>
+        <source>Screen capture</source>
+        <translation>Захват экрана</translation>
+    </message>
+    <message>
+        <source>Detects active capture through PipeWire, including calls and previews. Direct capture outside PipeWire is not detected.</source>
+        <translation>Определяет активный захват через PipeWire, включая звонки и предпросмотр. Прямой захват вне PipeWire не определяется.</translation>
+    </message>
     <message>
         <source>Airplane mode</source>
         <translation>Режим полёта</translation>

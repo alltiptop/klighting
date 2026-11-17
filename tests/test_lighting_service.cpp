@@ -99,6 +99,27 @@ public:
         Q_EMIT changed();
     }
 };
+class MediaActivity : public MediaActivitySource
+{
+public:
+    bool enabled = false;
+    int starts = 0;
+    QSet<QString> kinds;
+    void setRequiredKinds(const QSet<QString>& requested) override
+    {
+        kinds = requested;
+        MediaActivitySource::setRequiredKinds(requested);
+    }
+    void setEnabled(bool requested) override
+    {
+        if (enabled == requested)
+            return;
+        enabled = requested;
+        starts += requested;
+        Q_EMIT changed({ });
+    }
+    void update(const QVariantMap& values) { Q_EMIT changed(values); }
+};
 class KWin : public QDBusVirtualObject
 {
 public:
@@ -268,6 +289,71 @@ private Q_SLOTS:
         QCOMPARE(input->transitions, (QList<bool> { true, false, true }));
         input->update(active);
         QCOMPARE(color(), "#00ff00");
+    }
+    void mediaActivityIsOnDemandAndSurvivesEffectChanges_data()
+    {
+        QTest::addColumn<QString>("kind");
+        for (const auto* kind : { "microphone-active", "camera-active", "screen-capture" })
+            QTest::newRow(kind) << QString(kind);
+    }
+    void mediaActivityIsOnDemandAndSurvivesEffectChanges()
+    {
+        QFETCH(QString, kind);
+        auto c = collection();
+        QVERIFY(persist(c));
+        auto activity = std::make_unique<MediaActivity>();
+        auto* input = activity.get();
+        auto desktop = std::make_unique<Desktop>();
+        auto* session = desktop.get();
+        auto capture = std::make_unique<Capture>();
+        auto* screen = capture.get();
+        LightingService service({ }, { MULTI_DRIVER_DIR },
+            { .desktop = std::move(desktop),
+                .capture = std::move(capture),
+                .mediaActivity = std::move(activity) });
+        session->update("terminal", { }, false);
+        QVERIFY(!input->enabled);
+        EffectPreset effect;
+        effect.id = "activity";
+        effect.type = "solid";
+        effect.solidColor = Qt::green;
+        effect.trigger.type = kind;
+        c.effects.append(effect);
+        c.presets[0].effects[DefaultAssignment].append({ effect.id });
+        QVERIFY(persist(c));
+        QVERIFY(service.Reload().isEmpty());
+        QVERIFY(input->enabled);
+        QCOMPARE(screen->fps, 0); // Observing screen capture must not start Ambient capture.
+        QCOMPARE(input->kinds, (QSet<QString> { kind }));
+        QCOMPARE(color(), "#ff0000");
+        input->update({ { kind, true } });
+        QCOMPARE(color(), "#00ff00");
+        c.effects.last().id = "replacement";
+        c.presets[0].effects[DefaultAssignment].last().id = "replacement";
+        QVERIFY(persist(c));
+        QVERIFY(service.Reload().isEmpty());
+        QCOMPARE(color(), "#00ff00"); // Replay the current snapshot for the new effect ID.
+        QCOMPARE(input->starts, 1);
+        input->update({ { kind, false } });
+        QCOMPARE(color(), "#ff0000");
+        input->update({ { kind, true } });
+        QCOMPARE(color(), "#00ff00");
+        input->update({ });
+        QCOMPARE(color(), "#ff0000");
+        QVERIFY(service.Status()["running"].toBool());
+        input->update({ { kind, true } });
+        session->update("terminal", { }, true);
+        QVERIFY(!input->enabled);
+        QVERIFY(input->kinds.isEmpty());
+        session->update("terminal", { }, false);
+        QVERIFY(input->enabled);
+        QTRY_COMPARE(color(), "#ff0000");
+        input->update({ { kind, true } });
+        QCOMPARE(color(), "#00ff00");
+        c.presets[0].effects[DefaultAssignment].removeLast();
+        QVERIFY(persist(c));
+        QVERIFY(service.Reload().isEmpty());
+        QVERIFY(!input->enabled);
     }
     void microphoneFollowsSelectedProfileAndLockLifecycle()
     {

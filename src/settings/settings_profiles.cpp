@@ -151,7 +151,7 @@ DeviceProfile SettingsController::newProfile(const DeviceConfiguration& device) 
     profile.name = device.name;
     profile.layers.clear();
     profile.defaultEffectId.clear();
-    // Empty Default profiles stay off; other empty profiles inherit Default Base.
+    // Unassigned elements stay off in Default and inherit its Base in other presets.
     profile.effects.insert(DefaultAssignment, { });
     return profile;
 }

@@ -1578,8 +1578,8 @@
         <translation>Diese Vorlage entfernen? Geräte, die sie verwenden, haben danach keine Standardvorlage. Ausstehende Änderungen können mit Zurücksetzen rückgängig gemacht werden.</translation>
     </message>
     <message>
-        <source>An empty Base inherits the same device's Base from Default. Your own layers still apply; Default's layers are not inherited. Assign a black Solid Color to keep this preset dark.</source>
-        <translation>Eine leere Basis übernimmt die Basis desselben Geräts aus Default. Eigene Ebenen gelten weiterhin; Default-Ebenen werden nicht übernommen. Für eine dunkle Voreinstellung eine schwarze Vollfarbe zuweisen.</translation>
+        <source>Unassigned elements inherit the same device's Base from Default. Your own layers still apply; Default's layers are not inherited. Assign a black Solid Color to keep this preset dark.</source>
+        <translation>Nicht zugewiesene Elemente übernehmen die Basis desselben Geräts aus Default. Eigene Ebenen gelten weiterhin; Default-Ebenen werden nicht übernommen. Für eine dunkle Voreinstellung eine schwarze Vollfarbe zuweisen.</translation>
     </message>
 </context>
 <context>
@@ -1862,6 +1862,26 @@
 </context>
 <context>
     <name>AmbientLed.TriggerForm</name>
+    <message>
+        <source>Detects PipeWire capture and, with optional V4L2 support, cameras held open by your applications. An open camera may not be recording.</source>
+        <translation>Erkennt Aufnahmen über PipeWire und mit optionaler V4L2-Unterstützung Kameras, die Ihre Anwendungen geöffnet halten. Eine geöffnete Kamera nimmt möglicherweise nicht auf.</translation>
+    </message>
+    <message>
+        <source>Microphone in use</source>
+        <translation>Mikrofon wird verwendet</translation>
+    </message>
+    <message>
+        <source>Camera in use</source>
+        <translation>Kamera wird verwendet</translation>
+    </message>
+    <message>
+        <source>Screen capture</source>
+        <translation>Bildschirmaufnahme</translation>
+    </message>
+    <message>
+        <source>Detects active capture through PipeWire, including calls and previews. Direct capture outside PipeWire is not detected.</source>
+        <translation>Erkennt aktive Aufnahmen über PipeWire, einschließlich Anrufen und Vorschauen. Direkte Aufnahmen außerhalb von PipeWire werden nicht erkannt.</translation>
+    </message>
     <message>
         <source>Airplane mode</source>
         <translation>Flugmodus</translation>
