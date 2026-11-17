@@ -477,6 +477,14 @@
         <source>New Microphone preset</source>
         <translation>Neue Mikrofon-Voreinstellung</translation>
     </message>
+    <message>
+        <source>New Pulse preset</source>
+        <translation>Neue Pulsier-Voreinstellung</translation>
+    </message>
+    <message>
+        <source>Pulse</source>
+        <translation>Pulsieren</translation>
+    </message>
 </context>
 <context>
     <name>AmbientLed.AmbientForm</name>
@@ -739,6 +747,10 @@
         <source>New Microphone</source>
         <translation>Neues Mikrofon</translation>
     </message>
+    <message>
+        <source>New Pulse</source>
+        <translation>Neues Pulsieren</translation>
+    </message>
 </context>
 <context>
     <name>AmbientLed.BrightnessForm</name>
@@ -940,6 +952,10 @@
     <message>
         <source>Microphone</source>
         <translation>Mikrofon</translation>
+    </message>
+    <message>
+        <source>Pulse</source>
+        <translation>Pulsieren</translation>
     </message>
 </context>
 <context>
@@ -1561,6 +1577,10 @@
         <source>Remove this preset? Devices using it will have no default preset. You can undo pending changes with Reset.</source>
         <translation>Diese Vorlage entfernen? Geräte, die sie verwenden, haben danach keine Standardvorlage. Ausstehende Änderungen können mit Zurücksetzen rückgängig gemacht werden.</translation>
     </message>
+    <message>
+        <source>An empty Base inherits the same device's Base from Default. Your own layers still apply; Default's layers are not inherited. Assign a black Solid Color to keep this preset dark.</source>
+        <translation>Eine leere Basis übernimmt die Basis desselben Geräts aus Default. Eigene Ebenen gelten weiterhin; Default-Ebenen werden nicht übernommen. Für eine dunkle Voreinstellung eine schwarze Vollfarbe zuweisen.</translation>
+    </message>
 </context>
 <context>
     <name>AmbientLed.PresetsPage</name>
@@ -1827,6 +1847,200 @@
         <location line="+4"/>
         <source>Applications</source>
         <translation>Anwendungen</translation>
+    </message>
+</context>
+<context>
+    <name>AmbientLed.EffectSetupForm</name>
+    <message>
+        <source>Effect:</source>
+        <translation>Effekt:</translation>
+    </message>
+    <message>
+        <source>Solid Color</source>
+        <translation>Einfarbig</translation>
+    </message>
+</context>
+<context>
+    <name>AmbientLed.TriggerForm</name>
+    <message>
+        <source>Airplane mode</source>
+        <translation>Flugmodus</translation>
+    </message>
+    <message>
+        <source>Always</source>
+        <translation>Immer</translation>
+    </message>
+    <message>
+        <source>Any value</source>
+        <translation>Beliebiger Wert</translation>
+    </message>
+    <message>
+        <source>Asleep</source>
+        <translation>Ruhezustand</translation>
+    </message>
+    <message>
+        <source>Audio playing</source>
+        <translation>Audiowiedergabe</translation>
+    </message>
+    <message>
+        <source>Balanced</source>
+        <translation>Ausgeglichen</translation>
+    </message>
+    <message>
+        <source>Bluetooth enabled</source>
+        <translation>Bluetooth aktiviert</translation>
+    </message>
+    <message>
+        <source>Boolean</source>
+        <translation>Boolesch</translation>
+    </message>
+    <message>
+        <source>Bus:</source>
+        <translation>Bus:</translation>
+    </message>
+    <message>
+        <source>Condition:</source>
+        <translation>Bedingung:</translation>
+    </message>
+    <message>
+        <source>Connecting</source>
+        <translation>Verbindungsaufbau</translation>
+    </message>
+    <message>
+        <source>Disconnected</source>
+        <translation>Getrennt</translation>
+    </message>
+    <message>
+        <source>Event duration (ms):</source>
+        <translation>Ereignisdauer (ms):</translation>
+    </message>
+    <message>
+        <source>Interface:</source>
+        <translation>Schnittstelle:</translation>
+    </message>
+    <message>
+        <source>Keyboard brightness</source>
+        <translation>Tastaturhelligkeit</translation>
+    </message>
+    <message>
+        <source>Microphone</source>
+        <translation>Mikrofon</translation>
+    </message>
+    <message>
+        <source>Network state</source>
+        <translation>Netzwerkstatus</translation>
+    </message>
+    <message>
+        <source>Network state:</source>
+        <translation>Netzwerkstatus:</translation>
+    </message>
+    <message>
+        <source>Notification</source>
+        <translation>Benachrichtigung</translation>
+    </message>
+    <message>
+        <source>Number</source>
+        <translation>Zahl</translation>
+    </message>
+    <message>
+        <source>Object path:</source>
+        <translation>Objektpfad:</translation>
+    </message>
+    <message>
+        <source>Observe:</source>
+        <translation>Beobachten:</translation>
+    </message>
+    <message>
+        <source>Performance</source>
+        <translation>Leistung</translation>
+    </message>
+    <message>
+        <source>Power connected</source>
+        <translation>Netzteil angeschlossen</translation>
+    </message>
+    <message>
+        <source>Power profile</source>
+        <translation>Energieprofil</translation>
+    </message>
+    <message>
+        <source>Power profile:</source>
+        <translation>Energieprofil:</translation>
+    </message>
+    <message>
+        <source>Property</source>
+        <translation>Eigenschaft</translation>
+    </message>
+    <message>
+        <source>Property or signal:</source>
+        <translation>Eigenschaft oder Signal:</translation>
+    </message>
+    <message>
+        <source>Second display connected</source>
+        <translation>Zweiter Bildschirm angeschlossen</translation>
+    </message>
+    <message>
+        <source>Service:</source>
+        <translation>Dienst:</translation>
+    </message>
+    <message>
+        <source>Session</source>
+        <translation>Sitzung</translation>
+    </message>
+    <message>
+        <source>Signal</source>
+        <translation>Signal</translation>
+    </message>
+    <message>
+        <source>Signals compare their first argument. A signal without arguments has the value true. Only observation is supported.</source>
+        <translation>Das erste Signalargument wird verglichen. Ohne Argumente gilt true. Nur Beobachtung wird unterstützt.</translation>
+    </message>
+    <message>
+        <source>Site connection</source>
+        <translation>Standortverbindung</translation>
+    </message>
+    <message>
+        <source>Sound muted</source>
+        <translation>Ton stummgeschaltet</translation>
+    </message>
+    <message>
+        <source>State:</source>
+        <translation>Zustand:</translation>
+    </message>
+    <message>
+        <source>System</source>
+        <translation>System</translation>
+    </message>
+    <message>
+        <source>Threshold (%):</source>
+        <translation>Schwellenwert (%):</translation>
+    </message>
+    <message>
+        <source>Touchpad enabled</source>
+        <translation>Touchpad aktiviert</translation>
+    </message>
+    <message>
+        <source>Trigger:</source>
+        <translation>Auslöser:</translation>
+    </message>
+    <message>
+        <source>Unavailable sources leave the effect inactive. Repeated events are coalesced until the current event ends.</source>
+        <translation>Bei nicht verfügbaren Quellen bleibt der Effekt inaktiv. Wiederholte Ereignisse werden bis zum Ende des aktuellen zusammengefasst.</translation>
+    </message>
+    <message>
+        <source>Unmuted</source>
+        <translation>Nicht stummgeschaltet</translation>
+    </message>
+    <message>
+        <source>Value type:</source>
+        <translation>Werttyp:</translation>
+    </message>
+    <message>
+        <source>Value:</source>
+        <translation>Wert:</translation>
+    </message>
+    <message>
+        <source>Volume</source>
+        <translation>Lautstärke</translation>
     </message>
 </context>
 </TS>

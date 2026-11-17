@@ -689,7 +689,8 @@ private Q_SLOTS:
         const auto original = c.collection().presets[0];
         c.addNotificationLayout();
         const auto id = c.effectPreset()["id"].toString();
-        QCOMPARE(c.effectPreset()["type"].toString(), QString("notifications"));
+        QCOMPARE(c.effectPreset()["type"].toString(), QString("pulse"));
+        QCOMPARE(c.effectPreset()["condition"].toMap()["type"].toString(), QString("notification"));
         for (int key : { 4, 5, 6, 7 })
             QCOMPARE(c.collection().presets[0].effectOverrides[key], (EffectList { { id } }));
         QCOMPARE(c.collection().presets[0].base, original.base);
@@ -884,13 +885,52 @@ private Q_SLOTS:
         c.load();
         QCOMPARE(c.collection(), saved);
     }
+    void triggersRemainIndependentOfVisualEffectsAndPersist()
+    {
+        SettingsController c;
+        QVERIFY(c.addEffect("solid"));
+        for (const auto* type :
+            { "microphone", "volume", "muted", "playback", "power-profile", "display", "bluetooth", "network",
+                "touchpad", "airplane", "keyboard-brightness", "notification", "dbus" }) {
+            c.setTrigger("type", type);
+            QCOMPARE(c.effectPreset()["condition"].toMap()["type"].toString(), QString(type));
+        }
+        c.setTrigger("type", "volume");
+        c.setTrigger("value", 75);
+        c.setEffectType("pulse");
+        QCOMPARE(c.effectPreset()["type"].toString(), QString("pulse"));
+        QCOMPARE(c.effectPreset()["condition"].toMap()["type"].toString(), QString("volume"));
+        QCOMPARE(c.effectPreset()["condition"].toMap()["value"].toInt(), 75);
+        const auto id = c.effectPreset()["id"].toString();
+        c.addAssignedEffect(-1, { 14 }, id);
+        c.setTrigger("type", "dbus");
+        c.setTrigger("service", "org.example.Player");
+        c.setTrigger("path", "/Player");
+        c.setTrigger("interface", "org.example.Player1");
+        c.setTrigger("member", "Changed");
+        c.setTrigger("signal", true);
+        c.setTrigger("duration", 500);
+        const auto local = c.addLocalEffect(-1, { 15 }, "brightness");
+        c.setTrigger("type", "microphone", local);
+        QVERIFY(c.dirty());
+        QCOMPARE(lighting->reloads, 0);
+        c.save();
+        QVERIFY2(c.error().isEmpty(), qPrintable(c.error()));
+        const auto saved = c.collection();
+        c.load();
+        QCOMPARE(c.collection(), saved);
+        c.setEffectType("ambient");
+        QVERIFY(c.effectPreset()["condition"].toMap()["type"].toString().isEmpty());
+        c.setTrigger("type", "microphone");
+        QVERIFY(c.effectPreset()["condition"].toMap()["type"].toString().isEmpty());
+    }
     void microphoneEditsStayPendingAndResetDefaults()
     {
         SettingsController c;
         const auto original = c.collection();
         QVERIFY(c.addEffect("microphone"));
         c.setSection("effects");
-        QVERIFY(c.representsDefaults());
+        QVERIFY(!c.representsDefaults());
         c.setMicrophone("color", "#102030");
         c.setMicrophone("pauseOnBattery", true);
         QVERIFY(!c.representsDefaults());
@@ -904,7 +944,8 @@ private Q_SLOTS:
         c.setMicrophone("pauseOnLowBattery", true);
         c.defaults();
         QVERIFY(c.representsDefaults());
-        QCOMPARE(c.effectPreset()["microphoneColor"].toString(), QString("#ff0000"));
+        QCOMPARE(c.effectPreset()["solidColor"].toString(), QString("#ffffff"));
+        c.setTrigger("type", "microphone");
         QVERIFY(!c.effectPreset()["pauseOnLowBattery"].toBool());
         const auto savedId = c.effectPreset()["id"].toString();
         c.setMicrophone("color", "#c05020");
@@ -936,8 +977,8 @@ private Q_SLOTS:
         QVERIFY(importedShared != savedId);
         QCOMPARE(importedLocal, local);
         QVERIFY(scopedEffectId(imported, importedLocal) != scopedEffectId(saved.presets[0], local));
-        QCOMPARE(c.collection().effects.last().microphone.color, QColor("#c05020"));
-        QCOMPARE(imported.localEffects.first().microphone.color, QColor("#203040"));
+        QCOMPARE(c.collection().effects.last().solidColor, QColor("#c05020"));
+        QCOMPARE(imported.localEffects.first().solidColor, QColor("#203040"));
         QVERIFY(imported.localEffects.first().pauseOnBattery);
         const auto importedAssignments = imported.effects[15];
         QVERIFY(std::any_of(importedAssignments.cbegin(), importedAssignments.cend(),

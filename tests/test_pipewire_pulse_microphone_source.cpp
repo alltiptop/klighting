@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "sources/audio/pulse_microphone_source.h"
+#include "sources/audio/pulse_output_source.h"
 #include <QDir>
 #include <QFile>
 #include <QJsonArray>
@@ -248,8 +249,9 @@ pulse.properties = { server.address = [ "unix:%1" ] }
         QVERIFY(!source.state().muted);
 
         QVERIFY(setDefault("fixture_monitor"));
-        QTRY_VERIFY(!source.state().muteKnown);
-        QVERIFY(source.state().reason.contains(QStringLiteral("monitor")));
+        // Source changes first invalidate the old state, then resolve the new input.
+        QTRY_VERIFY(source.state().reason.contains(QStringLiteral("monitor")));
+        QVERIFY(!source.state().muteKnown);
         QVERIFY(setDefault("fixture_b"));
         QTRY_VERIFY(source.state().muteKnown);
         QCOMPARE(source.state().sourceName, QStringLiteral("fixture_b"));
@@ -270,6 +272,32 @@ pulse.properties = { server.address = [ "unix:%1" ] }
         QVERIFY(!source.state().muteKnown);
     }
 
+    void outputVolumeMuteAndServerLoss()
+    {
+        const auto result = run(QStringLiteral(KLIGHTING_PW_METADATA_EXECUTABLE),
+            { "--remote=klighting-fixture", "--name=default", "0", "default.audio.sink",
+                "{\"name\":\"fixture_monitor\"}", "Spa:String:JSON" });
+        QVERIFY2(!result.startsWith("ERROR:"), result.constData());
+        PulseOutputSource source;
+        QVariantMap values;
+        connect(&source, &AudioStateSource::changed, this, [&](const QVariantMap& next) { values = next; });
+        source.setEnabled(true);
+        QTRY_VERIFY(values.contains("volume"));
+        QTRY_VERIFY(values.contains("playback"));
+        QCOMPARE(values["playback"].toBool(), false);
+        QVERIFY(pactl({ "set-sink-volume", "fixture_monitor", "35%" }).isEmpty());
+        QTRY_VERIFY(std::abs(values.value("volume").toDouble() - 35.0) < 0.1);
+        QVERIFY(pactl({ "set-sink-mute", "fixture_monitor", "1" }).isEmpty());
+        QTRY_COMPARE(values.value("muted"), QVariant(true));
+        QVERIFY(pactl({ "set-sink-mute", "fixture_monitor", "0" }).isEmpty());
+        QTRY_COMPARE(values.value("muted"), QVariant(false));
+        stopServers();
+        QTRY_VERIFY(values.isEmpty());
+        startServers();
+        source.setEnabled(false);
+        QVERIFY(values.isEmpty());
+        verifyNoCaptureOrHardware();
+    }
     void cleanupTestCase()
     {
         stopServers();

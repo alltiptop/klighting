@@ -56,14 +56,21 @@ profiles, including several instances of the same model. Base is always the
 underlay; at most one matching keyboard layer is selected. The combination with the
 most conditions wins, with the last row breaking ties. Effects blend in list order,
 including the [above-layer group](settings.md#effect-presets).
-Local effect IDs are scoped by device profile at runtime.
+Local effect IDs are scoped by device profile at runtime. An empty non-default device Base
+inherits the matching Default device's Base, including its local-effect references; Default
+modifier layers are never inherited. The selected preset's own layers still apply. Once Base
+contains any assignment, individual explicit empty lists stay off. A black solid effect can
+represent an intentionally dark preset.
 
 Device management retains each resolved profile/layer, its styles, assignments and used
 effect IDs. Observed window/key state is always updated; unchanged selection reuses that
 result. Configuration and power changes invalidate it, and discovery replaces a backend
-when its options or description change. Ambient, notification and microphone evaluation
-share one required-effect set. Microphone input is event-driven and needs no animation
-timer. Readiness changes can resend the current frame without resolving the profile again.
+when its options or description change. Ambient and trigger evaluation share one required-effect set. `EffectTriggers` in
+`src/triggers/` decides whether a non-Ambient effect is active independently of its visual
+behavior (solid color, brightness or pulse). State triggers stay active while their condition
+matches; event triggers have a bounded lifetime and coalesce overlapping events. Static
+state-triggered output needs no animation timer. Unknown input never matches, even for
+negative conditions. Sources are enabled only while referenced, unpaused effects need them. Readiness changes can resend the current frame without resolving the profile again.
 
 Continuous effect states are shared across devices using the same effect. One small
 32×18 GPU sample feeds the active Ambient calculations. Readback uses a fence/PBO and
@@ -147,6 +154,12 @@ in `kwin-effect-ambient-led/`; the retained name is a compatibility identifier.
 `effects/`. `QSaveFile` publishes each file and the index atomically; a nonblocking
 `QLockFile` serializes conflict detection, publication and cleanup. The editor supplies its
 previous snapshot for comparison under that lock. This is not a multi-user database transaction.
+
+Effect JSON uses version 2, with an optional top-level `trigger` object. Version-1 microphone
+effects migrate to solid color plus the unmuted microphone condition; notification effects
+migrate to pulse plus a notification or power-connected event. IDs, colors, filters and total
+event duration are retained. Loading migrates in memory, and Apply/export writes version 2.
+Older application versions cannot read these new effect files.
 
 Multi-device JSON uses version 7: layer conditions belong to the preset, with aligned
 assignments in each device profile. One matching layer is selected for every device;

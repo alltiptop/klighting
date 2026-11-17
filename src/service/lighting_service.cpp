@@ -16,6 +16,9 @@ LightingService::LightingService(const DeviceEnvironment& environment, const QSt
     , m_sources(std::move(sources))
 {
     connect(&m_runtime, &LightingRuntime::requirementsChanged, this, &LightingService::updateRequirements);
+    connect(
+        &m_systemTriggers, &SystemTriggerSource::valueChanged, &m_runtime, &LightingRuntime::setTriggerValue);
+    connect(&m_systemTriggers, &SystemTriggerSource::triggered, &m_runtime, &LightingRuntime::triggerEvent);
     if (m_sources.hardwareGuard)
         connect(m_sources.hardwareGuard.get(), &HardwareControlGuard::changed, this,
             &LightingService::updateControl);
@@ -26,6 +29,13 @@ LightingService::LightingService(const DeviceEnvironment& environment, const QSt
         connect(m_sources.capture.get(), &CaptureSource::sample, this,
             [this](const QByteArray& rgba) { m_runtime.sample(rgba, m_brightness, m_saturation); });
     }
+    if (m_sources.audio)
+        connect(m_sources.audio.get(), &AudioStateSource::changed, this, [this](const QVariantMap& values) {
+            m_audioValues = values;
+            for (const auto& effect : m_runtime.triggerRequirements())
+                if (QStringList { "volume", "muted", "playback" }.contains(effect.trigger.type))
+                    m_runtime.setTriggerValue(effect.id, values.value(effect.trigger.type));
+        });
     if (m_sources.microphone)
         connect(m_sources.microphone.get(), &MicrophoneSource::changed, this,
             [this] { m_runtime.setMicrophoneState(m_sources.microphone->state()); });
@@ -107,6 +117,16 @@ void LightingService::updateRequirements()
         return;
     }
     m_notifications.setEnabled(m_runtime.notificationsEnabled());
+    const auto requirements = m_runtime.triggerRequirements();
+    m_systemTriggers.configure(requirements);
+    bool audio = false;
+    for (const auto& effect : requirements)
+        if (QStringList { "volume", "muted", "playback" }.contains(effect.trigger.type)) {
+            audio = true;
+            m_runtime.setTriggerValue(effect.id, m_audioValues.value(effect.trigger.type));
+        }
+    if (m_sources.audio)
+        m_sources.audio->setEnabled(audio);
     if (m_sources.microphone)
         m_sources.microphone->setEnabled(m_runtime.microphoneEnabled());
     if (m_sources.capture)

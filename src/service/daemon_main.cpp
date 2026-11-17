@@ -71,6 +71,7 @@ int main(int argc, char** argv)
     {
         auto sources = Ambient::kwinSources();
         sources.microphone = Ambient::microphoneSource();
+        sources.audio = Ambient::audioStateSource();
         Ambient::LightingService service(
             Ambient::deviceEnvironment(), Ambient::driverDirectories(), std::move(sources));
         if (bus.registerObject(Ambient::Ipc::Path, &service, QDBusConnection::ExportScriptableSlots))

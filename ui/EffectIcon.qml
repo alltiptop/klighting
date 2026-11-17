@@ -25,9 +25,10 @@ Item {
 
     Kirigami.Icon {
         anchors.fill: parent
-        source: root.type === "microphone" ? "audio-input-microphone" : root.type === "notifications"
-                                             ? "notifications" : root.type === "brightness"
-                                               ? "brightness-high" : "video-display"
+        source: root.type === "pulse" ? "media-playlist-repeat" : root.type === "microphone"
+                                        ? "audio-input-microphone" : root.type === "notifications"
+                                          ? "notifications" : root.type === "brightness" ? "brightness-high" :
+                                                                                           "video-display"
         visible: root.type !== "solid"
     }
 }

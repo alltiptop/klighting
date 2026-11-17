@@ -20,9 +20,11 @@ void EffectPalette::configure(
     m_brightness.clear();
     for (const auto& p : presets) {
         // Static filters also apply to colors frozen by a device's battery policy.
-        if (p.type == "brightness")
+        if (p.type == "brightness" && p.trigger.type.isEmpty()
+            && !batteryPolicyActive(power, p.pauseOnBattery, p.pauseOnLowBattery))
             m_brightness.insert(p.id, std::clamp(p.brightness, 0, 100));
-        if (p.type == "solid" && used.contains(p.id))
+        if (p.type == "solid" && p.trigger.type.isEmpty() && used.contains(p.id)
+            && !batteryPolicyActive(power, p.pauseOnBattery, p.pauseOnLowBattery))
             m_solids.insert(p.id, p.solidColor);
         if (p.type != "ambient" || !used.contains(p.id))
             continue;

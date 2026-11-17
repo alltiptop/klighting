@@ -477,6 +477,14 @@
         <source>New Microphone preset</source>
         <translation>新建麦克风预设</translation>
     </message>
+    <message>
+        <source>New Pulse preset</source>
+        <translation>新建脉冲预设</translation>
+    </message>
+    <message>
+        <source>Pulse</source>
+        <translation>脉冲</translation>
+    </message>
 </context>
 <context>
     <name>AmbientLed.AmbientForm</name>
@@ -739,6 +747,10 @@
         <source>New Microphone</source>
         <translation>新建麦克风</translation>
     </message>
+    <message>
+        <source>New Pulse</source>
+        <translation>新建脉冲</translation>
+    </message>
 </context>
 <context>
     <name>AmbientLed.BrightnessForm</name>
@@ -940,6 +952,10 @@
     <message>
         <source>Microphone</source>
         <translation>麦克风</translation>
+    </message>
+    <message>
+        <source>Pulse</source>
+        <translation>脉冲</translation>
     </message>
 </context>
 <context>
@@ -1561,6 +1577,10 @@
         <source>Remove this preset? Devices using it will have no default preset. You can undo pending changes with Reset.</source>
         <translation>删除此预设？使用它的设备将不再有默认预设。您可以通过“重置”撤销尚未保存的更改。</translation>
     </message>
+    <message>
+        <source>An empty Base inherits the same device's Base from Default. Your own layers still apply; Default's layers are not inherited. Assign a black Solid Color to keep this preset dark.</source>
+        <translation>空的基础层继承 Default 中同一设备的基础层。您自己的图层仍然生效，但不继承 Default 的图层。若要保持此预设熄灭，请指定黑色纯色。</translation>
+    </message>
 </context>
 <context>
     <name>AmbientLed.PresetsPage</name>
@@ -1827,6 +1847,200 @@
         <location line="+4"/>
         <source>Applications</source>
         <translation>应用程序</translation>
+    </message>
+</context>
+<context>
+    <name>AmbientLed.EffectSetupForm</name>
+    <message>
+        <source>Effect:</source>
+        <translation>效果：</translation>
+    </message>
+    <message>
+        <source>Solid Color</source>
+        <translation>纯色</translation>
+    </message>
+</context>
+<context>
+    <name>AmbientLed.TriggerForm</name>
+    <message>
+        <source>Airplane mode</source>
+        <translation>飞行模式</translation>
+    </message>
+    <message>
+        <source>Always</source>
+        <translation>始终</translation>
+    </message>
+    <message>
+        <source>Any value</source>
+        <translation>任意值</translation>
+    </message>
+    <message>
+        <source>Asleep</source>
+        <translation>休眠</translation>
+    </message>
+    <message>
+        <source>Audio playing</source>
+        <translation>正在播放音频</translation>
+    </message>
+    <message>
+        <source>Balanced</source>
+        <translation>平衡</translation>
+    </message>
+    <message>
+        <source>Bluetooth enabled</source>
+        <translation>蓝牙已启用</translation>
+    </message>
+    <message>
+        <source>Boolean</source>
+        <translation>布尔值</translation>
+    </message>
+    <message>
+        <source>Bus:</source>
+        <translation>总线：</translation>
+    </message>
+    <message>
+        <source>Condition:</source>
+        <translation>条件：</translation>
+    </message>
+    <message>
+        <source>Connecting</source>
+        <translation>正在连接</translation>
+    </message>
+    <message>
+        <source>Disconnected</source>
+        <translation>已断开</translation>
+    </message>
+    <message>
+        <source>Event duration (ms):</source>
+        <translation>事件持续时间（毫秒）：</translation>
+    </message>
+    <message>
+        <source>Interface:</source>
+        <translation>接口：</translation>
+    </message>
+    <message>
+        <source>Keyboard brightness</source>
+        <translation>键盘亮度</translation>
+    </message>
+    <message>
+        <source>Microphone</source>
+        <translation>麦克风</translation>
+    </message>
+    <message>
+        <source>Network state</source>
+        <translation>网络状态</translation>
+    </message>
+    <message>
+        <source>Network state:</source>
+        <translation>网络状态：</translation>
+    </message>
+    <message>
+        <source>Notification</source>
+        <translation>通知</translation>
+    </message>
+    <message>
+        <source>Number</source>
+        <translation>数字</translation>
+    </message>
+    <message>
+        <source>Object path:</source>
+        <translation>对象路径：</translation>
+    </message>
+    <message>
+        <source>Observe:</source>
+        <translation>观察：</translation>
+    </message>
+    <message>
+        <source>Performance</source>
+        <translation>性能</translation>
+    </message>
+    <message>
+        <source>Power connected</source>
+        <translation>接通电源</translation>
+    </message>
+    <message>
+        <source>Power profile</source>
+        <translation>电源配置</translation>
+    </message>
+    <message>
+        <source>Power profile:</source>
+        <translation>电源配置：</translation>
+    </message>
+    <message>
+        <source>Property</source>
+        <translation>属性</translation>
+    </message>
+    <message>
+        <source>Property or signal:</source>
+        <translation>属性或信号：</translation>
+    </message>
+    <message>
+        <source>Second display connected</source>
+        <translation>已连接第二显示器</translation>
+    </message>
+    <message>
+        <source>Service:</source>
+        <translation>服务：</translation>
+    </message>
+    <message>
+        <source>Session</source>
+        <translation>会话</translation>
+    </message>
+    <message>
+        <source>Signal</source>
+        <translation>信号</translation>
+    </message>
+    <message>
+        <source>Signals compare their first argument. A signal without arguments has the value true. Only observation is supported.</source>
+        <translation>比较信号的第一个参数。无参数信号的值为 true。仅支持观察。</translation>
+    </message>
+    <message>
+        <source>Site connection</source>
+        <translation>站点连接</translation>
+    </message>
+    <message>
+        <source>Sound muted</source>
+        <translation>声音已静音</translation>
+    </message>
+    <message>
+        <source>State:</source>
+        <translation>状态：</translation>
+    </message>
+    <message>
+        <source>System</source>
+        <translation>系统</translation>
+    </message>
+    <message>
+        <source>Threshold (%):</source>
+        <translation>阈值 (%)：</translation>
+    </message>
+    <message>
+        <source>Touchpad enabled</source>
+        <translation>触摸板已启用</translation>
+    </message>
+    <message>
+        <source>Trigger:</source>
+        <translation>触发条件：</translation>
+    </message>
+    <message>
+        <source>Unavailable sources leave the effect inactive. Repeated events are coalesced until the current event ends.</source>
+        <translation>来源不可用时效果保持未激活。在当前事件结束前，重复事件会合并。</translation>
+    </message>
+    <message>
+        <source>Unmuted</source>
+        <translation>未静音</translation>
+    </message>
+    <message>
+        <source>Value type:</source>
+        <translation>值类型：</translation>
+    </message>
+    <message>
+        <source>Value:</source>
+        <translation>值：</translation>
+    </message>
+    <message>
+        <source>Volume</source>
+        <translation>音量</translation>
     </message>
 </context>
 </TS>

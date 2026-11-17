@@ -2,6 +2,7 @@
 #include "audio_sources.h"
 #if defined(KLIGHTING_HAVE_PULSEAUDIO)
 #include "pulse_microphone_source.h"
+#include "pulse_output_source.h"
 #endif
 
 namespace Ambient
@@ -28,4 +29,13 @@ std::unique_ptr<MicrophoneSource> microphoneSource()
     return std::make_unique<UnavailableMicrophoneSource>();
 #endif
 }
+std::unique_ptr<AudioStateSource> audioStateSource()
+{
+#if defined(KLIGHTING_HAVE_PULSEAUDIO)
+    return std::make_unique<PulseOutputSource>();
+#else
+    return { };
+#endif
+}
+
 }

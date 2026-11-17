@@ -60,7 +60,7 @@ void LightingRuntime::setEnabled(bool enabled)
     m_enabled = enabled;
     m_devices.setEnabled(running());
     if (!running())
-        m_notifications.reset();
+        m_triggers.reset();
     updateEffects();
 }
 void LightingRuntime::setLocked(bool locked)
@@ -70,7 +70,7 @@ void LightingRuntime::setLocked(bool locked)
     advance();
     m_locked = locked;
     m_devices.setEnabled(running());
-    m_notifications.reset();
+    m_triggers.reset();
     m_picker.reset();
     updateEffects();
 }
@@ -144,7 +144,7 @@ void LightingRuntime::notify(const NotificationEvent& event)
     if (!running())
         return;
     advance();
-    if (m_notifications.trigger(event))
+    if (m_triggers.notify(event))
         tick(true);
     else
         updateTimer();
@@ -153,16 +153,38 @@ int LightingRuntime::captureFps() const
 {
     return running() && m_devices.ready() ? m_palette.samplingFps() : 0;
 }
-bool LightingRuntime::notificationsEnabled() const { return running() && !m_notifications.empty(); }
-bool LightingRuntime::microphoneEnabled() const { return running() && !m_microphoneEffects.isEmpty(); }
+bool LightingRuntime::notificationsEnabled() const { return running() && m_triggers.needs("notification"); }
+bool LightingRuntime::microphoneEnabled() const { return running() && m_triggers.needs("microphone"); }
 void LightingRuntime::setMicrophoneState(const MicrophoneState& state)
 {
     const auto next = microphoneEnabled() ? state : MicrophoneState();
     if (m_microphoneState == next)
         return;
+    advance();
     m_microphoneState = next;
-    // Mute changes do not wait for a notification or screen-output deadline.
-    tick();
+    bool changed = false;
+    for (const auto& effect : m_triggers.requirements())
+        if (effect.trigger.type == "microphone")
+            changed |= m_triggers.setValue(
+                effect.id, next.available && next.muteKnown ? QVariant(next.muted) : QVariant());
+    if (changed)
+        tick(true);
+}
+QList<EffectPreset> LightingRuntime::triggerRequirements() const
+{
+    return running() ? m_triggers.requirements() : QList<EffectPreset>();
+}
+void LightingRuntime::setTriggerValue(const QString& id, const QVariant& value)
+{
+    advance();
+    if (running() && m_triggers.setValue(id, value))
+        tick(true);
+}
+void LightingRuntime::triggerEvent(const QString& id, const QVariant& value)
+{
+    advance();
+    if (running() && m_triggers.event(id, value))
+        tick(true);
 }
 void LightingRuntime::refresh()
 {
@@ -185,8 +207,12 @@ void LightingRuntime::updateEffects()
     // options must reuse its last accepted color without restarting capture.
     if (running() && m_captureAvailable && m_screenColor.isValid())
         m_palette.sample(m_screenColor);
-    m_notifications.configure(effects, used, m_power);
-    m_microphoneEffects = activeMicrophoneEffects(effects, used, m_power);
+    m_triggers.configure(effects, used, m_power);
+    for (const auto& effect : m_triggers.requirements())
+        if (effect.trigger.type == "microphone")
+            m_triggers.setValue(effect.id,
+                m_microphoneState.available && m_microphoneState.muteKnown ? QVariant(m_microphoneState.muted)
+                                                                           : QVariant());
     if (!microphoneEnabled())
         m_microphoneState = { };
     Q_EMIT requirementsChanged();
@@ -200,9 +226,9 @@ void LightingRuntime::updateTimer()
         m_lastSample.invalidate();
         m_screenColor = QColor();
     }
-    const int fps = m_notifications.active() ? std::max(m_palette.ledFps(), 60)
-        : m_captureAvailable                 ? m_palette.ledFps()
-                                             : 0;
+    const int fps = m_triggers.animating() ? std::max(m_palette.ledFps(), 60)
+        : m_captureAvailable               ? m_palette.ledFps()
+                                           : 0;
     const int outputFps = fps > 0 ? fps : DefaultLedFramesPerSecond;
     if (m_ledFps != outputFps) {
         m_ledFps = outputFps;
@@ -216,7 +242,11 @@ void LightingRuntime::updateTimer()
     if (m_pendingSample)
         delay = delay < 0 ? inputDelay : std::min(delay, inputDelay);
     // An expired pulse still needs one final frame to remove its overlay.
-    if (m_notifications.active() || m_notifications.colors() != m_lastPulses) {
+    const int triggerDelay = m_triggers.nextUpdateMs();
+    if (triggerDelay >= 0)
+        delay = delay < 0 ? triggerDelay : std::min(delay, triggerDelay);
+    if (m_triggers.animating() || m_triggers.colors() != m_lastPulses
+        || m_triggers.brightness() != m_lastTriggerBrightness) {
         const int notificationDelay = int(std::ceil(std::max(0.0, m_nextNotificationOutput - m_time)));
         delay = delay < 0 ? notificationDelay : std::min(delay, notificationDelay);
     }
@@ -234,7 +264,7 @@ void LightingRuntime::advance()
         return;
     if (m_captureAvailable)
         m_palette.advance(elapsed, false);
-    m_notifications.advance(elapsed);
+    m_triggers.advance(elapsed);
 }
 void LightingRuntime::tick(bool force)
 {
@@ -249,18 +279,16 @@ void LightingRuntime::tick(bool force)
             m_palette.advance(0);
         }
         const auto palette = m_palette.colors();
-        const auto brightness = m_palette.brightnessFilters();
+        auto brightness = m_palette.brightnessFilters();
+        const auto triggerBrightness = m_triggers.brightness();
+        brightness.insert(triggerBrightness);
         const bool notificationDue = force || m_time >= m_nextNotificationOutput;
-        const auto pulses = notificationDue ? m_notifications.colors() : m_lastPulses;
-        const auto microphone = microphoneColors(m_microphoneEffects, m_microphoneState);
-        if (force || palette != m_lastPalette || pulses != m_lastPulses || brightness != m_lastBrightness
-            || microphone != m_lastMicrophoneColors) {
-            auto overlays = pulses;
-            overlays.insert(microphone);
-            m_devices.submit(palette, overlays, brightness);
+        const auto pulses = notificationDue ? m_triggers.colors() : m_lastPulses;
+        if (force || palette != m_lastPalette || pulses != m_lastPulses || brightness != m_lastBrightness) {
+            m_devices.submit(palette, pulses, brightness);
             m_lastPalette = palette;
             m_lastPulses = pulses;
-            m_lastMicrophoneColors = microphone;
+            m_lastTriggerBrightness = triggerBrightness;
             m_lastBrightness = brightness;
         }
         if (notificationDue)

@@ -477,6 +477,14 @@
         <source>New Microphone preset</source>
         <translation>Новый пресет микрофона</translation>
     </message>
+    <message>
+        <source>New Pulse preset</source>
+        <translation>Новый пресет пульсации</translation>
+    </message>
+    <message>
+        <source>Pulse</source>
+        <translation>Пульсация</translation>
+    </message>
 </context>
 <context>
     <name>AmbientLed.AmbientForm</name>
@@ -739,6 +747,10 @@
         <source>New Microphone</source>
         <translation>Новый микрофон</translation>
     </message>
+    <message>
+        <source>New Pulse</source>
+        <translation>Новая пульсация</translation>
+    </message>
 </context>
 <context>
     <name>AmbientLed.BrightnessForm</name>
@@ -940,6 +952,10 @@
     <message>
         <source>Microphone</source>
         <translation>Микрофон</translation>
+    </message>
+    <message>
+        <source>Pulse</source>
+        <translation>Пульсация</translation>
     </message>
 </context>
 <context>
@@ -1561,6 +1577,10 @@
         <source>Remove this preset? Devices using it will have no default preset. You can undo pending changes with Reset.</source>
         <translation>Удалить этот пресет? Устройства, использующие его, останутся без пресета по умолчанию. Несохранённые изменения можно отменить кнопкой «Сбросить».</translation>
     </message>
+    <message>
+        <source>An empty Base inherits the same device's Base from Default. Your own layers still apply; Default's layers are not inherited. Assign a black Solid Color to keep this preset dark.</source>
+        <translation>Пустая база наследуется из Default для того же устройства. Собственные слои продолжают действовать; слои Default не наследуются. Чтобы оставить этот пресет тёмным, назначьте чёрный однотонный цвет.</translation>
+    </message>
 </context>
 <context>
     <name>AmbientLed.PresetsPage</name>
@@ -1827,6 +1847,200 @@
         <location line="+4"/>
         <source>Applications</source>
         <translation>Приложения</translation>
+    </message>
+</context>
+<context>
+    <name>AmbientLed.EffectSetupForm</name>
+    <message>
+        <source>Effect:</source>
+        <translation>Эффект:</translation>
+    </message>
+    <message>
+        <source>Solid Color</source>
+        <translation>Сплошной цвет</translation>
+    </message>
+</context>
+<context>
+    <name>AmbientLed.TriggerForm</name>
+    <message>
+        <source>Airplane mode</source>
+        <translation>Режим полёта</translation>
+    </message>
+    <message>
+        <source>Always</source>
+        <translation>Всегда</translation>
+    </message>
+    <message>
+        <source>Any value</source>
+        <translation>Любое значение</translation>
+    </message>
+    <message>
+        <source>Asleep</source>
+        <translation>Спящий режим</translation>
+    </message>
+    <message>
+        <source>Audio playing</source>
+        <translation>Воспроизводится звук</translation>
+    </message>
+    <message>
+        <source>Balanced</source>
+        <translation>Сбалансированный</translation>
+    </message>
+    <message>
+        <source>Bluetooth enabled</source>
+        <translation>Bluetooth включён</translation>
+    </message>
+    <message>
+        <source>Boolean</source>
+        <translation>Логический</translation>
+    </message>
+    <message>
+        <source>Bus:</source>
+        <translation>Шина:</translation>
+    </message>
+    <message>
+        <source>Condition:</source>
+        <translation>Условие:</translation>
+    </message>
+    <message>
+        <source>Connecting</source>
+        <translation>Подключение</translation>
+    </message>
+    <message>
+        <source>Disconnected</source>
+        <translation>Нет подключения</translation>
+    </message>
+    <message>
+        <source>Event duration (ms):</source>
+        <translation>Длительность события (мс):</translation>
+    </message>
+    <message>
+        <source>Interface:</source>
+        <translation>Интерфейс:</translation>
+    </message>
+    <message>
+        <source>Keyboard brightness</source>
+        <translation>Яркость клавиатуры</translation>
+    </message>
+    <message>
+        <source>Microphone</source>
+        <translation>Микрофон</translation>
+    </message>
+    <message>
+        <source>Network state</source>
+        <translation>Состояние сети</translation>
+    </message>
+    <message>
+        <source>Network state:</source>
+        <translation>Состояние сети:</translation>
+    </message>
+    <message>
+        <source>Notification</source>
+        <translation>Уведомление</translation>
+    </message>
+    <message>
+        <source>Number</source>
+        <translation>Число</translation>
+    </message>
+    <message>
+        <source>Object path:</source>
+        <translation>Путь объекта:</translation>
+    </message>
+    <message>
+        <source>Observe:</source>
+        <translation>Наблюдать:</translation>
+    </message>
+    <message>
+        <source>Performance</source>
+        <translation>Производительность</translation>
+    </message>
+    <message>
+        <source>Power connected</source>
+        <translation>Подключение питания</translation>
+    </message>
+    <message>
+        <source>Power profile</source>
+        <translation>Профиль питания</translation>
+    </message>
+    <message>
+        <source>Power profile:</source>
+        <translation>Профиль питания:</translation>
+    </message>
+    <message>
+        <source>Property</source>
+        <translation>Свойство</translation>
+    </message>
+    <message>
+        <source>Property or signal:</source>
+        <translation>Свойство или сигнал:</translation>
+    </message>
+    <message>
+        <source>Second display connected</source>
+        <translation>Подключён второй экран</translation>
+    </message>
+    <message>
+        <source>Service:</source>
+        <translation>Служба:</translation>
+    </message>
+    <message>
+        <source>Session</source>
+        <translation>Сеанс</translation>
+    </message>
+    <message>
+        <source>Signal</source>
+        <translation>Сигнал</translation>
+    </message>
+    <message>
+        <source>Signals compare their first argument. A signal without arguments has the value true. Only observation is supported.</source>
+        <translation>Сравнивается первый аргумент сигнала. Сигнал без аргументов имеет значение true. Поддерживается только наблюдение.</translation>
+    </message>
+    <message>
+        <source>Site connection</source>
+        <translation>Подключение к сети организации</translation>
+    </message>
+    <message>
+        <source>Sound muted</source>
+        <translation>Звук выключен</translation>
+    </message>
+    <message>
+        <source>State:</source>
+        <translation>Состояние:</translation>
+    </message>
+    <message>
+        <source>System</source>
+        <translation>Система</translation>
+    </message>
+    <message>
+        <source>Threshold (%):</source>
+        <translation>Порог (%):</translation>
+    </message>
+    <message>
+        <source>Touchpad enabled</source>
+        <translation>Тачпад включён</translation>
+    </message>
+    <message>
+        <source>Trigger:</source>
+        <translation>Событие:</translation>
+    </message>
+    <message>
+        <source>Unavailable sources leave the effect inactive. Repeated events are coalesced until the current event ends.</source>
+        <translation>Если источник недоступен, эффект неактивен. Повторные события объединяются до завершения текущего.</translation>
+    </message>
+    <message>
+        <source>Unmuted</source>
+        <translation>Не заглушён</translation>
+    </message>
+    <message>
+        <source>Value type:</source>
+        <translation>Тип значения:</translation>
+    </message>
+    <message>
+        <source>Value:</source>
+        <translation>Значение:</translation>
+    </message>
+    <message>
+        <source>Volume</source>
+        <translation>Громкость</translation>
     </message>
 </context>
 </TS>

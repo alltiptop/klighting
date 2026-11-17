@@ -2,8 +2,8 @@
 #pragma once
 #include "devices/device_manager.h"
 #include "effects/effect_palette.h"
-#include "effects/microphone_effect.h"
-#include "effects/notification_effect.h"
+#include "sources/microphone_source.h"
+#include "triggers/effect_triggers.h"
 #include <QElapsedTimer>
 #include <QObject>
 #include <QTimer>
@@ -27,6 +27,9 @@ public:
     void setCaptureAvailable(bool available);
     void sample(QByteArrayView rgba, double brightness = 1.0, double saturation = 1.0);
     void notify(const NotificationEvent& event);
+    void setTriggerValue(const QString& id, const QVariant& value);
+    void triggerEvent(const QString& id, const QVariant& value);
+    QList<EffectPreset> triggerRequirements() const;
     int captureFps() const;
     bool notificationsEnabled() const;
     bool microphoneEnabled() const;
@@ -47,9 +50,8 @@ private:
     DeviceManager m_devices;
     PresetCollection m_collection;
     EffectPalette m_palette;
-    NotificationEffects m_notifications;
+    EffectTriggers m_triggers;
     MicrophoneState m_microphoneState;
-    QMap<QString, QColor> m_microphoneEffects, m_lastMicrophoneColors;
     DominantColorPicker m_picker;
     PowerState m_power;
     QString m_windowClass;
@@ -58,7 +60,7 @@ private:
     QElapsedTimer m_clock, m_lastSample;
     double m_time = 0, m_nextNotificationOutput = 0;
     QMap<QString, QColor> m_lastPalette, m_lastPulses;
-    QMap<QString, int> m_lastBrightness;
+    QMap<QString, int> m_lastBrightness, m_lastTriggerBrightness;
     struct PendingSample {
         QByteArray rgba;
         double brightness, saturation;

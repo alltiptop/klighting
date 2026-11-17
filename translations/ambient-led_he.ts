@@ -477,6 +477,14 @@
         <source>New Microphone preset</source>
         <translation>ערכת מיקרופון חדשה</translation>
     </message>
+    <message>
+        <source>New Pulse preset</source>
+        <translation>הגדרת פעימה חדשה</translation>
+    </message>
+    <message>
+        <source>Pulse</source>
+        <translation>פעימה</translation>
+    </message>
 </context>
 <context>
     <name>AmbientLed.AmbientForm</name>
@@ -739,6 +747,10 @@
         <source>New Microphone</source>
         <translation>מיקרופון חדש</translation>
     </message>
+    <message>
+        <source>New Pulse</source>
+        <translation>פעימה חדשה</translation>
+    </message>
 </context>
 <context>
     <name>AmbientLed.BrightnessForm</name>
@@ -940,6 +952,10 @@
     <message>
         <source>Microphone</source>
         <translation>מיקרופון</translation>
+    </message>
+    <message>
+        <source>Pulse</source>
+        <translation>פעימה</translation>
     </message>
 </context>
 <context>
@@ -1561,6 +1577,10 @@
         <source>Remove this preset? Devices using it will have no default preset. You can undo pending changes with Reset.</source>
         <translation>להסיר את ההגדרה הזאת? למכשירים שמשתמשים בה לא תהיה הגדרת ברירת מחדל. ניתן לבטל שינויים שטרם נשמרו באמצעות איפוס.</translation>
     </message>
+    <message>
+        <source>An empty Base inherits the same device's Base from Default. Your own layers still apply; Default's layers are not inherited. Assign a black Solid Color to keep this preset dark.</source>
+        <translation>בסיס ריק יורש את בסיס אותו התקן מתוך Default. השכבות שלך עדיין חלות; שכבות Default אינן עוברות בירושה. יש להקצות צבע אחיד שחור כדי להשאיר הגדרה זו חשוכה.</translation>
+    </message>
 </context>
 <context>
     <name>AmbientLed.PresetsPage</name>
@@ -1827,6 +1847,200 @@
         <location line="+4"/>
         <source>Applications</source>
         <translation>יישומים</translation>
+    </message>
+</context>
+<context>
+    <name>AmbientLed.EffectSetupForm</name>
+    <message>
+        <source>Effect:</source>
+        <translation>אפקט:</translation>
+    </message>
+    <message>
+        <source>Solid Color</source>
+        <translation>צבע אחיד</translation>
+    </message>
+</context>
+<context>
+    <name>AmbientLed.TriggerForm</name>
+    <message>
+        <source>Airplane mode</source>
+        <translation>מצב טיסה</translation>
+    </message>
+    <message>
+        <source>Always</source>
+        <translation>תמיד</translation>
+    </message>
+    <message>
+        <source>Any value</source>
+        <translation>כל ערך</translation>
+    </message>
+    <message>
+        <source>Asleep</source>
+        <translation>במצב שינה</translation>
+    </message>
+    <message>
+        <source>Audio playing</source>
+        <translation>שמע מתנגן</translation>
+    </message>
+    <message>
+        <source>Balanced</source>
+        <translation>מאוזן</translation>
+    </message>
+    <message>
+        <source>Bluetooth enabled</source>
+        <translation>בלוטות׳ פעיל</translation>
+    </message>
+    <message>
+        <source>Boolean</source>
+        <translation>בוליאני</translation>
+    </message>
+    <message>
+        <source>Bus:</source>
+        <translation>אפיק:</translation>
+    </message>
+    <message>
+        <source>Condition:</source>
+        <translation>תנאי:</translation>
+    </message>
+    <message>
+        <source>Connecting</source>
+        <translation>מתחבר</translation>
+    </message>
+    <message>
+        <source>Disconnected</source>
+        <translation>מנותק</translation>
+    </message>
+    <message>
+        <source>Event duration (ms):</source>
+        <translation>משך אירוע (מילישניות):</translation>
+    </message>
+    <message>
+        <source>Interface:</source>
+        <translation>ממשק:</translation>
+    </message>
+    <message>
+        <source>Keyboard brightness</source>
+        <translation>בהירות המקלדת</translation>
+    </message>
+    <message>
+        <source>Microphone</source>
+        <translation>מיקרופון</translation>
+    </message>
+    <message>
+        <source>Network state</source>
+        <translation>מצב הרשת</translation>
+    </message>
+    <message>
+        <source>Network state:</source>
+        <translation>מצב הרשת:</translation>
+    </message>
+    <message>
+        <source>Notification</source>
+        <translation>התראה</translation>
+    </message>
+    <message>
+        <source>Number</source>
+        <translation>מספר</translation>
+    </message>
+    <message>
+        <source>Object path:</source>
+        <translation>נתיב האובייקט:</translation>
+    </message>
+    <message>
+        <source>Observe:</source>
+        <translation>מעקב:</translation>
+    </message>
+    <message>
+        <source>Performance</source>
+        <translation>ביצועים</translation>
+    </message>
+    <message>
+        <source>Power connected</source>
+        <translation>חיבור לחשמל</translation>
+    </message>
+    <message>
+        <source>Power profile</source>
+        <translation>פרופיל צריכת חשמל</translation>
+    </message>
+    <message>
+        <source>Power profile:</source>
+        <translation>פרופיל צריכת חשמל:</translation>
+    </message>
+    <message>
+        <source>Property</source>
+        <translation>מאפיין</translation>
+    </message>
+    <message>
+        <source>Property or signal:</source>
+        <translation>מאפיין או אות:</translation>
+    </message>
+    <message>
+        <source>Second display connected</source>
+        <translation>מסך שני מחובר</translation>
+    </message>
+    <message>
+        <source>Service:</source>
+        <translation>שירות:</translation>
+    </message>
+    <message>
+        <source>Session</source>
+        <translation>הפעלה</translation>
+    </message>
+    <message>
+        <source>Signal</source>
+        <translation>אות</translation>
+    </message>
+    <message>
+        <source>Signals compare their first argument. A signal without arguments has the value true. Only observation is supported.</source>
+        <translation>הארגומנט הראשון של האות מושווה. לאות ללא ארגומנטים יש ערך true. נתמכת צפייה בלבד.</translation>
+    </message>
+    <message>
+        <source>Site connection</source>
+        <translation>חיבור לרשת הארגון</translation>
+    </message>
+    <message>
+        <source>Sound muted</source>
+        <translation>הצליל מושתק</translation>
+    </message>
+    <message>
+        <source>State:</source>
+        <translation>מצב:</translation>
+    </message>
+    <message>
+        <source>System</source>
+        <translation>מערכת</translation>
+    </message>
+    <message>
+        <source>Threshold (%):</source>
+        <translation>סף (%):</translation>
+    </message>
+    <message>
+        <source>Touchpad enabled</source>
+        <translation>משטח המגע פעיל</translation>
+    </message>
+    <message>
+        <source>Trigger:</source>
+        <translation>גורם מפעיל:</translation>
+    </message>
+    <message>
+        <source>Unavailable sources leave the effect inactive. Repeated events are coalesced until the current event ends.</source>
+        <translation>מקורות לא זמינים משאירים את האפקט לא פעיל. אירועים חוזרים מאוחדים עד לסיום האירוע הנוכחי.</translation>
+    </message>
+    <message>
+        <source>Unmuted</source>
+        <translation>לא מושתק</translation>
+    </message>
+    <message>
+        <source>Value type:</source>
+        <translation>סוג הערך:</translation>
+    </message>
+    <message>
+        <source>Value:</source>
+        <translation>ערך:</translation>
+    </message>
+    <message>
+        <source>Volume</source>
+        <translation>עוצמת קול</translation>
     </message>
 </context>
 </TS>

@@ -52,7 +52,7 @@ bool SettingsController::setGradient(int layer, int index, int strip, int from, 
         auto list = localEffects(layer, id);
         list.removeIf([&](const auto& e) {
             return std::none_of(definitions.begin(), definitions.end(),
-                [&](const auto& p) { return p.id == e.id && supportsEffectOverride(p.type); });
+                [&](const auto& p) { return p.id == e.id && !canonicalEffect(p).trigger.type.isEmpty(); });
         });
         if (ambient && list.size() >= 32) {
             m_error = tr("Use at most 32 effects per element and layer.");
@@ -99,18 +99,21 @@ QVariantList SettingsController::effectPresets() const
 }
 namespace
 {
-    QVariantMap effectOptions(const EffectPreset& p)
+    QVariantMap effectOptions(const EffectPreset& input)
     {
+        const auto p = canonicalEffect(input);
         const auto& a = p.ambient;
-        return { { "id", p.id }, { "name", p.name }, { "type", p.type }, { "fps", a.fps },
-            { "ledFps", a.ledFps }, { "smoothing", a.smoothing }, { "minimum", a.minimum },
-            { "maximum", a.maximum }, { "temperature", a.temperature }, { "brightness", p.brightness },
-            { "microphoneColor", p.microphone.color.name() },
+        return { { "id", p.id }, { "name", p.name }, { "type", p.type },
+            { "condition", triggerJson(p.trigger).toVariantMap() }, { "fps", a.fps }, { "ledFps", a.ledFps },
+            { "smoothing", a.smoothing }, { "minimum", a.minimum }, { "maximum", a.maximum },
+            { "temperature", a.temperature }, { "brightness", p.brightness },
+            { "microphoneColor",
+                p.trigger.type == "microphone" ? p.solidColor.name() : p.microphone.color.name() },
             { "notificationColor", p.notification.color.name() }, { "solidColor", p.solidColor.name() },
             { "pattern", p.notification.pattern }, { "period", p.notification.period },
-            { "cycles", p.notification.cycles }, { "urgency", p.notification.urgency },
-            { "application", p.notification.application }, { "category", p.notification.category },
-            { "eventId", p.notification.eventId }, { "trigger", p.notification.trigger },
+            { "cycles", p.notification.cycles }, { "urgency", p.trigger.urgency },
+            { "application", p.trigger.application }, { "category", p.trigger.category },
+            { "eventId", p.trigger.eventId }, { "trigger", p.trigger.type },
             { "pauseOnBattery", p.pauseOnBattery }, { "pauseOnLowBattery", p.pauseOnLowBattery } };
     }
 }
@@ -211,7 +214,8 @@ QString SettingsController::localizeEffect(
 QString SettingsController::addLocalEffect(int layer, const QVariantList& ids, const QString& type)
 {
     if (layer < -1 || layer >= current().layers.size() || effectIds(ids).isEmpty()
-        || !QStringList { "solid", "ambient", "notifications", "microphone", "brightness" }.contains(type))
+        || !QStringList { "solid", "ambient", "notifications", "microphone", "brightness", "pulse" }.contains(
+            type))
         return { };
     pruneLocalEffects();
     if (current().localEffects.size() >= 128) {
@@ -231,8 +235,10 @@ QString SettingsController::addLocalEffect(int layer, const QVariantList& ids, c
     effect.name = type == "solid" ? tr("Solid Color")
         : type == "ambient"       ? tr("Ambient")
         : type == "brightness"    ? tr("Brightness")
+        : type == "pulse"         ? tr("Pulse")
         : type == "microphone"    ? tr("Microphone")
                                   : tr("Notifications");
+    effect = canonicalEffect(effect);
     current().localEffects.append(effect);
     addAssignedEffect(layer, ids, effect.id);
     return effect.id;
@@ -272,7 +278,7 @@ bool SettingsController::addEffect(const QString& type, bool duplicate)
 {
     if ((type != QLatin1String("ambient") && type != QLatin1String("notifications")
             && type != QLatin1String("solid") && type != QLatin1String("brightness")
-            && type != QLatin1String("microphone"))
+            && type != QLatin1String("microphone") && type != QLatin1String("pulse"))
         || m_collection.effects.size() >= 64 || (duplicate && m_selectedEffect < 0))
         return false;
     auto p = duplicate ? m_collection.effects[m_selectedEffect] : EffectPreset();
@@ -280,11 +286,13 @@ bool SettingsController::addEffect(const QString& type, bool duplicate)
     if (!duplicate)
         p.type = type;
     p.name = duplicate            ? tr("%1 copy").arg(p.name)
+        : type == "pulse"         ? tr("New Pulse preset")
         : type == "notifications" ? tr("New Notifications preset")
         : type == "microphone"    ? tr("New Microphone preset")
         : type == "solid"         ? tr("New Solid Color preset")
         : type == "brightness"    ? tr("New Brightness preset")
                                   : tr("New Ambient preset");
+    p = canonicalEffect(p);
     m_collection.effects << p;
     m_selectedEffect = m_collection.effects.size() - 1;
     touch();
@@ -332,10 +340,68 @@ void SettingsController::exportEffectFile(const QUrl& path)
     exportEffectPreset(m_collection.effects[m_selectedEffect], path.toLocalFile(), &m_error);
     Q_EMIT documentController()->changed();
 }
+void SettingsController::setTrigger(const QString& key, const QVariant& value, const QString& localId)
+{
+    auto* effect = editableEffect(localId);
+    if (!effect || effect->type == "ambient")
+        return;
+    auto copy = canonicalEffect(*effect);
+    auto options = triggerJson(copy.trigger);
+    if (!options.contains(key))
+        return;
+    if (key == "type") {
+        TriggerOptions defaults;
+        defaults.type = value.toString();
+        if (defaults.type == "microphone")
+            defaults.value = false;
+        else if (defaults.type == "volume" || defaults.type == "keyboard-brightness") {
+            defaults.value = 50;
+            defaults.comparison = "ge";
+        } else if (defaults.type == "power-profile")
+            defaults.value = "balanced";
+        else if (defaults.type == "network")
+            defaults.value = 70;
+        options = triggerJson(defaults);
+    } else
+        options[key] = QJsonValue::fromVariant(value);
+    QString error;
+    const auto trigger = parseTrigger(options, &error);
+    if (!trigger)
+        return;
+    copy.trigger = *trigger;
+    *effect = copy;
+    touch();
+}
+void SettingsController::setEffectType(const QString& type, const QString& localId)
+{
+    if (!QStringList { "solid", "brightness", "pulse", "ambient" }.contains(type))
+        return;
+    auto* effect = editableEffect(localId);
+    if (!effect)
+        return;
+    if (effect->type == "ambient" && type != "ambient")
+        return;
+    if (type == "ambient") {
+        // Ambient cannot participate in above-layer assignments.
+        const auto id = effect->id;
+        for (const auto& scene : m_collection.presets)
+            for (const auto* profile : deviceProfiles(scene))
+                for (const auto& list : profile->effectOverrides)
+                    for (const auto& assignment : list)
+                        if (assignment.id == id)
+                            return;
+    }
+    *effect = canonicalEffect(*effect);
+    effect->type = type;
+    if (type == "ambient")
+        effect->trigger = { };
+    *effect = canonicalEffect(*effect);
+    touch();
+}
 void SettingsController::setMicrophone(const QString& key, const QVariant& value, const QString& localId)
 {
     auto* effect = editableEffect(localId);
-    if (!effect || effect->type != "microphone")
+    if (!effect || (effect->type != "microphone" && effect->trigger.type != "microphone"))
         return;
     if (key == "pauseOnBattery" || key == "pauseOnLowBattery") {
         setEffectPower(key, value.toBool(), localId);
@@ -346,7 +412,10 @@ void SettingsController::setMicrophone(const QString& key, const QVariant& value
     const QColor color(value.toString());
     if (!color.isValid() || color.alpha() != 255)
         return;
-    effect->microphone.color = color;
+    if (effect->type == "microphone")
+        effect->microphone.color = color;
+    else
+        effect->solidColor = color;
     touch();
 }
 void SettingsController::setNotification(const QString& key, const QVariant& value, const QString& localId)
@@ -356,8 +425,13 @@ void SettingsController::setNotification(const QString& key, const QVariant& val
         return;
     }
     auto* effect = editableEffect(localId);
-    if (!effect || effect->type != "notifications")
+    if (!effect || (effect->type != "notifications" && effect->type != "pulse"))
         return;
+    if (effect->type == "pulse"
+        && QStringList { "trigger", "urgency", "application", "category", "eventId" }.contains(key)) {
+        setTrigger(key == "trigger" ? QStringLiteral("type") : key, value, localId);
+        return;
+    }
     auto& n = effect->notification;
     if (key == "color") {
         const QColor color(value.toString());
@@ -374,9 +448,12 @@ void SettingsController::setNotification(const QString& key, const QVariant& val
         n.pattern = value.toString();
     } else if (key == "period")
         n.period = std::clamp(value.toInt(), 500, 5000);
-    else if (key == "cycles")
-        n.cycles = std::clamp(value.toInt(), 1, 10);
-    else if (key == "urgency")
+    else if (key == "cycles") {
+        if (effect->type == "pulse")
+            effect->trigger.duration = n.period * std::clamp(value.toInt(), 1, 10);
+        else
+            n.cycles = std::clamp(value.toInt(), 1, 10);
+    } else if (key == "urgency")
         n.urgency = std::clamp(value.toInt(), -1, 2);
     else if (key == "application")
         n.application = value.toString().left(256);
@@ -554,17 +631,19 @@ QVariantMap SettingsController::selectionEffects(int layer, const QVariantList& 
                 } else {
                     QString name = effect.id == QLatin1String(InlineColorId) ? tr("Solid Color")
                                                                              : tr("Default Ambient");
+                    QString trigger;
                     QString type = effect.id == QLatin1String(InlineColorId) ? QStringLiteral("solid")
                                                                              : QStringLiteral("ambient");
                     for (const auto& preset : definitions)
                         if (preset.id == (effect.id.isEmpty() ? current().defaultEffectId : effect.id)) {
                             name = preset.name;
                             type = preset.type;
+                            trigger = canonicalEffect(preset).trigger.type;
                             break;
                         }
                     rows.append(QVariantMap { { "id", effect.id }, { "name", name }, { "type", type },
-                        { "above", isAbove }, { "opacity", effect.opacity }, { "count", 1 },
-                        { "local", !localEffectOptions(effect.id).isEmpty() },
+                        { "triggerType", trigger }, { "above", isAbove }, { "opacity", effect.opacity },
+                        { "count", 1 }, { "local", !localEffectOptions(effect.id).isEmpty() },
                         { "color", effect.color.isValid() ? effect.color.name() : QString() } });
                 }
             }

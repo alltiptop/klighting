@@ -124,6 +124,31 @@ private Q_SLOTS:
         runtime.setMicrophoneState({ true, false, false });
         QCOMPARE(output(), QColor(Qt::blue)); // Reveal the current, not initial, underlay.
     }
+    void microphonePulseStartsAtBeginningAfterIdle()
+    {
+        auto c = collection(false);
+        EffectPreset pulse;
+        pulse.id = "microphone-pulse";
+        pulse.type = "pulse";
+        pulse.notification.pattern = "blink";
+        pulse.notification.color = Qt::green;
+        pulse.notification.period = 1000;
+        pulse.trigger.type = "microphone";
+        pulse.trigger.value = false;
+        c.effects.append(pulse);
+        c.presets[0].effects[DefaultAssignment].append({ pulse.id });
+        LightingRuntime runtime({ }, { MULTI_DRIVER_DIR });
+        start(runtime, c, false);
+        runtime.setMicrophoneState({ true, true, true });
+        QCOMPARE(output(), QColor(Qt::red));
+        const auto wakeups = counter(runtime, "animationWakeups");
+        QTest::qWait(750); // A new blink must not inherit this idle interval as its phase.
+        QCOMPARE(counter(runtime, "animationWakeups"), wakeups);
+        runtime.setMicrophoneState({ true, true, false });
+        QCOMPARE(output(), QColor(Qt::green));
+        runtime.setMicrophoneState({ true, true, true });
+        QCOMPARE(output(), QColor(Qt::red));
+    }
     void microphoneReactivationNeedsFreshState_data()
     {
         QTest::addColumn<QString>("policy");

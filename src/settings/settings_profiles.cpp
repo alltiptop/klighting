@@ -151,8 +151,7 @@ DeviceProfile SettingsController::newProfile(const DeviceConfiguration& device) 
     profile.name = device.name;
     profile.layers.clear();
     profile.defaultEffectId.clear();
-    // An empty profile is intentional: no screen capture is requested until an
-    // effect is assigned. This also works on devices with only an on/off switch.
+    // Empty Default profiles stay off; other empty profiles inherit Default Base.
     profile.effects.insert(DefaultAssignment, { });
     return profile;
 }
@@ -396,7 +395,7 @@ QString SettingsController::editDeviceSelection(
         : id == QLatin1String(InlineColorId) || action == "color" ? QStringLiteral("solid")
                                                                   : options.value("type").toString();
     const bool supported = type == "solid" || type == "brightness" || type == "ambient"
-        || type == "notifications" || type == "microphone";
+        || type == "notifications" || type == "microphone" || type == "pulse";
     if (!supported && action != "remove" && action != "clear")
         return { };
     const bool above = arguments.value("above").toBool();
@@ -501,7 +500,13 @@ QString SettingsController::editDeviceSelection(
                 continue;
             const auto key = arguments.value("key").toString();
             const auto value = arguments.value("value");
-            if (action == "solid")
+            if (action == "power")
+                editor->setEffectPower(key, value.toBool(), id);
+            else if (action == "trigger")
+                editor->setTrigger(key, value, id);
+            else if (action == "effect-type")
+                editor->setEffectType(value.toString(), id);
+            else if (action == "solid")
                 editor->setSolidColor(value.toString(), id);
             else if (action == "brightness")
                 editor->setBrightness(value.toInt(), id);

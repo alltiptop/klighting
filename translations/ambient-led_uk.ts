@@ -477,6 +477,14 @@
         <source>New Microphone preset</source>
         <translation>Новий пресет мікрофона</translation>
     </message>
+    <message>
+        <source>New Pulse preset</source>
+        <translation>Новий пресет пульсації</translation>
+    </message>
+    <message>
+        <source>Pulse</source>
+        <translation>Пульсація</translation>
+    </message>
 </context>
 <context>
     <name>AmbientLed.AmbientForm</name>
@@ -739,6 +747,10 @@
         <source>New Microphone</source>
         <translation>Новий мікрофон</translation>
     </message>
+    <message>
+        <source>New Pulse</source>
+        <translation>Нова пульсація</translation>
+    </message>
 </context>
 <context>
     <name>AmbientLed.BrightnessForm</name>
@@ -940,6 +952,10 @@
     <message>
         <source>Microphone</source>
         <translation>Мікрофон</translation>
+    </message>
+    <message>
+        <source>Pulse</source>
+        <translation>Пульсація</translation>
     </message>
 </context>
 <context>
@@ -1561,6 +1577,10 @@
         <source>Remove this preset? Devices using it will have no default preset. You can undo pending changes with Reset.</source>
         <translation>Видалити цей пресет? Пристрої, що його використовують, залишаться без типового пресету. Незбережені зміни можна скасувати кнопкою «Скинути».</translation>
     </message>
+    <message>
+        <source>An empty Base inherits the same device's Base from Default. Your own layers still apply; Default's layers are not inherited. Assign a black Solid Color to keep this preset dark.</source>
+        <translation>Порожня база успадковується з Default для того самого пристрою. Власні шари діють, а шари Default не успадковуються. Призначте чорний суцільний колір, щоб залишити цей пресет темним.</translation>
+    </message>
 </context>
 <context>
     <name>AmbientLed.PresetsPage</name>
@@ -1827,6 +1847,200 @@
         <location line="+4"/>
         <source>Applications</source>
         <translation>Програми</translation>
+    </message>
+</context>
+<context>
+    <name>AmbientLed.EffectSetupForm</name>
+    <message>
+        <source>Effect:</source>
+        <translation>Ефект:</translation>
+    </message>
+    <message>
+        <source>Solid Color</source>
+        <translation>Суцільний колір</translation>
+    </message>
+</context>
+<context>
+    <name>AmbientLed.TriggerForm</name>
+    <message>
+        <source>Airplane mode</source>
+        <translation>Режим польоту</translation>
+    </message>
+    <message>
+        <source>Always</source>
+        <translation>Завжди</translation>
+    </message>
+    <message>
+        <source>Any value</source>
+        <translation>Будь-яке значення</translation>
+    </message>
+    <message>
+        <source>Asleep</source>
+        <translation>Режим сну</translation>
+    </message>
+    <message>
+        <source>Audio playing</source>
+        <translation>Відтворюється звук</translation>
+    </message>
+    <message>
+        <source>Balanced</source>
+        <translation>Збалансований</translation>
+    </message>
+    <message>
+        <source>Bluetooth enabled</source>
+        <translation>Bluetooth увімкнено</translation>
+    </message>
+    <message>
+        <source>Boolean</source>
+        <translation>Логічний</translation>
+    </message>
+    <message>
+        <source>Bus:</source>
+        <translation>Шина:</translation>
+    </message>
+    <message>
+        <source>Condition:</source>
+        <translation>Умова:</translation>
+    </message>
+    <message>
+        <source>Connecting</source>
+        <translation>Підключення</translation>
+    </message>
+    <message>
+        <source>Disconnected</source>
+        <translation>Немає підключення</translation>
+    </message>
+    <message>
+        <source>Event duration (ms):</source>
+        <translation>Тривалість події (мс):</translation>
+    </message>
+    <message>
+        <source>Interface:</source>
+        <translation>Інтерфейс:</translation>
+    </message>
+    <message>
+        <source>Keyboard brightness</source>
+        <translation>Яскравість клавіатури</translation>
+    </message>
+    <message>
+        <source>Microphone</source>
+        <translation>Мікрофон</translation>
+    </message>
+    <message>
+        <source>Network state</source>
+        <translation>Стан мережі</translation>
+    </message>
+    <message>
+        <source>Network state:</source>
+        <translation>Стан мережі:</translation>
+    </message>
+    <message>
+        <source>Notification</source>
+        <translation>Сповіщення</translation>
+    </message>
+    <message>
+        <source>Number</source>
+        <translation>Число</translation>
+    </message>
+    <message>
+        <source>Object path:</source>
+        <translation>Шлях об’єкта:</translation>
+    </message>
+    <message>
+        <source>Observe:</source>
+        <translation>Спостерігати:</translation>
+    </message>
+    <message>
+        <source>Performance</source>
+        <translation>Продуктивність</translation>
+    </message>
+    <message>
+        <source>Power connected</source>
+        <translation>Підключення живлення</translation>
+    </message>
+    <message>
+        <source>Power profile</source>
+        <translation>Профіль живлення</translation>
+    </message>
+    <message>
+        <source>Power profile:</source>
+        <translation>Профіль живлення:</translation>
+    </message>
+    <message>
+        <source>Property</source>
+        <translation>Властивість</translation>
+    </message>
+    <message>
+        <source>Property or signal:</source>
+        <translation>Властивість або сигнал:</translation>
+    </message>
+    <message>
+        <source>Second display connected</source>
+        <translation>Підключено другий екран</translation>
+    </message>
+    <message>
+        <source>Service:</source>
+        <translation>Служба:</translation>
+    </message>
+    <message>
+        <source>Session</source>
+        <translation>Сеанс</translation>
+    </message>
+    <message>
+        <source>Signal</source>
+        <translation>Сигнал</translation>
+    </message>
+    <message>
+        <source>Signals compare their first argument. A signal without arguments has the value true. Only observation is supported.</source>
+        <translation>Порівнюється перший аргумент сигналу. Сигнал без аргументів має значення true. Підтримується лише спостереження.</translation>
+    </message>
+    <message>
+        <source>Site connection</source>
+        <translation>Підключення до мережі організації</translation>
+    </message>
+    <message>
+        <source>Sound muted</source>
+        <translation>Звук вимкнено</translation>
+    </message>
+    <message>
+        <source>State:</source>
+        <translation>Стан:</translation>
+    </message>
+    <message>
+        <source>System</source>
+        <translation>Система</translation>
+    </message>
+    <message>
+        <source>Threshold (%):</source>
+        <translation>Поріг (%):</translation>
+    </message>
+    <message>
+        <source>Touchpad enabled</source>
+        <translation>Тачпад увімкнено</translation>
+    </message>
+    <message>
+        <source>Trigger:</source>
+        <translation>Подія:</translation>
+    </message>
+    <message>
+        <source>Unavailable sources leave the effect inactive. Repeated events are coalesced until the current event ends.</source>
+        <translation>Якщо джерело недоступне, ефект неактивний. Повторні події об’єднуються до завершення поточної.</translation>
+    </message>
+    <message>
+        <source>Unmuted</source>
+        <translation>Не заглушено</translation>
+    </message>
+    <message>
+        <source>Value type:</source>
+        <translation>Тип значення:</translation>
+    </message>
+    <message>
+        <source>Value:</source>
+        <translation>Значення:</translation>
+    </message>
+    <message>
+        <source>Volume</source>
+        <translation>Гучність</translation>
     </message>
 </context>
 </TS>

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
+#include "audio_state_source.h"
 #include "capture_source.h"
 #include "desktop_source.h"
 #include "microphone_source.h"
@@ -36,5 +37,6 @@ struct IntegrationSources {
     std::unique_ptr<CaptureSource> capture;
     std::shared_ptr<HardwareControlGuard> hardwareGuard;
     std::unique_ptr<MicrophoneSource> microphone;
+    std::unique_ptr<AudioStateSource> audio;
 };
 }
