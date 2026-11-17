@@ -4,6 +4,7 @@
 #include "sources/integration_sources.h"
 #include "sources/notification_source.h"
 #include "sources/power_source.h"
+#include "sources/system_trigger_source.h"
 
 namespace Ambient
 {
@@ -28,8 +29,9 @@ private:
     LightingRuntime m_runtime;
     PowerSource m_power;
     NotificationSource m_notifications;
+    SystemTriggerSource m_systemTriggers;
     IntegrationSources m_sources;
-    QVariantMap m_captureOptions;
+    QVariantMap m_captureOptions, m_audioValues;
     QString m_error;
     double m_brightness = 1, m_saturation = 1;
     bool m_configured = false, m_desktopKnown = false;

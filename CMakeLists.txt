@@ -49,6 +49,9 @@ add_library(ambient_core STATIC
     src/effects/color.cpp
     src/effects/effect_palette.cpp
     src/effects/notification_effect.cpp
+    src/triggers/trigger_options.cpp
+    src/triggers/notification_trigger.cpp
+    src/triggers/effect_triggers.cpp
     src/presets/keyboard_profile.cpp
     src/presets/presets.cpp
     src/presets/preset_runtime.cpp
@@ -75,7 +78,7 @@ target_link_libraries(integration_startup_guard PUBLIC Qt6::Core)
 set_target_properties(integration_startup_guard PROPERTIES
     CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN YES)
 qt_add_library(integration_sources STATIC src/sources/desktop_source.h src/sources/capture_source.h
-    src/sources/microphone_source.h src/sources/integration_sources.h)
+    src/sources/microphone_source.h src/sources/audio_state_source.h src/sources/integration_sources.h)
 target_link_libraries(integration_sources PUBLIC ambient_core)
 qt_add_library(audio_sources STATIC src/sources/audio/audio_sources.cpp)
 target_link_libraries(audio_sources PRIVATE integration_sources Qt6::Core)
@@ -83,7 +86,7 @@ target_compile_options(audio_sources PRIVATE -Wall -Wextra -Wpedantic)
 set_target_properties(audio_sources PROPERTIES
     CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN YES)
 if(KLIGHTING_HAVE_PULSEAUDIO)
-    target_sources(audio_sources PRIVATE src/sources/audio/pulse_microphone_source.cpp)
+    target_sources(audio_sources PRIVATE src/sources/audio/pulse_microphone_source.cpp src/sources/audio/pulse_output_source.cpp)
     target_link_libraries(audio_sources PRIVATE PkgConfig::PULSEAUDIO)
     target_compile_definitions(audio_sources PRIVATE KLIGHTING_HAVE_PULSEAUDIO=1)
 endif()
@@ -94,7 +97,8 @@ qt_add_library(kwin_sources STATIC
 target_link_libraries(kwin_sources PUBLIC integration_sources integration_startup_guard component_info Qt6::DBus)
 add_library(lighting_service STATIC
     src/service/lighting_service.cpp
-    src/sources/notification_source.cpp src/sources/power_source.cpp)
+    src/sources/notification_source.cpp src/sources/power_source.cpp
+    src/sources/dbus_trigger_source.cpp src/sources/system_trigger_source.cpp)
 target_link_libraries(lighting_service PUBLIC lighting_runtime integration_sources component_info Qt6::DBus)
 set_target_properties(lighting_runtime lighting_service integration_sources kwin_sources PROPERTIES
     CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN YES)
@@ -331,6 +335,12 @@ if(BUILD_TESTING)
         MULTI_DRIVER_DIR="$<TARGET_FILE_DIR:multi_driver_fixture>")
     add_dependencies(profile_resolution_tests multi_driver_fixture)
     add_test(NAME profile_resolution_tests COMMAND profile_resolution_tests)
+    qt_add_executable(triggers_tests tests/test_triggers.cpp)
+    target_link_libraries(triggers_tests PRIVATE lighting_runtime Qt6::Test)
+    add_test(NAME triggers_tests COMMAND triggers_tests)
+    qt_add_executable(dbus_triggers_tests tests/test_dbus_triggers.cpp)
+    target_link_libraries(dbus_triggers_tests PRIVATE lighting_service Qt6::Test)
+    add_test(NAME dbus_triggers_tests COMMAND ${DBUS_RUN_SESSION} --config-file=${CMAKE_CURRENT_SOURCE_DIR}/tests/session-bus.conf -- $<TARGET_FILE:dbus_triggers_tests>)
     qt_add_executable(runtime_scheduling_tests tests/test_runtime_scheduling.cpp)
     target_link_libraries(runtime_scheduling_tests PRIVATE lighting_runtime Qt6::Test)
     target_compile_definitions(runtime_scheduling_tests PRIVATE

@@ -294,15 +294,20 @@ private Q_SLOTS:
         effect.pauseOnBattery = true;
         QString error;
         auto json = effectPresetJson(effect);
-        QCOMPARE(json["version"].toInt(), 1);
+        QCOMPARE(json["version"].toInt(), 2);
+        QCOMPARE(json["type"].toString(), QString("solid"));
+        QCOMPARE(json["trigger"].toObject()["type"].toString(), QString("microphone"));
         QCOMPARE(json["options"].toObject(), (QJsonObject { { "color", "#c05020" } }));
         auto parsed = parseEffectPreset(QJsonDocument(json).toJson(), &error);
         QVERIFY2(parsed, qPrintable(error));
-        QCOMPARE(*parsed, effect);
+        QCOMPARE(*parsed, canonicalEffect(effect));
+        json["version"] = 1;
+        json["type"] = "microphone";
+        json.remove("trigger");
         json["options"] = QJsonObject();
         parsed = parseEffectPreset(QJsonDocument(json).toJson(), &error);
         QVERIFY(parsed);
-        QCOMPARE(parsed->microphone, MicrophoneOptions());
+        QCOMPARE(parsed->solidColor, MicrophoneOptions().color);
         for (const auto& bad : QJsonArray { "invalid", "#80ff0000", "transparent", 1, true, QJsonValue::Null,
                  QJsonObject(), QJsonArray() }) {
             json["options"] = QJsonObject { { "color", bad } };
@@ -317,6 +322,9 @@ private Q_SLOTS:
         auto local = effect;
         local.id = "local-microphone";
         local.microphone.color = Qt::green;
+        effect = canonicalEffect(effect);
+        local = canonicalEffect(local);
+        c.effects.last() = effect;
         c.presets[0].localEffects.append(local);
         c.presets[0].effects[9] = { { DefaultEffectId }, { effect.id, 40 } };
         c.presets[0].effectOverrides[9] = { { local.id, 60 } };
@@ -330,10 +338,12 @@ private Q_SLOTS:
         QVERIFY(bundle->effects.contains(effect));
         QVERIFY(exportEffectPreset(effect, dir.filePath("effect.json"), &error));
         QCOMPARE(*importEffectPreset(dir.filePath("effect.json"), &error), effect);
-        for (const auto* type : { "solid", "brightness", "ambient" }) {
+        for (const auto* type : { "solid", "brightness", "pulse" }) {
             c.presets[0].localEffects[0].type = type;
-            QVERIFY(!savePresets(c, &error));
+            QVERIFY2(savePresets(c, &error), qPrintable(error));
         }
+        c.presets[0].localEffects[0].type = "ambient";
+        QVERIFY(!savePresets(c, &error));
     }
     void brightnessPresetsRoundTripWithDefaultAndStrictRange()
     {

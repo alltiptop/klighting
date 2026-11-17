@@ -50,6 +50,42 @@ private Q_SLOTS:
             if (name.startsWith("test."))
                 qApp->setProperty(name, QVariant());
     }
+    void emptyBaseInheritsDefaultButNeverItsLayers()
+    {
+        auto c = collection();
+        auto& base = c.presets[0];
+        EffectPreset local;
+        local.id = "same-id";
+        local.type = "solid";
+        local.solidColor = Qt::yellow;
+        base.localEffects = { local };
+        base.effects[7] = { { local.id } };
+        auto empty = base;
+        empty.id = "empty";
+        empty.effects = { { DefaultAssignment, { } } };
+        empty.base.clear();
+        empty.localEffects[0].solidColor = Qt::cyan;
+        empty.layers.clear();
+        KeyboardLayer own;
+        own.conditions = { "ctrl" };
+        own.effects[7] = { { local.id } };
+        empty.layers.append(own);
+        c.presets.append(empty);
+        c.rules = { { "Empty", "empty", "empty" } };
+        LightingRuntime runtime({ }, { MULTI_DRIVER_DIR });
+        start(runtime, c);
+        runtime.setDesktop("empty", { });
+        QCOMPARE(colors(), (QVariantList { "#ffff00", "#0000ff", "#0000ff" }));
+        runtime.setDesktop("empty", { { }, Qt::ShiftModifier });
+        QCOMPARE(colors(), (QVariantList { "#ffff00", "#0000ff", "#0000ff" }));
+        runtime.setDesktop("empty", { { }, Qt::ControlModifier });
+        QCOMPARE(colors(), (QVariantList { "#00ffff", "#0000ff", "#0000ff" }));
+        // Once Base has an assignment, its explicitly empty other keys remain off.
+        c.presets[1].effects[7] = { { InlineColorId, 100, QColor(Qt::green) } };
+        runtime.configure(c);
+        runtime.setDesktop("empty", { });
+        QCOMPARE(colors(), (QVariantList { "#00ff00", "#000000", "#000000" }));
+    }
     void microphoneAssignmentsComposeAndRestoreCurrentLayer()
     {
         auto c = collection();

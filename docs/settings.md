@@ -92,7 +92,8 @@ only while the settings window is active; it is not a separate hardware test mod
 ## Effect presets
 
 **Effects** contains individual saved effect presets, not a list of available types.
-Ambient, Notifications and Microphone each have independent battery/low-charge pause settings.
+Effects have independent battery/low-charge pause settings. An optional trigger controls when
+a non-Ambient effect runs; see [Effect triggers](#effect-triggers).
 
 **Brightness** scales the result of earlier effects without changing its hue:
 100% leaves it unchanged; 0% turns it off. Place it after Solid Color or Ambient.
@@ -108,20 +109,12 @@ limits output; brightness-only devices use their available discrete levels.
   works on a 32×18 sample; it does not average every screen pixel. A dark screen
   retains the configured minimum, while hardware brightness Off remains Off.
 - **Solid Color:** a constant RGB color, composited with the assignment's opacity.
-- **Microphone:** a constant color while the system default input's mute switch is
-  unmuted, including when no application records. Muted, unknown or unavailable
-  removes the overlay and reveals the current underlay. Audio-server configuration
-  changes can briefly remove the overlay while the default input is rechecked.
-  Application-local and physical mute are visible only when exported by the audio
-  server.
-- **Notifications:** color, blink/pulse pattern, period and cycle count. Filters use
-  application desktop ID/name, category, event ID and urgency metadata; notification
-  bodies are not parsed. Missing metadata cannot establish a match. Multiple
-  notification effects can target the same keys. Power connection is also a trigger.
+- **Pulse:** color, smooth-pulse/blink/double-blink pattern and cycle duration.
+  An event trigger limits its total duration; a state trigger keeps it running while matched.
 
-**Show above all layers** places Microphone and Notifications assignments in the
-final composition group, after the active layer. Assignments within that group
-blend in list order; a later assignment can cover an earlier one.
+**Show above all layers** places non-Ambient assignments in the final composition group,
+after the active layer. Assignments within that group blend in list order; a later assignment
+can cover an earlier one.
 
 Notifications use KDE's notification watcher API over D-Bus. Screen capture is
 needed only for unpaused, assigned Ambient effects. If none needs it, readback
@@ -142,3 +135,38 @@ Files live under `$XDG_CONFIG_HOME/kwin-effect-ambient-led/` (normally
 These compatibility paths remain unchanged by the project rename. Use Export/Import
 for sharing. The index contains local device identities and application bindings;
 it is not part of an exported keyboard bundle and should not be published as source.
+
+## Effect triggers
+
+Choose an optional trigger followed by a visual effect: Solid Color, Brightness or Pulse.
+Ambient does not accept a trigger. Shared effects and local assignments use the same editor.
+Microphone and Notifications are now trigger choices; existing effects migrate automatically.
+A pulse repeats while a state condition holds. An event runs the chosen effect for the configured
+duration; repeated matching events do not extend it. Unknown/unavailable inputs are inactive.
+
+| Trigger | Observed value |
+| --- | --- |
+| Microphone | Mute state of the system default input, independently of recording activity |
+| Volume / Sound muted | Default output volume in percent / output mute state, via PulseAudio or PipeWire-Pulse |
+| Audio playing | At least one uncorked playback stream; this does not measure audible samples |
+| Power profile | `performance`, `balanced` or `power-saver` from power-profiles-daemon |
+| Second display | More than one connected DRM connector; a disabled but connected display counts |
+| Bluetooth | Any BlueZ adapter is powered |
+| Network | NetworkManager's aggregate connection state |
+| Touchpad | Any KWin touchpad is enabled |
+| Airplane mode | All available WLAN/Bluetooth/WWAN/WiMAX radios are blocked, in hardware or software |
+| Keyboard brightness | Highest brightness percentage among exported Linux keyboard-backlight LEDs |
+| Notification | Structured application, urgency, category and KDE event-ID filters; notification text is not inspected |
+| Power connected | Transition to external power |
+| D-Bus | A property or a signal's first argument; a signal with no arguments has value `true` |
+
+D-Bus uses separate bus, service, object-path, interface and member fields. It only observes:
+there are no commands, method invocation fields, property writes or service activation.
+Values are compared by type (boolean, number or text). An absent service, unavailable device,
+invalid property or incomplete address leaves the effect inactive. Optional providers need
+not be installed. D-Bus properties recover after service-owner changes; the filesystem,
+Bluetooth and touchpad observations refresh once per second while needed.
+
+An empty non-default Base inherits the same device's Base from Default. Own layers apply on
+top; Default's layers do not. Once any Base effect is assigned, empty individual assignments
+mean off. Assign black Solid Color if the entire preset should stay dark.

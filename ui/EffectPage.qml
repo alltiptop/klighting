@@ -141,74 +141,35 @@ KCMUtils.AbstractKCM {
     Loader {
         active: page.controller.selectedEffect >= 0
         anchors.fill: parent
-        sourceComponent: page.controller.effectPreset.type === "brightness" ? brightnessEditor :
-                                                                              page.controller.effectPreset.type
-                                                                              === "notifications"
-                                                                              ? notificationsEditor :
-                                                                                page.controller.effectPreset.type
-                                                                                === "microphone"
-                                                                                ? microphoneEditor :
-                                                                                  page.controller.effectPreset.type
-                                                                                  === "solid" ? solidEditor :
-                                                                                                ambientEditor
-    }
 
-    Component {
-        id: brightnessEditor
-
-        BrightnessPage {
+        sourceComponent: SettingsPage {
             controller: page.controller
             navigator: page.navigator
+            objectName: "EffectEditor"
             recorder: page.recorder
-        }
-    }
 
-    Component {
-        id: solidEditor
-
-        SolidPage {
-            controller: page.controller
-            navigator: page.navigator
-            recorder: page.recorder
-        }
-    }
-
-    Component {
-        id: ambientEditor
-
-        AmbientPage {
-            controller: page.controller
-            navigator: page.navigator
-            recorder: page.recorder
-        }
-    }
-
-    Component {
-        id: microphoneEditor
-
-        SettingsPage {
-            controller: page.controller
-            navigator: page.navigator
-            objectName: "MicrophoneEditor"
-            recorder: page.recorder
-            title: qsTranslate("AmbientLed.EffectsPage", "Microphone")
-
-            MicrophoneForm {
+            EffectSetupForm {
                 controller: page.controller
                 options: page.controller.effectPreset
+                width: parent.width
 
-                onEdited: (key, value) => page.controller.setMicrophone(key, value)
+                onEdited: (group, key, value) => {
+                    if (group === "trigger")
+                        page.controller.setTrigger(key, value);
+                    else if (group === "effect-type")
+                        page.controller.setEffectType(value);
+                    else if (group === "solid")
+                        page.controller.setSolidColor(value);
+                    else if (group === "brightness")
+                        page.controller.setBrightness(value);
+                    else if (group === "ambient")
+                        page.controller.setAmbient(key, value);
+                    else if (group === "power")
+                        page.controller.setEffectPower(key, value);
+                    else
+                        page.controller.setNotification(key, value);
+                }
             }
-        }
-    }
-
-    Component {
-        id: notificationsEditor
-
-        NotificationsPage {
-            controller: page.controller
-            navigator: page.navigator
-            recorder: page.recorder
         }
     }
 }

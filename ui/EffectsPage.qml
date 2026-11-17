@@ -67,23 +67,12 @@ SidebarPage {
                 }
 
                 QQC2.MenuItem {
-                    icon.name: "audio-input-microphone"
-                    objectName: "AddMicrophoneEffect"
-                    text: qsTranslate("AmbientLed.EffectsPage", "Microphone")
+                    icon.name: "media-playlist-repeat"
+                    objectName: "AddPulseEffect"
+                    text: qsTranslate("AmbientLed.EffectsPage", "Pulse")
 
                     onTriggered: {
-                        if (page.controller.addEffect("microphone", false))
-                            page.showEditor();
-                    }
-                }
-
-                QQC2.MenuItem {
-                    icon.name: "notifications"
-                    objectName: "AddNotificationsEffect"
-                    text: qsTranslate("AmbientLed.EffectsPage", "Notifications")
-
-                    onTriggered: {
-                        if (page.controller.addEffect("notifications", false))
+                        if (page.controller.addEffect("pulse", false))
                             page.showEditor();
                     }
                 }

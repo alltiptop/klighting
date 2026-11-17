@@ -188,17 +188,16 @@ bool SettingsController::representsDefaults() const
             && !deviceSettings().value("pauseOnLowBattery").toBool()
             && !deviceSettings().value("lightbarOffOnBattery").toBool()
             && !deviceSettings().value("lightbarOffOnLowBattery").toBool();
-    if (m_section == "effects")
-        return m_selectedEffect < 0
-            || (!m_collection.effects[m_selectedEffect].pauseOnBattery
-                && !m_collection.effects[m_selectedEffect].pauseOnLowBattery
-                && (m_collection.effects[m_selectedEffect].type == "notifications"
-                        ? m_collection.effects[m_selectedEffect].notification == NotificationOptions()
-                        : m_collection.effects[m_selectedEffect].type == "microphone"
-                        ? m_collection.effects[m_selectedEffect].microphone == MicrophoneOptions()
-                        : m_collection.effects[m_selectedEffect].type == "solid"
-                        ? m_collection.effects[m_selectedEffect].solidColor == QColor(Qt::white)
-                        : m_collection.effects[m_selectedEffect].ambient == AmbientOptions()));
+    if (m_section == "effects") {
+        if (m_selectedEffect < 0)
+            return true;
+        const auto& current = m_collection.effects[m_selectedEffect];
+        EffectPreset defaults;
+        defaults.id = current.id;
+        defaults.name = current.name;
+        defaults.type = current.type;
+        return canonicalEffect(current) == canonicalEffect(defaults);
+    }
     if (m_section == "applications")
         return m_collection.rules.isEmpty();
     const auto defaultEffect = [&]() {
@@ -330,7 +329,8 @@ void SettingsController::defaults()
         if (m_selectedEffect >= 0) {
             auto& effect = m_collection.effects[m_selectedEffect];
             effect.pauseOnBattery = effect.pauseOnLowBattery = false;
-            if (effect.type == "notifications")
+            effect.trigger = { };
+            if (effect.type == "notifications" || effect.type == "pulse")
                 effect.notification = NotificationOptions();
             else if (effect.type == "microphone")
                 effect.microphone = MicrophoneOptions();
@@ -645,10 +645,10 @@ QVariantList SettingsController::keyPreview(int layer) const
             const auto entry = value.toMap();
             if (entry["opacity"].toInt() <= 0)
                 continue;
-            if (entry["type"] == "notifications") {
+            if (entry["triggerType"] == "notification") {
                 notificationId = entry["id"].toString();
                 above |= entry["above"].toBool();
-            } else if (entry["type"] == "microphone") {
+            } else if (entry["triggerType"] == "microphone") {
                 microphoneId = entry["id"].toString();
                 microphoneAbove |= entry["above"].toBool();
             } else if (entry["type"] == "brightness") {

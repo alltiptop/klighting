@@ -105,6 +105,15 @@ KCMUtils.SimpleKCM {
                 visible: text.length > 0
             }
 
+            FormHint {
+                Layout.fillWidth: true
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 36
+                text: qsTranslate("AmbientLed.PresetPage",
+                                  "An empty Base inherits the same device's Base from Default. Your own layers still apply; Default's layers are not inherited. Assign a black Solid Color to keep this preset dark.")
+                visible: page.controller.selectedLayer < 0 && page.controller.preset.id
+                         !== page.controller.defaultId
+            }
+
             Kirigami.FormLayout {
                 Layout.alignment: Qt.AlignHCenter
                 Layout.fillWidth: true

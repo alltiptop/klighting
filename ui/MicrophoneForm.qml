@@ -7,8 +7,9 @@ Kirigami.FormLayout {
     id: form
 
     required property var controller
-    readonly property var microphone: controller.service.microphoneStatus
+    readonly property var microphone: controller?.service?.microphoneStatus || ({})
     required property var options
+    property bool triggerOnly: false
 
     signal edited(string key, var value)
 
@@ -19,6 +20,7 @@ Kirigami.FormLayout {
         fieldObjectName: "MicrophoneColor"
         label: qsTranslate("AmbientLed.MicrophoneForm", "Microphone color")
         text: form.options.microphoneColor || "#ff0000"
+        visible: !form.triggerOnly
 
         onEdited: color => form.edited("color", color)
     }
@@ -26,6 +28,7 @@ Kirigami.FormLayout {
     FormHint {
         text: qsTranslate("AmbientLed.MicrophoneForm",
                           "Shows this color when the system default input is unmuted, even when no application records. Muted or unknown state is transparent; this is not a privacy guarantee.")
+        visible: !form.triggerOnly
     }
 
     FormHint {
@@ -66,10 +69,15 @@ Kirigami.FormLayout {
         visible: !!text
     }
 
-    EffectPowerForm {
+    Loader {
         Layout.fillWidth: true
-        options: form.options
+        active: !form.triggerOnly
+        visible: active
 
-        onEdited: (key, value) => form.edited(key, value)
+        sourceComponent: EffectPowerForm {
+            options: form.options
+
+            onEdited: (key, value) => form.edited(key, value)
+        }
     }
 }

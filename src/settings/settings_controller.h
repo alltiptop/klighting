@@ -140,6 +140,8 @@ public:
     Q_INVOKABLE QVariantMap localEffectOptions(const QString& id) const;
     Q_INVOKABLE QVariantMap assignedEffectOptions(const QString& id) const;
     Q_INVOKABLE void setAssignedColor(int layer, const QVariantList& ids, const QString& color);
+    Q_INVOKABLE void setTrigger(const QString& key, const QVariant& value, const QString& localId = { });
+    Q_INVOKABLE void setEffectType(const QString& type, const QString& localId = { });
     Q_INVOKABLE void setMicrophone(const QString& key, const QVariant& value, const QString& localId = { });
     Q_INVOKABLE void setNotification(const QString& key, const QVariant& value, const QString& localId = { });
     Q_INVOKABLE QVariantMap selectionEffects(int layer, const QVariantList& ids) const;

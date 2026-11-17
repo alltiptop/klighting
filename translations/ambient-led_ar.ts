@@ -477,6 +477,14 @@
         <source>New Microphone preset</source>
         <translation>إعداد مسبق جديد للميكروفون</translation>
     </message>
+    <message>
+        <source>New Pulse preset</source>
+        <translation>إعداد نبض مسبق جديد</translation>
+    </message>
+    <message>
+        <source>Pulse</source>
+        <translation>نبض</translation>
+    </message>
 </context>
 <context>
     <name>AmbientLed.AmbientForm</name>
@@ -739,6 +747,10 @@
         <source>New Microphone</source>
         <translation>ميكروفون جديد</translation>
     </message>
+    <message>
+        <source>New Pulse</source>
+        <translation>نبض جديد</translation>
+    </message>
 </context>
 <context>
     <name>AmbientLed.BrightnessForm</name>
@@ -940,6 +952,10 @@
     <message>
         <source>Microphone</source>
         <translation>الميكروفون</translation>
+    </message>
+    <message>
+        <source>Pulse</source>
+        <translation>نبض</translation>
     </message>
 </context>
 <context>
@@ -1561,6 +1577,10 @@
         <source>Remove this preset? Devices using it will have no default preset. You can undo pending changes with Reset.</source>
         <translation>هل تريد إزالة هذا الإعداد المسبق؟ لن يكون للأجهزة التي تستخدمه إعداد مسبق افتراضي. يمكنك التراجع عن التغييرات المعلقة باستخدام إعادة الضبط.</translation>
     </message>
+    <message>
+        <source>An empty Base inherits the same device's Base from Default. Your own layers still apply; Default's layers are not inherited. Assign a black Solid Color to keep this preset dark.</source>
+        <translation>ترث القاعدة الفارغة قاعدة الجهاز نفسه من Default. تبقى طبقاتك فعّالة دون وراثة طبقات Default. عيّن لونًا أسود ثابتًا لإبقاء هذا الإعداد مظلمًا.</translation>
+    </message>
 </context>
 <context>
     <name>AmbientLed.PresetsPage</name>
@@ -1827,6 +1847,200 @@
         <location line="+4"/>
         <source>Applications</source>
         <translation>التطبيقات</translation>
+    </message>
+</context>
+<context>
+    <name>AmbientLed.EffectSetupForm</name>
+    <message>
+        <source>Effect:</source>
+        <translation>التأثير:</translation>
+    </message>
+    <message>
+        <source>Solid Color</source>
+        <translation>لون ثابت</translation>
+    </message>
+</context>
+<context>
+    <name>AmbientLed.TriggerForm</name>
+    <message>
+        <source>Airplane mode</source>
+        <translation>وضع الطيران</translation>
+    </message>
+    <message>
+        <source>Always</source>
+        <translation>دائمًا</translation>
+    </message>
+    <message>
+        <source>Any value</source>
+        <translation>أي قيمة</translation>
+    </message>
+    <message>
+        <source>Asleep</source>
+        <translation>في وضع السكون</translation>
+    </message>
+    <message>
+        <source>Audio playing</source>
+        <translation>تشغيل الصوت</translation>
+    </message>
+    <message>
+        <source>Balanced</source>
+        <translation>متوازن</translation>
+    </message>
+    <message>
+        <source>Bluetooth enabled</source>
+        <translation>بلوتوث مفعّل</translation>
+    </message>
+    <message>
+        <source>Boolean</source>
+        <translation>منطقي</translation>
+    </message>
+    <message>
+        <source>Bus:</source>
+        <translation>الناقل:</translation>
+    </message>
+    <message>
+        <source>Condition:</source>
+        <translation>الشرط:</translation>
+    </message>
+    <message>
+        <source>Connecting</source>
+        <translation>جارٍ الاتصال</translation>
+    </message>
+    <message>
+        <source>Disconnected</source>
+        <translation>غير متصل</translation>
+    </message>
+    <message>
+        <source>Event duration (ms):</source>
+        <translation>مدة الحدث (مللي ثانية):</translation>
+    </message>
+    <message>
+        <source>Interface:</source>
+        <translation>الواجهة:</translation>
+    </message>
+    <message>
+        <source>Keyboard brightness</source>
+        <translation>سطوع لوحة المفاتيح</translation>
+    </message>
+    <message>
+        <source>Microphone</source>
+        <translation>الميكروفون</translation>
+    </message>
+    <message>
+        <source>Network state</source>
+        <translation>حالة الشبكة</translation>
+    </message>
+    <message>
+        <source>Network state:</source>
+        <translation>حالة الشبكة:</translation>
+    </message>
+    <message>
+        <source>Notification</source>
+        <translation>إشعار</translation>
+    </message>
+    <message>
+        <source>Number</source>
+        <translation>رقم</translation>
+    </message>
+    <message>
+        <source>Object path:</source>
+        <translation>مسار الكائن:</translation>
+    </message>
+    <message>
+        <source>Observe:</source>
+        <translation>مراقبة:</translation>
+    </message>
+    <message>
+        <source>Performance</source>
+        <translation>الأداء</translation>
+    </message>
+    <message>
+        <source>Power connected</source>
+        <translation>توصيل الطاقة</translation>
+    </message>
+    <message>
+        <source>Power profile</source>
+        <translation>ملف الطاقة</translation>
+    </message>
+    <message>
+        <source>Power profile:</source>
+        <translation>ملف الطاقة:</translation>
+    </message>
+    <message>
+        <source>Property</source>
+        <translation>خاصية</translation>
+    </message>
+    <message>
+        <source>Property or signal:</source>
+        <translation>خاصية أو إشارة:</translation>
+    </message>
+    <message>
+        <source>Second display connected</source>
+        <translation>الشاشة الثانية متصلة</translation>
+    </message>
+    <message>
+        <source>Service:</source>
+        <translation>الخدمة:</translation>
+    </message>
+    <message>
+        <source>Session</source>
+        <translation>الجلسة</translation>
+    </message>
+    <message>
+        <source>Signal</source>
+        <translation>إشارة</translation>
+    </message>
+    <message>
+        <source>Signals compare their first argument. A signal without arguments has the value true. Only observation is supported.</source>
+        <translation>تُقارن الوسيطة الأولى للإشارة. الإشارة دون وسائط قيمتها true. المراقبة فقط مدعومة.</translation>
+    </message>
+    <message>
+        <source>Site connection</source>
+        <translation>اتصال بالموقع</translation>
+    </message>
+    <message>
+        <source>Sound muted</source>
+        <translation>الصوت مكتوم</translation>
+    </message>
+    <message>
+        <source>State:</source>
+        <translation>الحالة:</translation>
+    </message>
+    <message>
+        <source>System</source>
+        <translation>النظام</translation>
+    </message>
+    <message>
+        <source>Threshold (%):</source>
+        <translation>الحد (%):</translation>
+    </message>
+    <message>
+        <source>Touchpad enabled</source>
+        <translation>لوحة اللمس مفعّلة</translation>
+    </message>
+    <message>
+        <source>Trigger:</source>
+        <translation>المحفّز:</translation>
+    </message>
+    <message>
+        <source>Unavailable sources leave the effect inactive. Repeated events are coalesced until the current event ends.</source>
+        <translation>يبقى التأثير غير نشط إذا كان المصدر غير متاح. تُدمج الأحداث المتكررة حتى ينتهي الحدث الحالي.</translation>
+    </message>
+    <message>
+        <source>Unmuted</source>
+        <translation>غير مكتوم</translation>
+    </message>
+    <message>
+        <source>Value type:</source>
+        <translation>نوع القيمة:</translation>
+    </message>
+    <message>
+        <source>Value:</source>
+        <translation>القيمة:</translation>
+    </message>
+    <message>
+        <source>Volume</source>
+        <translation>مستوى الصوت</translation>
     </message>
 </context>
 </TS>

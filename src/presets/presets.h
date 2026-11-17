@@ -2,6 +2,7 @@
 #pragma once
 #include "config/settings.h"
 #include "keyboard_profile.h"
+#include "triggers/trigger_options.h"
 #include <QJsonObject>
 #include <QSet>
 #include <optional>
@@ -77,11 +78,13 @@ struct EffectPreset {
     AmbientOptions ambient;
     NotificationOptions notification;
     MicrophoneOptions microphone;
+    TriggerOptions trigger;
     QColor solidColor = Qt::white;
     int brightness = 100;
     bool pauseOnBattery = false, pauseOnLowBattery = false;
     bool operator==(const EffectPreset&) const = default;
 };
+EffectPreset canonicalEffect(EffectPreset effect);
 struct DeviceProfile {
     QString id = QStringLiteral("default"), name = QStringLiteral("Default");
     QString targetDevice; // Empty for legacy model-wide profiles.
@@ -150,6 +153,8 @@ struct PresetCollection {
     std::optional<QList<DeviceConfiguration>> devices = std::nullopt;
     bool operator==(const PresetCollection&) const = default;
 };
+DeviceProfile resolvedDeviceProfile(
+    const PresetCollection& collection, int index, const DeviceConfiguration& device);
 QList<EffectPreset> runtimeEffects(const PresetCollection& collection);
 QString scopedEffectId(const DeviceProfile& preset, const QString& id);
 PresetCollection defaultCollection(const QString& deviceId = QStringLiteral("unknown-device"));

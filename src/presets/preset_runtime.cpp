@@ -304,9 +304,12 @@ QString scopedEffectId(const DeviceProfile& preset, const QString& id)
 QList<EffectPreset> runtimeEffects(const PresetCollection& collection)
 {
     auto result = collection.effects;
+    for (auto& effect : result)
+        effect = canonicalEffect(effect);
     for (const auto& scene : collection.presets)
         for (const auto* preset : deviceProfiles(scene))
             for (auto effect : preset->localEffects) {
+                effect = canonicalEffect(effect);
                 effect.id = scopedEffectId(*preset, effect.id);
                 result.append(effect);
             }
@@ -441,6 +444,73 @@ const DeviceProfile* profileFor(const LightingPreset& preset, const DeviceConfig
             && (profile->targetDevice.isEmpty() || profile->targetDevice == device.identity()))
             return profile;
     return nullptr;
+}
+DeviceProfile resolvedDeviceProfile(const PresetCollection& c, int index, const DeviceConfiguration& device)
+{
+    const auto* selected = profileFor(c.presets[index], device);
+    if (!selected)
+        return { };
+    auto result = *selected;
+    if (c.presets[index].id == c.defaultId)
+        return result;
+    const auto assigned = [](const EffectAssignments& assignments) {
+        return std::any_of(
+            assignments.cbegin(), assignments.cend(), [](const auto& list) { return !list.isEmpty(); });
+    };
+    // A completely empty Base inherits as a whole; individual empty key lists
+    // still mean off whenever this profile has any Base assignment of its own.
+    if (assigned(result.effects) || assigned(result.effectOverrides) || !result.gradients.isEmpty()
+        || std::any_of(result.base.cbegin(), result.base.cend(), [](const auto& style) {
+               return style.mode == KeyMode::Ambient
+                   || (style.mode == KeyMode::Static && style.color.alpha() > 0);
+           }))
+        return result;
+    const DeviceProfile* fallback = nullptr;
+    for (const auto& scene : c.presets)
+        if (scene.id == c.defaultId)
+            fallback = profileFor(scene, device);
+    if (!fallback)
+        return result;
+    const auto qualify = [](DeviceProfile& p) {
+        const auto id = [&](const QString& value) {
+            return scopedEffectId(p, value.isEmpty() ? p.defaultEffectId : value);
+        };
+        const auto styles = [&](KeyboardStyles& values) {
+            for (auto& style : values)
+                if (style.mode == KeyMode::Ambient)
+                    style.effectId = id(style.effectId);
+        };
+        const auto assignments = [&](EffectAssignments& values) {
+            for (auto& list : values)
+                for (auto& effect : list)
+                    effect.id = id(effect.id);
+        };
+        const auto gradients = [&](StripGradients& values) {
+            for (auto& gradient : values)
+                if (gradient.ambient)
+                    gradient.effectId = id(gradient.effectId);
+        };
+        styles(p.base);
+        assignments(p.effects);
+        assignments(p.effectOverrides);
+        gradients(p.gradients);
+        for (auto& layer : p.layers) {
+            styles(layer.styles);
+            assignments(layer.effects);
+            gradients(layer.gradients);
+        }
+        p.defaultEffectId = id(p.defaultEffectId);
+        p.localEffects.clear(); // References now point to runtimeEffects' qualified IDs.
+    };
+    qualify(result);
+    auto base = *fallback;
+    qualify(base);
+    result.base = base.base;
+    result.effects = base.effects;
+    result.gradients = base.gradients;
+    result.effectOverrides = base.effectOverrides;
+    result.defaultEffectId = base.defaultEffectId;
+    return result;
 }
 QSet<QString> referencedEffects(const LightingPreset& preset)
 {

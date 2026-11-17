@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
-#include "effects/notification_effect.h"
+#include "triggers/notification_trigger.h"
 #include <QDBusConnection>
 #include <QDBusContext>
 #include <QDBusServiceWatcher>

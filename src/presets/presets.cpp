@@ -139,9 +139,42 @@ namespace
         a.temperature = std::clamp(a.temperature, -100, 100);
     }
 }
-bool supportsEffectOverride(const QString& type)
+bool supportsEffectOverride(const QString& type) { return type != QLatin1String("ambient"); }
+EffectPreset canonicalEffect(EffectPreset p)
 {
-    return type == QLatin1String("notifications") || type == QLatin1String("microphone");
+    if (p.type == "microphone") {
+        p.type = "solid";
+        p.solidColor = p.microphone.color;
+        p.trigger.type = "microphone";
+        p.trigger.value = false; // The old indicator meant unmuted.
+    } else if (p.type == "notifications") {
+        p.type = "pulse";
+        p.trigger.type = p.notification.trigger;
+        p.trigger.duration = p.notification.period * p.notification.cycles;
+        p.trigger.urgency = p.notification.urgency;
+        p.trigger.application = p.notification.application;
+        p.trigger.category = p.notification.category;
+        p.trigger.eventId = p.notification.eventId;
+    }
+    // Ignore obsolete payloads so migrations and type changes have stable round trips.
+    p.microphone = { };
+    if (p.type != "pulse")
+        p.notification = { };
+    else {
+        p.notification.application.clear();
+        p.notification.category.clear();
+        p.notification.eventId.clear();
+        p.notification.urgency = -1;
+        p.notification.cycles = 3;
+        p.notification.trigger = "notification";
+    }
+    if (p.type != "ambient")
+        p.ambient = { };
+    if (p.type != "solid")
+        p.solidColor = Qt::white;
+    if (p.type != "brightness")
+        p.brightness = 100;
+    return p;
 }
 static QJsonObject effectDefinitionJson(const EffectPreset& p)
 {
@@ -151,18 +184,6 @@ static QJsonObject effectDefinitionJson(const EffectPreset& p)
     if (p.type == "solid")
         return { { "format", "ambient-led-effect" }, { "version", 1 }, { "id", p.id }, { "name", p.name },
             { "type", p.type }, { "options", QJsonObject { { "color", p.solidColor.name() } } } };
-    if (p.type == "microphone")
-        return { { "format", "ambient-led-effect" }, { "version", 1 }, { "id", p.id }, { "name", p.name },
-            { "type", p.type }, { "options", QJsonObject { { "color", p.microphone.color.name() } } } };
-    if (p.type == "notifications") {
-        const auto& n = p.notification;
-        return { { "format", "ambient-led-effect" }, { "version", 1 }, { "id", p.id }, { "name", p.name },
-            { "type", p.type },
-            { "options",
-                QJsonObject { { "color", n.color.name() }, { "pattern", n.pattern }, { "period", n.period },
-                    { "cycles", n.cycles }, { "urgency", n.urgency }, { "application", n.application },
-                    { "category", n.category }, { "eventId", n.eventId }, { "trigger", n.trigger } } } };
-    }
     const auto& a = p.ambient;
     return { { "format", "ambient-led-effect" }, { "version", 1 }, { "id", p.id }, { "name", p.name },
         { "type", p.type },
@@ -170,9 +191,17 @@ static QJsonObject effectDefinitionJson(const EffectPreset& p)
             QJsonObject { { "fps", a.fps }, { "ledFps", a.ledFps }, { "smoothing", a.smoothing },
                 { "minimum", a.minimum }, { "maximum", a.maximum }, { "temperature", a.temperature } } } };
 }
-QJsonObject effectPresetJson(const EffectPreset& p)
+QJsonObject effectPresetJson(const EffectPreset& input)
 {
+    const auto p = canonicalEffect(input);
     auto result = effectDefinitionJson(p);
+    if (p.type == "pulse") {
+        result["options"] = QJsonObject { { "color", p.notification.color.name() },
+            { "pattern", p.notification.pattern }, { "period", p.notification.period } };
+    }
+    result["version"] = 2;
+    if (!p.trigger.type.isEmpty())
+        result["trigger"] = triggerJson(p.trigger);
     result.insert("power",
         QJsonObject { { "pauseOnBattery", p.pauseOnBattery }, { "pauseOnLowBattery", p.pauseOnLowBattery } });
     return result;
@@ -180,11 +209,12 @@ QJsonObject effectPresetJson(const EffectPreset& p)
 std::optional<EffectPreset> parseEffectPreset(const QByteArray& data, QString* error)
 {
     const auto o = QJsonDocument::fromJson(data).object();
+    const int version = o["version"].toInt();
+    const auto types = version == 1
+        ? QStringList { "ambient", "solid", "brightness", "notifications", "microphone" }
+        : QStringList { "ambient", "solid", "brightness", "pulse" };
     if (data.size() > MaxFileBytes || o["format"] != QLatin1String("ambient-led-effect")
-        || o["version"].toInt() != 1
-        || (o["type"] != QLatin1String("ambient") && o["type"] != QLatin1String("notifications")
-            && o["type"] != QLatin1String("solid") && o["type"] != QLatin1String("brightness")
-            && o["type"] != QLatin1String("microphone"))
+        || (version != 1 && version != 2) || !types.contains(o["type"].toString())
         || !o["options"].isObject()) {
         *error = QStringLiteral("Invalid effect preset or unsupported effect type/version.");
         return std::nullopt;
@@ -206,6 +236,20 @@ std::optional<EffectPreset> parseEffectPreset(const QByteArray& data, QString* e
     p.pauseOnBattery = power["pauseOnBattery"].toBool();
     p.pauseOnLowBattery = power["pauseOnLowBattery"].toBool();
     p.type = o["type"].toString();
+    if (o.contains("trigger")) {
+        if (o["version"].toInt() != 2 || !o["trigger"].isObject()) {
+            *error = QStringLiteral("Invalid trigger definition.");
+            return std::nullopt;
+        }
+        const auto trigger = parseTrigger(o["trigger"].toObject(), error);
+        if (!trigger)
+            return std::nullopt;
+        if (p.type == "ambient" && !trigger->type.isEmpty()) {
+            *error = QStringLiteral("Ambient effects do not support triggers.");
+            return std::nullopt;
+        }
+        p.trigger = *trigger;
+    }
     const auto a = o["options"].toObject();
     if (p.type == "brightness") {
         const auto value = a["brightness"];
@@ -214,7 +258,7 @@ std::optional<EffectPreset> parseEffectPreset(const QByteArray& data, QString* e
             return std::nullopt;
         }
         p.brightness = value.toInt(p.brightness);
-        return p;
+        return canonicalEffect(p);
     }
     if (p.type == "solid") {
         p.solidColor = QColor(a["color"].toString());
@@ -223,7 +267,7 @@ std::optional<EffectPreset> parseEffectPreset(const QByteArray& data, QString* e
                 "Invalid Solid Color. Use an opaque RGB color and effect intensity for opacity.");
             return std::nullopt;
         }
-        return p;
+        return canonicalEffect(p);
     }
     if (p.type == "microphone") {
         const auto value = a["color"];
@@ -234,9 +278,9 @@ std::optional<EffectPreset> parseEffectPreset(const QByteArray& data, QString* e
             *error = QStringLiteral("Invalid microphone color. Use an opaque RGB color.");
             return std::nullopt;
         }
-        return p;
+        return canonicalEffect(p);
     }
-    if (p.type == "notifications") {
+    if (p.type == "notifications" || p.type == "pulse") {
         auto& n = p.notification;
         n.color = QColor(a["color"].toString(n.color.name()));
         n.pattern = a["pattern"].toString(n.pattern);
@@ -256,7 +300,7 @@ std::optional<EffectPreset> parseEffectPreset(const QByteArray& data, QString* e
             *error = QStringLiteral("Invalid notification color, pattern, timing or metadata filter.");
             return std::nullopt;
         }
-        return p;
+        return canonicalEffect(p);
     }
     auto& v = p.ambient;
     v.fps = a["fps"].toInt(v.fps);
@@ -266,7 +310,7 @@ std::optional<EffectPreset> parseEffectPreset(const QByteArray& data, QString* e
     v.maximum = a["maximum"].toInt(v.maximum);
     v.temperature = a["temperature"].toInt(v.temperature);
     normalize(v);
-    return p;
+    return canonicalEffect(p);
 }
 namespace
 {
@@ -606,8 +650,8 @@ namespace
                            return !checkColors(layer.styles) || !checkAssignments(layer.effects)
                                || !checkGradients(layer.gradients);
                        })) {
-                    *error = QStringLiteral("Use Ambient for default colors and Notifications or Microphone "
-                                            "for effects above all layers.");
+                    *error = QStringLiteral(
+                        "Use Ambient for default colors and non-Ambient effects above all layers.");
                     return false;
                 }
                 if (!(referencedEffects(p) - effects).isEmpty()) {

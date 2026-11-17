@@ -359,98 +359,55 @@ ColumnLayout {
                                 visible: !row.modelData.local && !!row.options.id
                             }
 
-                            Kirigami.FormLayout {
-                                visible: row.modelData.type === "solid"
+                            Loader {
+                                Layout.fillWidth: true
+                                active: row.modelData.id === "@color"
+                                visible: active
 
-                                HexColor {
-                                    Kirigami.FormData.label: qsTranslate("AmbientLed.AssignedEffects",
-                                                                         "Solid color")
-                                    label: qsTranslate("AmbientLed.AssignedEffects", "Solid color")
-                                    text: row.modelData.id === "@color" ? row.modelData.color || "" :
-                                                                          row.options.solidColor || "#ffffff"
+                                sourceComponent: Kirigami.FormLayout {
+                                    HexColor {
+                                        Kirigami.FormData.label: qsTranslate("AmbientLed.AssignedEffects",
+                                                                             "Solid color")
+                                        label: qsTranslate("AmbientLed.AssignedEffects", "Solid color")
+                                        text: row.modelData.color || ""
 
-                                    onEdited: color => {
-                                        if (row.modelData.id === "@color")
-                                            root.controller.setAssignedColor(root.layerIndex, root.selection,
-                                                                             color);
-                                        else {
-                                            const id = row.editId();
-                                            if (id)
-                                                root.controller.setSolidColor(color, id);
-                                        }
+                                        onEdited: color => root.controller.setAssignedColor(root.layerIndex,
+                                                                                            root.selection,
+                                                                                            color)
                                     }
                                 }
                             }
 
                             Loader {
                                 Layout.fillWidth: true
-                                active: row.expanded && !!row.options.id && row.modelData.type !== "solid"
-                                sourceComponent: row.modelData.type === "brightness" ? brightnessForm :
-                                                                                       row.modelData.type
-                                                                                       === "notifications"
-                                                                                       ? notificationsForm :
-                                                                                         row.modelData.type
-                                                                                         === "microphone"
-                                                                                         ? microphoneForm :
-                                                                                           ambientForm
+                                active: row.expanded && !!row.options.id
+                                visible: active
 
-                                Component {
-                                    id: brightnessForm
+                                sourceComponent: EffectSetupForm {
+                                    Layout.fillWidth: true
+                                    allowAmbient: !row.modelData.above
+                                    brightnessSteps: root.controller.device.brightnessSteps || 0
+                                    controller: root.controller
+                                    options: row.options
 
-                                    BrightnessForm {
-                                        brightnessSteps: root.controller.device.brightnessSteps || 0
-                                        options: row.options
-
-                                        onEdited: value => {
-                                            const id = row.editId();
-                                            if (id)
-                                                root.controller.setBrightness(value, id);
-                                        }
-                                    }
-                                }
-
-                                Component {
-                                    id: ambientForm
-
-                                    AmbientForm {
-                                        controller: root.controller
-                                        options: row.options
-
-                                        onEdited: (key, value) => {
-                                            const id = row.editId();
-                                            if (id)
-                                                root.controller.setAmbient(key, value, id);
-                                        }
-                                    }
-                                }
-
-                                Component {
-                                    id: microphoneForm
-
-                                    MicrophoneForm {
-                                        controller: root.controller
-                                        options: row.options
-
-                                        onEdited: (key, value) => {
-                                            const id = row.editId();
-                                            if (id)
-                                                root.controller.setMicrophone(key, value, id);
-                                        }
-                                    }
-                                }
-
-                                Component {
-                                    id: notificationsForm
-
-                                    NotificationsForm {
-                                        controller: root.controller
-                                        options: row.options
-
-                                        onEdited: (key, value) => {
-                                            const id = row.editId();
-                                            if (id)
-                                                root.controller.setNotification(key, value, id);
-                                        }
+                                    onEdited: (group, key, value) => {
+                                        const id = row.editId();
+                                        if (!id)
+                                            return;
+                                        if (group === "trigger")
+                                            root.controller.setTrigger(key, value, id);
+                                        else if (group === "effect-type")
+                                            root.controller.setEffectType(value, id);
+                                        else if (group === "solid")
+                                            root.controller.setSolidColor(value, id);
+                                        else if (group === "brightness")
+                                            root.controller.setBrightness(value, id);
+                                        else if (group === "ambient")
+                                            root.controller.setAmbient(key, value, id);
+                                        else if (group === "power")
+                                            root.controller.setEffectPower(key, value, id);
+                                        else
+                                            root.controller.setNotification(key, value, id);
                                     }
                                 }
                             }
@@ -492,8 +449,7 @@ ColumnLayout {
                                     checked: row.modelData.above
                                     objectName: "AssignedEffectAboveLayers"
                                     text: qsTranslate("AmbientLed.AssignedEffects", "Show above all layers")
-                                    visible: row.modelData.type === "notifications" || row.modelData.type
-                                             === "microphone"
+                                    visible: row.modelData.id !== "@color" && row.options.type !== "ambient"
 
                                     onToggled: {
                                         root.expandedAbove = checked;
@@ -593,12 +549,8 @@ ColumnLayout {
                             name: qsTranslate("AmbientLed.AssignedEffects", "New Ambient")
                         },
                         {
-                            type: "microphone",
-                            name: qsTranslate("AmbientLed.AssignedEffects", "New Microphone")
-                        },
-                        {
-                            type: "notifications",
-                            name: qsTranslate("AmbientLed.AssignedEffects", "New Notifications")
+                            type: "pulse",
+                            name: qsTranslate("AmbientLed.AssignedEffects", "New Pulse")
                         }
                     ]
 

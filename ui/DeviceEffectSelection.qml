@@ -99,6 +99,21 @@ QtObject {
               });
     }
 
+    function setEffectPower(key, value, id) {
+        apply("power", {
+                  id: id,
+                  key: key,
+                  value: value
+              });
+    }
+
+    function setEffectType(value, id) {
+        apply("effect-type", {
+                  id: id,
+                  value: value
+              });
+    }
+
     function setMicrophone(key, value, id) {
         apply("microphone", {
                   id: id,
@@ -118,6 +133,14 @@ QtObject {
     function setSolidColor(value, id) {
         apply("solid", {
                   id: id,
+                  value: value
+              });
+    }
+
+    function setTrigger(key, value, id) {
+        apply("trigger", {
+                  id: id,
+                  key: key,
                   value: value
               });
     }

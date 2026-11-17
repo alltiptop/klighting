@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "effects/effect_palette.h"
+#include "effects/notification_effect.h"
 #include "sources/notification_source.h"
 #include <QDBusPendingCallWatcher>
 #include <QDBusPendingReply>
@@ -141,7 +142,7 @@ private Q_SLOTS:
         QString error;
         const auto parsed = parseEffectPreset(QJsonDocument(effectPresetJson(power)).toJson(), &error);
         QVERIFY2(parsed, qPrintable(error));
-        QCOMPARE(*parsed, power);
+        QCOMPARE(*parsed, canonicalEffect(power));
         NotificationEffects engine;
         engine.configure({ power }, { "notify" });
         engine.trigger(connected);
@@ -242,6 +243,7 @@ private Q_SLOTS:
         n.notification.application = "org.kde.kate";
         n.notification.category = "transfer.error";
         n.notification.urgency = 2;
+        n = canonicalEffect(n);
         c.effects << n;
         auto& p = c.presets[0];
         p.effects[14] = { { "" }, { n.id } };
